@@ -10,10 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.ResponseProcessingException;
+import javax.ws.rs.client.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.Serializable;
@@ -422,11 +419,19 @@ public class AlfrescoWebscriptClient {
                 .get(Transactions.class);
     }
 
-    public AclChangeSets getAclChangeSets(Long fromId, int maxResults) {
+    public AclChangeSets getAclChangeSets(Long fromId, Long fromTime, Integer maxResults) {
         String url = getUrl(URL_ACL_CHANGESETS);
-        return client.target(url)
-                .queryParam("fromId", fromId)
-                .queryParam("maxResults", maxResults)
+        WebTarget webTarget = client.target(url);
+        if(fromId != null) {
+            webTarget = webTarget.queryParam("fromId", fromId);
+        }
+        if(maxResults != null) {
+            webTarget = webTarget.queryParam("maxResults", maxResults);
+        }
+        if(fromTime != null) {
+            webTarget = webTarget.queryParam("fromTime", fromTime);
+        }
+        return webTarget
                 .request(MediaType.APPLICATION_JSON)
                 .get(AclChangeSets.class);
     }
