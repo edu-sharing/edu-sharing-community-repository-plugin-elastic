@@ -199,7 +199,6 @@ public class AlfrescoWebscriptClient {
     }
 
     public List<NodeMetadata> getNodeMetadataByAllowedTypes(List<Node> nodes, final List<String> types) {
-
         List<Long> dbnodeids = new ArrayList<>();
         for (Node node : nodes) {
             dbnodeids.add(node.getId());
@@ -327,8 +326,9 @@ public class AlfrescoWebscriptClient {
                     allowedChildTypes.add("ALL");
                 } else if ("ccm:map".equals(nodeData.getNodeMetadata().getType())
                         && nodeData.getNodeMetadata().getAspects().contains("ccm:collection")) {
-                    // map/folder -> we only allow specific elements relvant for maps
-                    allowedChildTypes.add("ccm:collection_proposal");
+                    // map/folder -> we only allow specific elements relevant for maps
+                    // this is to expensive here! Proposals will be individually tracked anyway
+                    // allowedChildTypes.add("ccm:collection_proposal");
                 }
 
                 List<Node> children = new ArrayList<>();
