@@ -76,15 +76,10 @@ public class AclTracker {
                 aclChangeSets = alfClient.getAclChangeSets(nextACLChangeSetId,null, AclTracker.maxResults);
             }
 
-
             if (aclChangeSets.getAclChangeSets().isEmpty()) {
                 logger.info("index is up to date:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
-                    MetricContextHolder.getAclContext().getProgress().set(100 * PROGRESS_FACTOR);
-                    MetricContextHolder.getAclContext().getTimestamp().set(System.currentTimeMillis());
-                } else {
-                    //should not happen
-                    logger.info("did not found new aclchangesets in last aclchangeset block from:" + (nextACLChangeSetId ) + " MaxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
-                }
+                MetricContextHolder.getAclContext().getProgress().set(100 * PROGRESS_FACTOR);
+                MetricContextHolder.getAclContext().getTimestamp().set(System.currentTimeMillis());
                 return false;
             }
 
