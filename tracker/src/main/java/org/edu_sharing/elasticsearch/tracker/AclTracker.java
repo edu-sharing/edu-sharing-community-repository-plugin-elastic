@@ -78,9 +78,9 @@ public class AclTracker {
 
 
             if (aclChangeSets.getAclChangeSets().isEmpty()) {
+                MetricContextHolder.getAclContext().getProgress().set((long) (100 * PROGRESS_FACTOR));
+                MetricContextHolder.getAclContext().getTimestamp().set(System.currentTimeMillis());
                 logger.info("index is up to date:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
-                MetricContextHolder.getAclContext().getProgress().set((long) (percentage * PROGRESS_FACTOR));
-                MetricContextHolder.getAclContext().getTimestamp().set(lastFromCommitTime);
                 return false;
             }
 
