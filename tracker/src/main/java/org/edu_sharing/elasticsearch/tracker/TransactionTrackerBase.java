@@ -11,16 +11,18 @@ import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
+import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
+
+import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
 
 @Slf4j
 public abstract class TransactionTrackerBase implements TransactionTracker {
@@ -85,6 +87,8 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             long maxTrackerTxnId = transactions.getMaxTxnId();
 
             if (transactions.getTransactions().isEmpty()) {
+                MetricContextHolder.getTransactionContext().getProgress().set((long) (100 * PROGRESS_FACTOR));
+                MetricContextHolder.getTransactionContext().getTimestamp().set(System.currentTimeMillis());
                 if (trackerStrategy.getLimit() != null) {
                     log.info("max transaction limit by strategy reached: {} / {}", maxTrackerTxnId, trackerStrategy.getLimit());
                     return false;
@@ -117,6 +121,8 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
             // log progress
             DecimalFormat df = new DecimalFormat("0.00");
+            MetricContextHolder.getTransactionContext().getProgress().set((long) (calcProgress(transactions, transactionIds) * PROGRESS_FACTOR));
+            MetricContextHolder.getTransactionContext().getTimestamp().set(lastTransactionTimestamp);
             log.info("finished {}% ({} hours behind), lastTransactionId: {} transactions: {} nodes: {} Stack size: {}",
                     df.format(calcProgress(transactions, transactionIds)),
                     df.format((System.currentTimeMillis() - lastTransactionTimestamp) / 1000.0 / 60 / 24),

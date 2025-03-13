@@ -1,9 +1,12 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core.migration;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.Conflicts;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.tasks.GetTasksResponse;
 import co.elastic.clients.elasticsearch.tasks.TaskInfo;
+import jakarta.json.JsonArray;
+import jakarta.json.JsonObject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
@@ -228,6 +231,16 @@ public class MigrationService {
                         if (tasksResponse.error() != null) {
                             throw new MigrationException(String.format("Task %s:%s failed with: %s", task.node(), task.id(), tasksResponse.error().reason()));
                         }
+                        if(tasksResponse.response() != null) {
+                            // failures array is not mapped to the model for some strange reason
+                            JsonObject json = tasksResponse.response().toJson().asJsonObject();
+                            if(json.containsKey("failures")) {
+                                JsonArray array = json.getJsonArray("failures");
+                                if (!array.isEmpty()) {
+                                    throw new MigrationException(String.format("Task %s:%s failed with: %s", task.node(), task.id(), array.toString()));
+                                }
+                            }
+                        }
 
                         if (Boolean.TRUE.equals(task.cancelled())) {
                             throw new MigrationException(String.format("Task %s:%s was cancelled", task.node(), task.id()));
@@ -236,7 +249,6 @@ public class MigrationService {
                         if (tasksResponse.completed()) {
                             log.info("reindexing transactions finished: {}", task);
                             if (requiresDocumentMigration) {
-
                                 log.info("create document migration transactions index");
                                 IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionIndex));
                                 adminService.createIndex(indexConfiguration);
@@ -296,6 +308,7 @@ public class MigrationService {
         String reindex(String sourceIndex, String targetIndex) throws IOException {
             String task = client.reindex(req -> req
                             .waitForCompletion(false)
+                            .conflicts(Conflicts.Proceed)
                             .source(src -> src.index(sourceIndex))
                             .dest(dest -> dest.index(targetIndex)))
                     .task();

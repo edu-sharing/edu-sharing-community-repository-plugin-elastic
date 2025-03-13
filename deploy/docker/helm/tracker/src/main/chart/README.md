@@ -76,7 +76,7 @@
 | `job.migration.image.name`                         | Set name for migration job image               | `${docker.prefix}-deploy-docker-build-tracker` |
 | `job.migration.image.tag`                          | Set tag for migration job image                | `${docker.tag}`                                |
 | `job.migration.podAnnotations`                     | Set pod annotations for migration job          | `{}`                                           |
-| `job.migration.startupProbe.failureThreshold`      | Failure threshold for startupProbe             | `30`                                           |
+| `job.migration.startupProbe.failureThreshold`      | Failure threshold for startupProbe             | `300`                                          |
 | `job.migration.startupProbe.initialDelaySeconds`   | Initial delay seconds for startupProbe         | `0`                                            |
 | `job.migration.startupProbe.periodSeconds`         | Period seconds for startupProbe                | `20`                                           |
 | `job.migration.startupProbe.successThreshold`      | Success threshold for startupProbe             | `1`                                            |

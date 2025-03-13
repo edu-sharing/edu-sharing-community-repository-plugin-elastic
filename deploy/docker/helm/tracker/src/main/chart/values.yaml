@@ -254,7 +254,7 @@ job:
 
     startupProbe:
       ## @param job.migration.startupProbe.failureThreshold Failure threshold for startupProbe
-      failureThreshold: 30
+      failureThreshold: 300
       ## @param job.migration.startupProbe.initialDelaySeconds Initial delay seconds for startupProbe
       initialDelaySeconds: 0
       ## @param job.migration.startupProbe.periodSeconds Period seconds for startupProbe
