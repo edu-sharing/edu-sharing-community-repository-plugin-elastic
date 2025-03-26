@@ -565,7 +565,11 @@ public class WorkspaceService {
         } else if (value instanceof String) {
             protocol = Collections.singletonList((String) value);
         } else {
-            logger.warn("Unable to convert worfklow protocol of type " + value.getClass().getName());
+            if(value != null ) {
+                logger.warn("Unable to convert worfklow protocol of type " + value.getClass().getName());
+            } else {
+                logger.warn("Unable to convert worfklow protocol (null)");
+            }
             return;
         }
         builder.startArray("workflow");
