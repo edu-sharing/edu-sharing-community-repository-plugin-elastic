@@ -206,7 +206,7 @@ public class WorkspaceService {
         logger.info("returning");
     }
 
-    private void fillData(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
+    public void fillData(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
         fillData(nodeData, builder, null);
     }
 
@@ -595,9 +595,32 @@ public class WorkspaceService {
     }
 
     private void addNodePath(DataBuilder builder, NodeMetadata node) {
-        String[] pathEle = node.getPaths().get(0).getApath().split("/");
-        builder.field("path", Arrays.copyOfRange(pathEle, 1, pathEle.length));
-        builder.field("fullpath", StringUtils.join(Arrays.asList(Arrays.copyOfRange(pathEle, 1, pathEle.length)), '/'));
+        {
+            String[] pathEle = node.getPaths().get(0).getApath().split("/");
+            builder.field("path", Arrays.copyOfRange(pathEle, 1, pathEle.length));
+            builder.field("fullpath", StringUtils.join(Arrays.asList(Arrays.copyOfRange(pathEle, 1, pathEle.length)), '/'));
+        }
+        {
+            List<String> fullPathAll = new ArrayList<>();
+            for (Path path : node.getPaths()) {
+                String[] pathEle = path.getApath().split("/");
+                fullPathAll.add(StringUtils.join(Arrays.asList(Arrays.copyOfRange(pathEle, 1, pathEle.length)), '/'));
+            }
+            builder.field("fullpaths", fullPathAll);
+        }
+        {
+           /*
+            /{http://www.alfresco.org/model/application/1.0}company_home/{http://www.campuscontent.de/model/1.0}eeee/{http://www.campuscontent.de/model/1.0}Mercedes_x0020_Glk_x0020_-_x0020_1406.mp4/{http://www.alfresco.org/model/content/1.0}imgpreview
+            */
+            String shortPath = List.of(node.getPaths().get(0).getPath().split("/\\{")).stream()
+                    .skip(1)
+                    // add previously removed "{"
+                    .map(s -> "{"+s)
+                    // get local name
+                    .map(m ->CCConstants.getValidLocalName(m))
+                    .collect(Collectors.joining("/"));
+            builder.field("fulldisplaypath",shortPath);
+        }
     }
 
     public void refreshWorkspace() throws IOException {

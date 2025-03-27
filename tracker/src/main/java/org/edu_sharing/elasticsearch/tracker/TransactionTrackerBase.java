@@ -8,6 +8,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.Transaction;
 import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
@@ -34,6 +35,9 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     protected final WorkspaceService workspaceService;
 
     @Getter
+    protected final AuthorityService authorityService;
+
+    @Getter
     protected final EduSharingClient eduSharingClient;
 
     @Getter
@@ -49,10 +53,11 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
     protected ForkJoinPool threadPool;
 
-    protected TransactionTrackerBase(AlfrescoWebscriptClient alfClient, EduSharingClient eduSharingClient, WorkspaceService workspaceService, StatusIndexService<Tx> transactionStateService, TrackerStrategy trackerStrategy) {
+    protected TransactionTrackerBase(AlfrescoWebscriptClient alfClient, EduSharingClient eduSharingClient, WorkspaceService workspaceService, AuthorityService authorityService, StatusIndexService<Tx> transactionStateService, TrackerStrategy trackerStrategy) {
         this.alfClient = alfClient;
         this.eduSharingClient = eduSharingClient;
         this.workspaceService = workspaceService;
+        this.authorityService = authorityService;
         this.transactionStateService = transactionStateService;
         this.trackerStrategy = trackerStrategy;
     }

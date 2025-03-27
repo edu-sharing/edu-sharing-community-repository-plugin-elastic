@@ -4,6 +4,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.AlfrescoWebscriptClient;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
@@ -45,8 +46,8 @@ public class FixMissingTrackerDefault extends DefaultTransactionTracker {
 
     Long runToTx = null;
 
-    public FixMissingTrackerDefault(AlfrescoWebscriptClient alfClient, WorkspaceService workspaceService, EduSharingClient eduSharingClient, StatusIndexService<Tx> transactionStateService, TrackerStrategy strategy) {
-        super(alfClient, workspaceService, eduSharingClient, transactionStateService, strategy);
+    public FixMissingTrackerDefault(AlfrescoWebscriptClient alfClient, WorkspaceService workspaceService, AuthorityService authorityService, EduSharingClient eduSharingClient, StatusIndexService<Tx> transactionStateService, TrackerStrategy strategy) {
+        super(alfClient, workspaceService,authorityService, eduSharingClient, transactionStateService, strategy);
     }
 
 

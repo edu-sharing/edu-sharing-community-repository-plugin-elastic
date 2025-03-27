@@ -3,6 +3,7 @@ package org.edu_sharing.elasticsearch.tracker;
 import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.alfresco.client.AlfrescoWebscriptClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
@@ -19,6 +20,7 @@ public class TrackerServiceFactory {
 
     private final AlfrescoWebscriptClient alfClient;
     private final WorkspaceService workspaceService;
+    private final AuthorityService authorityService;
     private final EduSharingClient eduSharingClient;
 
     @Value("${threading.threadCount}")
@@ -46,7 +48,7 @@ public class TrackerServiceFactory {
         return createDefaultTrackerService(transactionStateService, new FixNumberOfTransactionStrategy());
     }
     public DefaultTransactionTracker createDefaultTrackerService(StatusIndexService<Tx> transactionStateService, TrackerStrategy trackerStrategy) {
-        DefaultTransactionTracker defaultTransactionTracker = new DefaultTransactionTracker(alfClient, workspaceService, eduSharingClient, transactionStateService, trackerStrategy);
+        DefaultTransactionTracker defaultTransactionTracker = new DefaultTransactionTracker(alfClient, workspaceService, authorityService, eduSharingClient, transactionStateService, trackerStrategy);
         defaultTransactionTracker.setNumberOfTransactions(numberOfTransactions);
         defaultTransactionTracker.setThreadCount(threadCount);
         defaultTransactionTracker.setIndexStoreRefs(indexStoreRefs);
