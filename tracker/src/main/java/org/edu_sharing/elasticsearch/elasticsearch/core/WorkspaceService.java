@@ -203,7 +203,7 @@ public class WorkspaceService {
             }
 
         }
-        logger.info("returning");
+        logger.debug("returning");
     }
 
     private void fillData(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
@@ -832,7 +832,7 @@ public class WorkspaceService {
         for(List<BulkOperation> p : partitions){
             this.updateBulk(p);
         }
-        logger.info("returning");
+        logger.debug("returning");
     }
 
     private void onUpdateRefreshUsageCollectionReplicas(NodeMetadata node, boolean update) throws IOException {
