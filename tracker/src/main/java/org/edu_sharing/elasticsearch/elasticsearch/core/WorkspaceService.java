@@ -414,9 +414,6 @@ public class WorkspaceService {
                     }
 
                 }
-                if ("ccm:wf_protocol".equals(key)) {
-                    mapWorkflowProtocol(value, builder);
-                }
 
                 if (value != null) {
 
@@ -428,6 +425,10 @@ public class WorkspaceService {
                 }
             }
             builder.endObject();
+
+            if (node.getProperties().get("ccm:wf_protocol") != null) {
+                mapWorkflowProtocol(node.getProperties().get("ccm:wf_protocol"), builder);
+            }
 
             builder.field("aspects", node.getAspects());
 
