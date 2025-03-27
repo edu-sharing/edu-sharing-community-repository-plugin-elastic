@@ -203,7 +203,7 @@ public class WorkspaceService {
             }
 
         }
-        logger.info("returning");
+        logger.debug("returning");
     }
 
     private void fillData(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
@@ -414,9 +414,6 @@ public class WorkspaceService {
                     }
 
                 }
-                if ("ccm:wf_protocol".equals(key)) {
-                    mapWorkflowProtocol(value, builder);
-                }
 
                 if (value != null) {
 
@@ -428,6 +425,10 @@ public class WorkspaceService {
                 }
             }
             builder.endObject();
+
+            if (node.getProperties().get("ccm:wf_protocol") != null) {
+                mapWorkflowProtocol(node.getProperties().get("ccm:wf_protocol"), builder);
+            }
 
             builder.field("aspects", node.getAspects());
 
@@ -832,7 +833,7 @@ public class WorkspaceService {
         for(List<BulkOperation> p : partitions){
             this.updateBulk(p);
         }
-        logger.info("returning");
+        logger.debug("returning");
     }
 
     private void onUpdateRefreshUsageCollectionReplicas(NodeMetadata node, boolean update) throws IOException {
