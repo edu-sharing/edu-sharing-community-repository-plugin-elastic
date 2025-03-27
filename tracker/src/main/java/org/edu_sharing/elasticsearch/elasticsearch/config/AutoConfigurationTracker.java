@@ -323,7 +323,12 @@ public class AutoConfigurationTracker {
                 )
                 .properties("workflow", workProp -> workProp
                         .nested(nt -> nt
-                                .properties("time", prop -> prop.date(v -> v))))
+                                .properties("comment", prop -> prop.keyword(v -> v))
+                                .properties("editor", prop -> prop.keyword(v -> v))
+                                .properties("receiver", prop -> prop.keyword(v -> v))
+                                .properties("status", prop -> prop.keyword(v -> v))
+                                .properties("time", prop -> prop.date(v -> v))
+                        ))
                 .properties("contributor", prop -> prop.nested(v -> v))
                 .properties("children", prop -> prop.nested(v -> v))
                 .properties("collections", colProp -> colProp.nested(v -> v))

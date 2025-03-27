@@ -19,4 +19,13 @@ public class Migrations {
     public MigrationInfo migration9_1() {
         return new MigrationInfo("9.1", false);
     }
+
+    @Bean
+    @Order(2)
+    public MigrationInfo migration10_0() {
+        /**
+         * required cause old tracker did not map workflow object correctly
+         */
+        return new MigrationInfo("10.0", true);
+    }
 }
