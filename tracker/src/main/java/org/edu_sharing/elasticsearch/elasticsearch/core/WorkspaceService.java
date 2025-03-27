@@ -890,7 +890,9 @@ public class WorkspaceService {
                         if(collection != null) {
                             builder.startObject();
                             for (Map.Entry<String, Object> entry : ((Map<String, Object>) collection.source()).entrySet()) {
-                                if (entry.getKey().equals("children")) continue;
+                                if (entry.getKey().equals("children") || entry.getKey().equals("collections")) {
+                                    continue;
+                                }
                                 builder.field(entry.getKey(), entry.getValue());
                             }
                             addUsageRelation(usage, builder);
