@@ -426,8 +426,8 @@ public class WorkspaceService {
             }
             builder.endObject();
 
-            if (node.getProperties().get("ccm:wf_protocol") != null) {
-                mapWorkflowProtocol(node.getProperties().get("ccm:wf_protocol"), builder);
+            if (node.getProperties().get(CCConstants.CCM_PROP_WF_PROTOCOL) != null) {
+                mapWorkflowProtocol(node.getProperties().get(CCConstants.CCM_PROP_WF_PROTOCOL), builder);
             }
 
             builder.field("aspects", node.getAspects());
