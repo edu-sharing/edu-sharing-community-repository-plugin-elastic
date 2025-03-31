@@ -426,8 +426,8 @@ public class WorkspaceService {
             }
             builder.endObject();
 
-            if (node.getProperties().get("ccm:wf_protocol") != null) {
-                mapWorkflowProtocol(node.getProperties().get("ccm:wf_protocol"), builder);
+            if (node.getProperties().get(CCConstants.CCM_PROP_WF_PROTOCOL) != null) {
+                mapWorkflowProtocol(node.getProperties().get(CCConstants.CCM_PROP_WF_PROTOCOL), builder);
             }
 
             builder.field("aspects", node.getAspects());
@@ -890,7 +890,9 @@ public class WorkspaceService {
                         if(collection != null) {
                             builder.startObject();
                             for (Map.Entry<String, Object> entry : ((Map<String, Object>) collection.source()).entrySet()) {
-                                if (entry.getKey().equals("children")) continue;
+                                if (entry.getKey().equals("children") || entry.getKey().equals("collections")) {
+                                    continue;
+                                }
                                 builder.field(entry.getKey(), entry.getValue());
                             }
                             addUsageRelation(usage, builder);
