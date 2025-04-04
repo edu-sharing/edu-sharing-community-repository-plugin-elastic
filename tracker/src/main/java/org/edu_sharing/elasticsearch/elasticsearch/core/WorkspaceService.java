@@ -110,14 +110,14 @@ public class WorkspaceService {
         }
     }
 
-    public void update(long dbId, Object data) throws IOException {
-        this.update(req -> req
+    public UpdateResponse<Void> update(long dbId, Object data) throws IOException {
+        return this.update(req -> req
                 .index(index)
                 .id(Long.toString(dbId))
                 .doc(data), Void.class);
     }
 
-    private <TDocument, TPartialDocument> void update(Function<
+    private <TDocument, TPartialDocument> UpdateResponse<TDocument> update(Function<
             UpdateRequest.Builder<TDocument, TPartialDocument>,
             ObjectBuilder<UpdateRequest<TDocument, TPartialDocument>>
             > request, Class<TDocument> tDocClass) throws IOException {
@@ -127,6 +127,7 @@ public class WorkspaceService {
         if (Objects.requireNonNull(updateResponse.result()) == Result.Created) {
             logger.info("object did not exist");
         }
+        return updateResponse;
     }
 
     public void updateBulk(List<BulkOperation> updateRequests) throws IOException {
@@ -193,7 +194,7 @@ public class WorkspaceService {
                     Long dbId = item.id() != null ? Long.parseLong(item.id()) : null;
                     NodeData nodeData = collectionNodes.get(dbId);
                     if (nodeData != null) {
-                        onUpdateRefreshUsageCollectionReplicas(nodeData.getNodeMetadata(), item.operationType() == OperationType.Update || item.operationType() == OperationType.Index);
+                        onUpdateRefreshUsageCollectionReplicas(nodeData.getNodeMetadata(),item.operationType() == OperationType.Update || item.operationType() == OperationType.Index);
                     }
                 }
                 logger.info("finished RefreshCollectionReplicas");
@@ -852,7 +853,7 @@ public class WorkspaceService {
             logger.info("can not handle collections for type:" + node.getType());
             return;
         }
-
+        AtomicBoolean hasCollections = new AtomicBoolean(false);
         logger.info("updating collections for " + node.getType() + " " + node.getId());
         DataBuilder builder = new DataBuilder();
         builder.startObject();
@@ -888,6 +889,7 @@ public class WorkspaceService {
                         collections.add(result.nodeIdCollection);
                         Hit<Map> collection = getCollectionForUsage(result);
                         if(collection != null) {
+                            hasCollections.set(true);
                             builder.startObject();
                             for (Map.Entry<String, Object> entry : ((Map<String, Object>) collection.source()).entrySet()) {
                                 if (entry.getKey().equals("children") || entry.getKey().equals("collections")) {
@@ -909,12 +911,18 @@ public class WorkspaceService {
         searchHitsRunner.run(queryProposals, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
         builder.endArray();
         builder.endObject();
-        // apply changes
-        this.update(node.getId(), builder.build());
-        this.refreshWorkspace();
-        if(node.getNodeRef() != null) {
-            logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " (" + ((System.currentTimeMillis() - startTimeMs)) + "ms)");
+        // since the node was indexed before an explicit write is not required and slows down the performance
+        if("ccm:io".equals(node.getType()) && hasCollections.get()){
+            this.update(node.getId(), builder.build());
+            this.refreshWorkspace();
+            if(node.getNodeRef() != null) {
+                logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " (" + ((System.currentTimeMillis() - startTimeMs)) + "ms)");
+            }
+        } else {
+            logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " - no collections to index (" + ((System.currentTimeMillis() - startTimeMs)) + "ms)");
         }
+
+
     }
 
     private void addUsageRelation(NodeMetadata usage, DataBuilder builder) throws IOException {
