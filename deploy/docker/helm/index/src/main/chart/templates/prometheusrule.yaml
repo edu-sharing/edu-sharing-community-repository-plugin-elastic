@@ -1,0 +1,79 @@
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1" }}
+{{- if .Values.global.metrics.rules.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "edusharing_common_lib.names.name" . }}
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
+spec:
+  groups:
+    - name: {{ include "edusharing_common_lib.names.name" . }}
+      rules:
+        {{- if .Values.config.metrics.rules.breakersTripped.enabled }}
+        - alert: breakersTripped
+          annotations:
+            description: >-
+              {{ include "edusharing_common_lib.names.name" . }} has circuit breakers tripped since {{ .Values.config.metrics.rules.breakersTripped.for }}.
+            summary: {{ include "edusharing_common_lib.names.name" . }} has circuit breakers tripped.
+          expr: >-
+            rate(elasticsearch_breakers_tripped{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*"}[5m]) > 0
+          for: {{ .Values.config.metrics.rules.breakersTripped.for }}
+          labels: {{ toYaml .Values.config.metrics.rules.breakersTripped.labels | nindent 12 }}
+        {{- end }}
+        {{- if .Values.config.metrics.rules.clusterHealthRed.enabled }}
+        - alert: clusterHealthRed
+          annotations:
+            description: >-
+              {{ include "edusharing_common_lib.names.name" . }} has cluster health state RED since {{ .Values.config.metrics.rules.clusterHealthRed.for }}.
+            summary: {{ include "edusharing_common_lib.names.name" . }} has cluster health state RED.
+          expr: >-
+            rate(elasticsearch_cluster_health_status{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*",color="red"}[5m]) > 0
+          for: {{ .Values.config.metrics.rules.clusterHealthRed.for }}
+          labels: {{ toYaml .Values.config.metrics.rules.clusterHealthRed.labels | nindent 12 }}
+        {{- end }}
+        {{- if .Values.config.metrics.rules.clusterHealthYellow.enabled }}
+        - alert: clusterHealthYellow
+          annotations:
+            description: >-
+              {{ include "edusharing_common_lib.names.name" . }} has cluster health state YELLOW since {{ .Values.config.metrics.rules.clusterHealthYellow.for }}.
+            summary: {{ include "edusharing_common_lib.names.name" . }} has cluster health state YELLOW.
+          expr: >-
+            rate(elasticsearch_cluster_health_status{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*",color="yellow"}[5m]) > 0
+          for: {{ .Values.config.metrics.rules.clusterHealthYellow.for }}
+          labels: {{ toYaml .Values.config.metrics.rules.clusterHealthYellow.labels | nindent 12 }}
+        {{- end }}
+        {{- if .Values.config.metrics.rules.jvmHighGCRate.enabled }}
+        - alert: jvmHighGCRate
+          annotations:
+            description: >-
+              {{ include "edusharing_common_lib.names.name" . }} has high JVM GC time rate (> {{ .Values.config.metrics.rules.jvmHighGCRate.config.max | float64 }}s) since {{ .Values.config.metrics.rules.jvmHighGCRate.for }}.
+            summary: {{ include "edusharing_common_lib.names.name" . }} has high JVM GC time rate.
+          expr: >-
+            rate(jvm_gc_collection_seconds_sum{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*"}[5m]) > {{ .Values.config.metrics.rules.jvmHighGCRate.config.max | float64 }}
+          for: {{ .Values.config.metrics.rules.jvmHighGCRate.for }}
+          labels: {{ toYaml .Values.config.metrics.rules.jvmHighGCRate.labels | nindent 12 }}
+        {{- end }}
+        {{- if .Values.config.metrics.rules.shardsDelayed.enabled }}
+        - alert: shardsDelayed
+          annotations:
+            description: >-
+              {{ include "edusharing_common_lib.names.name" . }} has delayed shards since {{ .Values.config.metrics.rules.shardsDelayed.for }}.
+            summary: {{ include "edusharing_common_lib.names.name" . }} has delayed shards.
+          expr: >-
+            rate(elasticsearch_cluster_health_delayed_unassigned_shards{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*"}[5m]) > 0
+          for: {{ .Values.config.metrics.rules.shardsDelayed.for }}
+          labels: {{ toYaml .Values.config.metrics.rules.shardsDelayed.labels | nindent 12 }}
+        {{- end }}
+        {{- if .Values.config.metrics.rules.shardsUnassigned.enabled }}
+        - alert: shardsUnassigned
+          annotations:
+            description: >-
+              {{ include "edusharing_common_lib.names.name" . }} has delayed shards since {{ .Values.config.metrics.rules.shardsUnassigned.for }}.
+            summary: {{ include "edusharing_common_lib.names.name" . }} has delayed shards.
+          expr: >-
+            rate(elasticsearch_cluster_health_unassigned_shards{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*"}[5m]) > 0
+          for: {{ .Values.config.metrics.rules.shardsUnassigned.for }}
+          labels: {{ toYaml .Values.config.metrics.rules.shardsUnassigned.labels | nindent 12 }}
+        {{- end }}
+{{- end }}
+{{- end }}
