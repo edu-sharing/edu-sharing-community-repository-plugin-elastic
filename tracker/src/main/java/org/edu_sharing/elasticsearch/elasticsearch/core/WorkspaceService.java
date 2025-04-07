@@ -912,7 +912,7 @@ public class WorkspaceService {
         builder.endArray();
         builder.endObject();
         // since the node was indexed before an explicit write is not required and slows down the performance
-        if("ccm:io".equals(node.getType()) && hasCollections.get()){
+        if(!"ccm:io".equals(node.getType()) || hasCollections.get()){
             this.update(node.getId(), builder.build());
             this.refreshWorkspace();
             if(node.getNodeRef() != null) {
