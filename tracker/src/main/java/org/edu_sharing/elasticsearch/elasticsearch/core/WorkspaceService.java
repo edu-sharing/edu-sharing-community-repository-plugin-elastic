@@ -30,6 +30,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
+import org.edu_sharing.elasticsearch.elasticsearch.utils.utils.NodeMetadataSimple;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.Partition;
@@ -194,7 +195,7 @@ public class WorkspaceService {
                     Long dbId = item.id() != null ? Long.parseLong(item.id()) : null;
                     NodeData nodeData = collectionNodes.get(dbId);
                     if (nodeData != null) {
-                        onUpdateRefreshUsageCollectionReplicas(nodeData.getNodeMetadata(),item.operationType() == OperationType.Update || item.operationType() == OperationType.Index);
+                        onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(nodeData.getNodeMetadata()),item.operationType() == OperationType.Update || item.operationType() == OperationType.Index, true);
                     }
                 }
                 logger.info("finished RefreshCollectionReplicas");
@@ -769,7 +770,7 @@ public class WorkspaceService {
             /**
              * try it is an collection
              */
-            Query queryCollection = InternalQueries.queryCollectionNodes(node);
+            Query queryCollection = InternalQueries.queryCollectionNodes(node.getId());
             if (collectionCheckQuery == null) {
                 searchHitsIO = this.search(queryCollection, 0, 1);
                 if (!searchHitsIO.hits().isEmpty()) {
@@ -837,16 +838,22 @@ public class WorkspaceService {
         logger.debug("returning");
     }
 
-    private void onUpdateRefreshUsageCollectionReplicas(NodeMetadata node, boolean update) throws IOException {
-
-        final String query;
-        final String queryProposal;
+    private void onUpdateRefreshUsageCollectionReplicas(NodeMetadataSimple node, boolean update, boolean resyncIndex) throws IOException {
+        // a collection -> refresh replicas for each item inside this collection
+        if ("ccm:map".equals(node.getType())) {
+            searchHitsRunner.run(InternalQueries.queryCollectionNodes(node.getId()), maxCollectionChildItemsUpdateSize, (hit) -> {
+                try {
+                    onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(hit.source()), true, false);
+                } catch (IOException e) {
+                    logger.warn("error refreshing collections " + node.getNodeRef(), e);
+                }
+            });
+           return;
+        }
+        final String query, queryProposal;
         // collect already written collections
         Set<String> collections = new HashSet<>();
-        if ("ccm:map".equals(node.getType())) {
-            query = "properties.ccm:usagecourseid.keyword";
-            queryProposal = "parentRef.id";
-        } else if ("ccm:io".equals(node.getType())) {
+        if ("ccm:io".equals(node.getType())) {
             query = "properties.ccm:usageparentnodeid.keyword";
             queryProposal = "properties.ccm:collection_proposal_target.keyword";
         } else {
@@ -907,14 +914,16 @@ public class WorkspaceService {
             }
         };
         // run queries and apply action above
-        searchHitsRunner.run(queryUsages, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
-        searchHitsRunner.run(queryProposals, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
+        searchHitsRunner.run(queryUsages, 25, update ? maxCollectionChildItemsUpdateSize : null, action);
+        searchHitsRunner.run(queryProposals, 25, update ? maxCollectionChildItemsUpdateSize : null, action);
         builder.endArray();
         builder.endObject();
         // since the node was indexed before an explicit write is not required and slows down the performance
         if(!"ccm:io".equals(node.getType()) || hasCollections.get()){
             this.update(node.getId(), builder.build());
-            this.refreshWorkspace();
+            if(resyncIndex) {
+                this.refreshWorkspace();
+            }
             if(node.getNodeRef() != null) {
                 logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " (" + ((System.currentTimeMillis() - startTimeMs)) + "ms)");
             }
