@@ -345,7 +345,7 @@ public class EduSharingClient {
     }
 
     private PreviewData getPreviewData(String url) {
-        logger.info("calling getPreviewData");
+        logger.debug("calling getPreviewData");
         try {
             return educlient.target(url).
                     request(MediaType.WILDCARD).
@@ -365,7 +365,7 @@ public class EduSharingClient {
                     accept(MediaType.APPLICATION_JSON).
                     cookie(jsessionId.getName(),jsessionId.getValue()).
                     get().readEntity(String.class);
-            logger.info(result);
+            logger.debug(result);
             return new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
                 @Override
                 public boolean shouldSkipField(FieldAttributes fieldAttributes) {

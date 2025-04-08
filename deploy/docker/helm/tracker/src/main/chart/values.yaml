@@ -34,6 +34,9 @@ global:
     common: ${docker.common}
 
   metrics:
+    rules:
+      ## @param global.metrics.rules.enabled Enable metrics rules
+      enabled: false
     scrape:
       ## @param global.metrics.scrape.interval Set prometheus scrape interval
       interval: 60s
@@ -90,6 +93,68 @@ config:
     enabled: true
     ## @param config.metrics.relabelings Define relabelings for metrics
     relabelings: []
+
+    rules:
+
+      jvmHighGCRate:
+        ## @param config.metrics.rules.jvmHighGCRate.enabled Enable metric rule jvmHighGCRate
+        enabled: true
+        config:
+          ## @param config.metrics.rules.jvmHighGCRate.config.max Set metric rule jvmHighGCRate max gc rate
+          max: 0.3
+        ## @param config.metrics.rules.jvmHighGCRate.for Set metric rule jvmHighGCRate wait interval
+        for: 1m
+        labels:
+          ## @param config.metrics.rules.jvmHighGCRate.labels.severity Set metric rule jvmHighGCRate severity level
+          severity: critical
+
+      trackingACLDelay:
+        ## @param config.metrics.rules.trackingACLDelay.enabled Enable metric rule trackingACLDelay
+        enabled: true
+        config:
+          ## @param config.metrics.rules.trackingACLDelay.config.max Set metric rule trackingACLDelay max delay seconds
+          max: 60
+        ## @param config.metrics.rules.trackingACLDelay.for Set metric rule trackingACLDelay wait interval
+        for: 1m
+        labels:
+          ## @param config.metrics.rules.trackingACLDelay.labels.severity Set metric rule trackingACLDelay severity level
+          severity: critical
+
+      trackingACLProgress:
+        ## @param config.metrics.rules.trackingACLProgress.enabled Enable metric rule trackingACLProgress
+        enabled: true
+        config:
+          ## @param config.metrics.rules.trackingACLProgress.config.min Set metric rule trackingACLProgress min progress rate
+          min: 100
+        ## @param config.metrics.rules.trackingACLProgress.for Set metric rule trackingACLProgress wait interval
+        for: 1m
+        labels:
+          ## @param config.metrics.rules.trackingACLProgress.labels.severity Set metric rule trackingACLProgress severity level
+          severity: critical
+
+      trackingTransactionDelay:
+        ## @param config.metrics.rules.trackingTransactionDelay.enabled Enable metric rule trackingTransactionDelay
+        enabled: true
+        config:
+          ## @param config.metrics.rules.trackingTransactionDelay.config.max Set metric rule trackingTransactionDelay max delay seconds
+          max: 60
+        ## @param config.metrics.rules.trackingTransactionDelay.for Set metric rule trackingTransactionDelay wait interval
+        for: 1m
+        labels:
+          ## @param config.metrics.rules.trackingTransactionDelay.labels.severity Set metric rule trackingTransactionDelay severity level
+          severity: critical
+
+      trackingTransactionProgress:
+        ## @param config.metrics.rules.trackingTransactionProgress.enabled Enable metric rule trackingTransactionProgress
+        enabled: true
+        config:
+          ## @param config.metrics.rules.trackingTransactionProgress.config.min Set metric rule trackingTransactionProgress min progress rate
+          min: 100
+        ## @param config.metrics.rules.trackingTransactionProgress.for Set metric rule trackingTransactionProgress wait interval
+        for: 1m
+        labels:
+          ## @param config.metrics.rules.trackingTransactionProgress.labels.severity Set metric rule trackingTransactionProgress severity level
+          severity: critical
 
   ## @param config.override Configure overrides
   override: ""

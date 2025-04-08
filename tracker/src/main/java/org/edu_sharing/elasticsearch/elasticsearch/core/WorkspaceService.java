@@ -30,6 +30,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
+import org.edu_sharing.elasticsearch.elasticsearch.utils.utils.NodeMetadataSimple;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.Partition;
@@ -110,14 +111,14 @@ public class WorkspaceService {
         }
     }
 
-    public void update(long dbId, Object data) throws IOException {
-        this.update(req -> req
+    public UpdateResponse<Void> update(long dbId, Object data) throws IOException {
+        return this.update(req -> req
                 .index(index)
                 .id(Long.toString(dbId))
                 .doc(data), Void.class);
     }
 
-    private <TDocument, TPartialDocument> void update(Function<
+    private <TDocument, TPartialDocument> UpdateResponse<TDocument> update(Function<
             UpdateRequest.Builder<TDocument, TPartialDocument>,
             ObjectBuilder<UpdateRequest<TDocument, TPartialDocument>>
             > request, Class<TDocument> tDocClass) throws IOException {
@@ -127,6 +128,7 @@ public class WorkspaceService {
         if (Objects.requireNonNull(updateResponse.result()) == Result.Created) {
             logger.info("object did not exist");
         }
+        return updateResponse;
     }
 
     public void updateBulk(List<BulkOperation> updateRequests) throws IOException {
@@ -193,7 +195,7 @@ public class WorkspaceService {
                     Long dbId = item.id() != null ? Long.parseLong(item.id()) : null;
                     NodeData nodeData = collectionNodes.get(dbId);
                     if (nodeData != null) {
-                        onUpdateRefreshUsageCollectionReplicas(nodeData.getNodeMetadata(), item.operationType() == OperationType.Update || item.operationType() == OperationType.Index);
+                        onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(nodeData.getNodeMetadata()),item.operationType() == OperationType.Update || item.operationType() == OperationType.Index, true);
                     }
                 }
                 logger.info("finished RefreshCollectionReplicas");
@@ -203,7 +205,7 @@ public class WorkspaceService {
             }
 
         }
-        logger.info("returning");
+        logger.debug("returning");
     }
 
     public void fillData(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
@@ -414,9 +416,6 @@ public class WorkspaceService {
                     }
 
                 }
-                if ("ccm:wf_protocol".equals(key)) {
-                    mapWorkflowProtocol(value, builder);
-                }
 
                 if (value != null) {
 
@@ -428,6 +427,10 @@ public class WorkspaceService {
                 }
             }
             builder.endObject();
+
+            if (node.getProperties().get(CCConstants.CCM_PROP_WF_PROTOCOL) != null) {
+                mapWorkflowProtocol(node.getProperties().get(CCConstants.CCM_PROP_WF_PROTOCOL), builder);
+            }
 
             builder.field("aspects", node.getAspects());
 
@@ -565,7 +568,11 @@ public class WorkspaceService {
         } else if (value instanceof String) {
             protocol = Collections.singletonList((String) value);
         } else {
-            logger.warn("Unable to convert worfklow protocol of type " + value.getClass().getName());
+            if(value != null ) {
+                logger.warn("Unable to convert worfklow protocol of type " + value.getClass().getName());
+            } else {
+                logger.warn("Unable to convert worfklow protocol (null)");
+            }
             return;
         }
         builder.startArray("workflow");
@@ -786,7 +793,7 @@ public class WorkspaceService {
             /**
              * try it is an collection
              */
-            Query queryCollection = InternalQueries.queryCollectionNodes(node);
+            Query queryCollection = InternalQueries.queryCollectionNodes(node.getId());
             if (collectionCheckQuery == null) {
                 searchHitsIO = this.search(queryCollection, 0, 1);
                 if (!searchHitsIO.hits().isEmpty()) {
@@ -851,26 +858,32 @@ public class WorkspaceService {
         for(List<BulkOperation> p : partitions){
             this.updateBulk(p);
         }
-        logger.info("returning");
+        logger.debug("returning");
     }
 
-    private void onUpdateRefreshUsageCollectionReplicas(NodeMetadata node, boolean update) throws IOException {
-
-        final String query;
-        final String queryProposal;
+    private void onUpdateRefreshUsageCollectionReplicas(NodeMetadataSimple node, boolean update, boolean resyncIndex) throws IOException {
+        // a collection -> refresh replicas for each item inside this collection
+        if ("ccm:map".equals(node.getType())) {
+            searchHitsRunner.run(InternalQueries.queryCollectionNodes(node.getId()), maxCollectionChildItemsUpdateSize, (hit) -> {
+                try {
+                    onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(hit.source()), true, false);
+                } catch (IOException e) {
+                    logger.warn("error refreshing collections " + node.getNodeRef(), e);
+                }
+            });
+           return;
+        }
+        final String query, queryProposal;
         // collect already written collections
         Set<String> collections = new HashSet<>();
-        if ("ccm:map".equals(node.getType())) {
-            query = "properties.ccm:usagecourseid.keyword";
-            queryProposal = "parentRef.id";
-        } else if ("ccm:io".equals(node.getType())) {
+        if ("ccm:io".equals(node.getType())) {
             query = "properties.ccm:usageparentnodeid.keyword";
             queryProposal = "properties.ccm:collection_proposal_target.keyword";
         } else {
             logger.info("can not handle collections for type:" + node.getType());
             return;
         }
-
+        AtomicBoolean hasCollections = new AtomicBoolean(false);
         logger.info("updating collections for " + node.getType() + " " + node.getId());
         DataBuilder builder = new DataBuilder();
         builder.startObject();
@@ -906,9 +919,12 @@ public class WorkspaceService {
                         collections.add(result.nodeIdCollection);
                         Hit<Map> collection = getCollectionForUsage(result);
                         if(collection != null) {
+                            hasCollections.set(true);
                             builder.startObject();
                             for (Map.Entry<String, Object> entry : ((Map<String, Object>) collection.source()).entrySet()) {
-                                if (entry.getKey().equals("children")) continue;
+                                if (entry.getKey().equals("children") || entry.getKey().equals("collections")) {
+                                    continue;
+                                }
                                 builder.field(entry.getKey(), entry.getValue());
                             }
                             addUsageRelation(usage, builder);
@@ -921,16 +937,24 @@ public class WorkspaceService {
             }
         };
         // run queries and apply action above
-        searchHitsRunner.run(queryUsages, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
-        searchHitsRunner.run(queryProposals, 5, update ? maxCollectionChildItemsUpdateSize : null, action);
+        searchHitsRunner.run(queryUsages, 25, update ? maxCollectionChildItemsUpdateSize : null, action);
+        searchHitsRunner.run(queryProposals, 25, update ? maxCollectionChildItemsUpdateSize : null, action);
         builder.endArray();
         builder.endObject();
-        // apply changes
-        this.update(node.getId(), builder.build());
-        this.refreshWorkspace();
-        if(node.getNodeRef() != null) {
-            logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " (" + ((System.currentTimeMillis() - startTimeMs)) + "ms)");
+        // since the node was indexed before an explicit write is not required and slows down the performance
+        if(!"ccm:io".equals(node.getType()) || hasCollections.get()){
+            this.update(node.getId(), builder.build());
+            if(resyncIndex) {
+                this.refreshWorkspace();
+            }
+            if(node.getNodeRef() != null) {
+                logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " (" + ((System.currentTimeMillis() - startTimeMs)) + "ms)");
+            }
+        } else {
+            logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " - no collections to index (" + ((System.currentTimeMillis() - startTimeMs)) + "ms)");
         }
+
+
     }
 
     private void addUsageRelation(NodeMetadata usage, DataBuilder builder) throws IOException {
