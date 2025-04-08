@@ -129,6 +129,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     }
 
     private void updateNodeStatistics(List<NodeData> toIndex) throws IOException {
+        Map<String, List<NodeStatistic>> updateNodeStatistics = new HashMap<>();
         for (NodeData nodeDataStat : toIndex) {
             if (!"ccm:io".equals(nodeDataStat.getNodeMetadata().getType()) || !Tools.getProtocol(nodeDataStat.getNodeMetadata().getNodeRef()).equals("workspace")) {
                 continue;
@@ -138,12 +139,11 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
             long trackFromTime = trackTs - (historyInDays * 24L * 60L * 60L * 1000L);
             String nodeId = Tools.getUUID(nodeDataStat.getNodeMetadata().getNodeRef());
             List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTime);
-            Map<String, List<NodeStatistic>> updateNodeStatistics = new HashMap<>();
             updateNodeStatistics.put(nodeId, statisticsForNode);
-            workspaceService.updateNodeStatistics(updateNodeStatistics);
             //we don't need cleanup cause former elasticClient.index(..) call removes all statistic data
             //elasticClient.cleanUpNodeStatistics(nodeDataStat);
         }
+        workspaceService.updateNodeStatistics(updateNodeStatistics);
     }
 
     private void updateNodes(List<NodeData> toIndex) throws IOException {
@@ -220,8 +220,8 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         }
         return toIndex;
     }
-    private List<NodeMetadata> filterByNodeTypes(List<NodeMetadata> nodeData, String... types ){
-        return nodeData.stream().filter(n ->  Arrays.asList(types).contains(n.getType())).collect(Collectors.toList());
+    private List<NodeMetadata> filterByNodeTypes(List<NodeMetadata> nodeData, String... types ) {
+        return nodeData.stream().filter(n -> Arrays.asList(types).contains(n.getType())).collect(Collectors.toList());
     }
 
     public boolean isAllowedType(NodeMetadata nodeMetadata) {
