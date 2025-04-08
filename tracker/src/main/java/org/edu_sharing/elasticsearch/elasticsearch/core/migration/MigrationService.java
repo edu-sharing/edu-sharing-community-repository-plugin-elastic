@@ -5,6 +5,7 @@ import co.elastic.clients.elasticsearch._types.Conflicts;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.tasks.GetTasksResponse;
 import co.elastic.clients.elasticsearch.tasks.TaskInfo;
+import co.elastic.clients.transport.endpoints.BooleanResponse;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 import lombok.RequiredArgsConstructor;
@@ -15,9 +16,11 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AppInfo;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
+import org.edu_sharing.elasticsearch.tracker.AuthoritiesMigrationTracker;
 import org.edu_sharing.elasticsearch.tracker.DefaultTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.TrackerServiceFactory;
 import org.edu_sharing.elasticsearch.tracker.strategy.MaxTransactionIdStrategy;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
@@ -61,12 +64,17 @@ public class MigrationService {
                 .mapToObj(migrationInfos::get)
                 .anyMatch(MigrationInfo::isRequiresReindex);
 
+        boolean requiresAuthoritiesMigration = IntStream.range(startIndex, migrationInfos.size())
+                .mapToObj(migrationInfos::get)
+                .anyMatch(MigrationInfo::isRequiresAuthoritiesReindex);
+
         String sourceWorkspaceIndex = currentVersion == null ? "workspace" : "workspace_" + currentVersion;
         String sourceTransactionIndex = currentVersion == null ? "transactions" : "transactions_" + currentVersion;
+        String sourceAuthoritiesIndex = currentVersion == null ? "authorities" : "authorities_" + currentVersion;
 
         if (indicesExists(sourceWorkspaceIndex, sourceTransactionIndex)) {
             // we need to migrate
-            MigrationJob migrationJob = new MigrationJob(sourceWorkspaceIndex, sourceTransactionIndex, latestVersion, migrationIndex.getIndex(), requiresDocMigration);
+            MigrationJob migrationJob = new MigrationJob(sourceWorkspaceIndex, sourceTransactionIndex, sourceAuthoritiesIndex, latestVersion, migrationIndex.getIndex(), requiresDocMigration, requiresAuthoritiesMigration);
             migrationJob.run();
         }
 
@@ -166,20 +174,26 @@ public class MigrationService {
 
         private final String sourceWorkspaceIndex;
         private final String sourceTransactionIndex;
+        private final String sourceAuthoritiesIndex;
         private final String version;
         private final String index;
         private final boolean requiresDocumentMigration;
+        private final boolean requiresAuthoritiesMigration;
 
 
         private final String migrationTransactionIndex;
+        private final String migrationTransactionAuthoritiesIndex;
 
-        MigrationJob(String sourceWorkspaceIndex, String sourceTransactionIndex, String version, String index, boolean requiresDocumentMigration) {
+        MigrationJob(String sourceWorkspaceIndex, String sourceTransactionIndex, String sourceAuthoritiesIndex, String version, String index, boolean requiresDocumentMigration, boolean requiresAuthoritiesMigration) {
             this.sourceWorkspaceIndex = sourceWorkspaceIndex;
             this.sourceTransactionIndex = sourceTransactionIndex;
+            this.sourceAuthoritiesIndex = sourceAuthoritiesIndex;
             this.version = version;
             this.index = index;
             this.requiresDocumentMigration = requiresDocumentMigration;
+            this.requiresAuthoritiesMigration = requiresAuthoritiesMigration;
             migrationTransactionIndex = "migration_" + version + "_tracker";
+            migrationTransactionAuthoritiesIndex = "migration_authorities_" + version + "_tracker";
         }
 
 
@@ -231,10 +245,48 @@ public class MigrationService {
                         if (tasksResponse.error() != null) {
                             throw new MigrationException(String.format("Task %s:%s failed with: %s", task.node(), task.id(), tasksResponse.error().reason()));
                         }
-                        if(tasksResponse.response() != null) {
+                        if (tasksResponse.response() != null) {
                             // failures array is not mapped to the model for some strange reason
                             JsonObject json = tasksResponse.response().toJson().asJsonObject();
-                            if(json.containsKey("failures")) {
+                            if (json.containsKey("failures")) {
+                                JsonArray array = json.getJsonArray("failures");
+                                if (!array.isEmpty()) {
+                                    throw new MigrationException(String.format("Task %s:%s failed with: %s", task.node(), task.id(), array.toString()));
+                                }
+                            }
+                        }
+
+                        if (Boolean.TRUE.equals(task.cancelled())) {
+                            throw new MigrationException(String.format("Task %s:%s was cancelled", task.node(), task.id()));
+                        }
+
+
+                        if (tasksResponse.completed()) {
+                            log.info("reindexing transactions finished: {}", task);
+                            BooleanResponse exists = client.indices().exists(e -> e.index(sourceAuthoritiesIndex));
+                            if (!exists.value()) client.indices().create(c -> c.index(sourceAuthoritiesIndex));
+                            String taskId = reindex(sourceTransactionIndex, "authorities_" + version);
+                            curStep = MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP;
+                            updateMigrationState(migrationState, curStep, taskId);
+                            break;
+                        }
+
+                        log.info("reindexing transactions...");
+                        log.info("Task progress: {}", task);
+                        Thread.sleep(5000);
+                        break;
+                    }
+                    case REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP: {
+                        GetTasksResponse tasksResponse = client.tasks().get(req -> req.taskId(migrationState.getProgressContent()));
+
+                        TaskInfo task = tasksResponse.task();
+                        if (tasksResponse.error() != null) {
+                            throw new MigrationException(String.format("Task %s:%s failed with: %s", task.node(), task.id(), tasksResponse.error().reason()));
+                        }
+                        if (tasksResponse.response() != null) {
+                            // failures array is not mapped to the model for some strange reason
+                            JsonObject json = tasksResponse.response().toJson().asJsonObject();
+                            if (json.containsKey("failures")) {
                                 JsonArray array = json.getJsonArray("failures");
                                 if (!array.isEmpty()) {
                                     throw new MigrationException(String.format("Task %s:%s failed with: %s", task.node(), task.id(), array.toString()));
@@ -247,31 +299,57 @@ public class MigrationService {
                         }
 
                         if (tasksResponse.completed()) {
-                            log.info("reindexing transactions finished: {}", task);
-                            if (requiresDocumentMigration) {
-                                log.info("create document migration transactions index");
-                                IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionIndex));
+                            log.info("reindexing authorities finished: {}", task);
+                            if (requiresAuthoritiesMigration) {
+                                log.info("create authorities migration transactions index");
+                                IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
                                 adminService.createIndex(indexConfiguration);
+
                                 long txnId = transactionStateService.getState().getTxnId();
 
-                                curStep = MigrationStep.MIGRATE_DOCUMENTS_PROGRESS_STEP;
+                                curStep = MigrationStep.MIGRATE_AUTHORITIES_INDEX_PROGRESS_STEP;
                                 migrationState.setProgressStep(curStep.value);
                                 migrationState.setStatusMessage(curStep.message);
                                 updateMigrationState(migrationState, curStep, Long.toString(txnId));
-                                log.info("start migration of documents");
+                                log.info("start migration of authorities");
+                            } else if (requiresDocumentMigration) {
+                                curStep = setStateMigrateDocs(migrationState);
                             } else {
-                                curStep = MigrationStep.COMPLETED_PROGRESS_STEP;
-                                migrationState.setProgressStep(curStep.value);
-                                migrationState.setStatusMessage(curStep.message);
-                                updateMigrationState(migrationState, curStep, null);
+                                curStep = setStateComplete( migrationState);
                                 log.info("migration completed");
                             }
                             break;
                         }
 
-                        log.info("reindexing transactions...");
+                        log.info("reindexing authorities...");
                         log.info("Task progress: {}", task);
                         Thread.sleep(5000);
+                        break;
+
+                    }
+
+                    case MIGRATE_AUTHORITIES_INDEX_PROGRESS_STEP: {
+                        long maxTxnId = Long.parseLong(migrationState.getProgressContent());
+                        IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
+                        StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
+                        AuthoritiesMigrationTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesMigrationTracker::new,migrationTransactionStateService,new MaxTransactionIdStrategy(maxTxnId));
+
+                        while (true) {
+                            if (!migrationTracker.track()) {
+                                break;
+                            }
+                        }
+
+                        log.info("delete document migration transactions index");
+                        adminService.deleteIndex(indexConfiguration);
+
+                        if (requiresDocumentMigration) {
+                            curStep = setStateMigrateDocs(migrationState);
+                        }else {
+                            curStep = setStateComplete(migrationState);
+                            log.info("document migration finished");
+                            log.info("migration completed");
+                        }
                         break;
                     }
 
@@ -290,10 +368,7 @@ public class MigrationService {
                         log.info("delete document migration transactions index");
                         adminService.deleteIndex(indexConfiguration);
 
-                        curStep = MigrationStep.COMPLETED_PROGRESS_STEP;
-                        migrationState.setProgressStep(curStep.value);
-                        migrationState.setStatusMessage(curStep.message);
-                        updateMigrationState(migrationState, curStep, null);
+                        curStep = setStateComplete(migrationState);
                         log.info("document migration finished");
                         log.info("migration completed");
                         break;
@@ -303,6 +378,32 @@ public class MigrationService {
                         return;
                 }
             }
+        }
+
+        @NotNull
+        private MigrationStep setStateMigrateDocs(MigrationState migrationState) throws IOException {
+            MigrationStep curStep;
+            log.info("create document migration transactions index");
+            IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionIndex));
+            adminService.createIndex(indexConfiguration);
+            long txnId = transactionStateService.getState().getTxnId();
+
+            curStep = MigrationStep.MIGRATE_DOCUMENTS_PROGRESS_STEP;
+            migrationState.setProgressStep(curStep.value);
+            migrationState.setStatusMessage(curStep.message);
+            updateMigrationState(migrationState, curStep, Long.toString(txnId));
+            log.info("start migration of documents");
+            return curStep;
+        }
+
+        @NotNull
+        private MigrationStep setStateComplete(MigrationState migrationState) throws IOException {
+            MigrationStep curStep;
+            curStep = MigrationStep.COMPLETED_PROGRESS_STEP;
+            migrationState.setProgressStep(curStep.value);
+            migrationState.setStatusMessage(curStep.message);
+            updateMigrationState(migrationState, curStep, null);
+            return curStep;
         }
 
         String reindex(String sourceIndex, String targetIndex) throws IOException {

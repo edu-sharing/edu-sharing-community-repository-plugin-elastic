@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 @Component
 @RequiredArgsConstructor
@@ -48,17 +49,26 @@ public class TrackerServiceFactory {
         return createDefaultTrackerService(transactionStateService, new FixNumberOfTransactionStrategy());
     }
     public DefaultTransactionTracker createDefaultTrackerService(StatusIndexService<Tx> transactionStateService, TrackerStrategy trackerStrategy) {
-        DefaultTransactionTracker defaultTransactionTracker = new DefaultTransactionTracker(alfClient, workspaceService, authorityService, eduSharingClient, transactionStateService, trackerStrategy);
+        return createTrackerService(DefaultTransactionTracker::new, transactionStateService, trackerStrategy);
+    }
+
+    public <T extends DefaultTransactionTracker> T createTrackerService(Supplier<T> trackerSupplier, StatusIndexService<Tx> transactionStateService, TrackerStrategy trackerStrategy){
+        T defaultTransactionTracker = trackerSupplier.get();
+        defaultTransactionTracker.setAlfClient(alfClient);
+        defaultTransactionTracker.setWorkspaceService(workspaceService);
+        defaultTransactionTracker.setAuthorityService(authorityService);
+        defaultTransactionTracker.setEduSharingClient(eduSharingClient);
+        defaultTransactionTracker.setTransactionStateService(transactionStateService);
+        defaultTransactionTracker.setTrackerStrategy(trackerStrategy);
+
         defaultTransactionTracker.setNumberOfTransactions(numberOfTransactions);
         defaultTransactionTracker.setThreadCount(threadCount);
         defaultTransactionTracker.setIndexStoreRefs(indexStoreRefs);
-        defaultTransactionTracker.setAllowedTypes(allowedTypes);
+        defaultTransactionTracker.setWorkspaceTypes(allowedTypes);
         defaultTransactionTracker.setHistoryInDays(historyInDays);
         defaultTransactionTracker.setFetchSizeAlfresco(fetchSizeAlfresco);
         defaultTransactionTracker.setBulkSizeElastic(bulkSizeElastic);
         defaultTransactionTracker.init();
-
-
         return defaultTransactionTracker;
     }
 

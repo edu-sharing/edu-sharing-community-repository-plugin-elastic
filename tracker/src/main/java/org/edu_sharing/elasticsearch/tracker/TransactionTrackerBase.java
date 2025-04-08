@@ -1,5 +1,6 @@
 package org.edu_sharing.elasticsearch.tracker;
 
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -29,21 +30,27 @@ import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricCon
 public abstract class TransactionTrackerBase implements TransactionTracker {
 
     @Getter
-    protected final AlfrescoWebscriptClient alfClient;
+    @Setter(AccessLevel.PACKAGE)
+    protected AlfrescoWebscriptClient alfClient;
 
     @Getter
-    protected final WorkspaceService workspaceService;
+    @Setter(AccessLevel.PACKAGE)
+    protected WorkspaceService workspaceService;
 
     @Getter
-    protected final AuthorityService authorityService;
+    @Setter(AccessLevel.PACKAGE)
+    protected AuthorityService authorityService;
 
     @Getter
-    protected final EduSharingClient eduSharingClient;
+    @Setter(AccessLevel.PACKAGE)
+    protected EduSharingClient eduSharingClient;
 
     @Getter
-    protected final StatusIndexService<Tx> transactionStateService;
+    @Setter(AccessLevel.PACKAGE)
+    protected StatusIndexService<Tx> transactionStateService;
 
-    private final TrackerStrategy trackerStrategy;
+    @Setter(AccessLevel.PACKAGE)
+    private TrackerStrategy trackerStrategy;
 
     @Setter
     Integer threadCount = 4;
@@ -53,13 +60,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
     protected ForkJoinPool threadPool;
 
-    protected TransactionTrackerBase(AlfrescoWebscriptClient alfClient, EduSharingClient eduSharingClient, WorkspaceService workspaceService, AuthorityService authorityService, StatusIndexService<Tx> transactionStateService, TrackerStrategy trackerStrategy) {
-        this.alfClient = alfClient;
-        this.eduSharingClient = eduSharingClient;
-        this.workspaceService = workspaceService;
-        this.authorityService = authorityService;
-        this.transactionStateService = transactionStateService;
-        this.trackerStrategy = trackerStrategy;
+    protected TransactionTrackerBase() {
     }
 
     public void init() {

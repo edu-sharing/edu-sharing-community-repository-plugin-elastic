@@ -16,4 +16,11 @@ public class MigrationInfo {
      * This can be useful if new fields are added to the index
      */
     boolean requiresReindex;
+
+    /**
+     * Indicates wether the tracker should reindex all authorities in a separate step before
+     * document reindex (that would also reindex authorities)
+     */
+    boolean requiresAuthoritiesReindex;
+
 }

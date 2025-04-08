@@ -46,8 +46,8 @@ public class FixMissingTrackerDefault extends DefaultTransactionTracker {
 
     Long runToTx = null;
 
-    public FixMissingTrackerDefault(AlfrescoWebscriptClient alfClient, WorkspaceService workspaceService, AuthorityService authorityService, EduSharingClient eduSharingClient, StatusIndexService<Tx> transactionStateService, TrackerStrategy strategy) {
-        super(alfClient, workspaceService,authorityService, eduSharingClient, transactionStateService, strategy);
+    public FixMissingTrackerDefault() {
+        super();
     }
 
 

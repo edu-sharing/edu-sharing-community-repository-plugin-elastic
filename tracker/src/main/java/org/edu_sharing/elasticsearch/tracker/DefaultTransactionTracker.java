@@ -26,13 +26,15 @@ import java.util.stream.Collectors;
 //@ConditionalOnProperty(prefix = "transaction", name = "tracker", havingValue = "default", matchIfMissing = true)
 public class DefaultTransactionTracker extends TransactionTrackerBase {
 
+    @Setter
+    private List<String> globalTypeFilter;
 
     @Setter
-    private String allowedTypes;
+    private String workspaceTypes;
 
     @Setter
-    private List<String> indexStoreRefs;
-    private final List<String> subTypes = Arrays.asList("ccm:io", "ccm:rating", "ccm:comment", "ccm:usage", "ccm:collection_proposal");
+    protected List<String> indexStoreRefs;
+    private final List<String> workspaceSubTypes = Arrays.asList("ccm:io", "ccm:rating", "ccm:comment", "ccm:usage", "ccm:collection_proposal");
 
 
     private final Logger logger = LoggerFactory.getLogger(DefaultTransactionTracker.class);
@@ -48,9 +50,10 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     @Value("${tracker.bulk.size.elastic}")
     int bulkSizeElastic;
 
-    public DefaultTransactionTracker(AlfrescoWebscriptClient alfClient, WorkspaceService workspaceService, AuthorityService authorityService, EduSharingClient eduSharingClient, StatusIndexService<Tx> transactionStateService, TrackerStrategy strategy) {
-        super(alfClient, eduSharingClient, workspaceService, authorityService, transactionStateService, strategy);
+    public DefaultTransactionTracker(){
+        super();
     }
+
 
 
     @Override
@@ -153,7 +156,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         }
     }
 
-    private List<NodeData> prepareAuthorities(List<NodeMetadata> nodeMetadata){
+    protected List<NodeData> prepareAuthorities(List<NodeMetadata> nodeMetadata){
         List<NodeMetadata> toIndexAuthorities = filterByNodeTypes(nodeMetadata,"cm:person","cm:authorityContainer");
         List<NodeData> toIndex = alfClient.getNodeData(toIndexAuthorities);
         return toIndex;
@@ -166,7 +169,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         for (NodeMetadata data : nodeData) {
 
             //force reindex of parent io to get subobjects
-            if (subTypes.contains(data.getType())
+            if (workspaceSubTypes.contains(data.getType())
                     && (!data.getType().equals("ccm:io") || data.getAspects().contains("ccm:io_childobject"))
                     && CCConstants.STORE_WORKSPACES_SPACES.equals(Tools.getStoreRef(data.getNodeRef()))) {
 
@@ -186,15 +189,12 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
                 }//else io does not exist in index
             }
 
-            if (StringUtils.isNotBlank(allowedTypes)) {
-                String[] allowedTypesArray = allowedTypes.split(",");
-                String type = data.getType();
 
-                if (!Arrays.asList(allowedTypesArray).contains(type)) {
-                    logger.debug("ignoring type:" + type);
-                    continue;
-                }
+            if(!isAllowedType(data)){
+                logger.debug("ignoring type:" + data.getType());
+                continue;
             }
+
             toIndexMd.add(data);
         }
 
@@ -225,8 +225,8 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     }
 
     public boolean isAllowedType(NodeMetadata nodeMetadata) {
-        if (StringUtils.isNotBlank(allowedTypes)) {
-            String[] allowedTypesArray = allowedTypes.split(",");
+        if (StringUtils.isNotBlank(workspaceTypes)) {
+            String[] allowedTypesArray = workspaceTypes.split(",");
             String type = nodeMetadata.getType();
 
             return Arrays.asList(allowedTypesArray).contains(type);
