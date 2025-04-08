@@ -72,7 +72,13 @@ public class MigrationService {
         String sourceTransactionIndex = currentVersion == null ? "transactions" : "transactions_" + currentVersion;
         String sourceAuthoritiesIndex = currentVersion == null ? "authorities" : "authorities_" + currentVersion;
 
-        if (indicesExists(sourceWorkspaceIndex, sourceTransactionIndex)) {
+        if (adminService.indicesExists(sourceWorkspaceIndex, sourceTransactionIndex)) {
+
+            while (!adminService.indecesConfiguredExist()){
+                log.info("waiting for indeces...");
+                Thread.sleep(2000);
+            }
+
             // we need to migrate
             MigrationJob migrationJob = new MigrationJob(sourceWorkspaceIndex, sourceTransactionIndex, sourceAuthoritiesIndex, latestVersion, migrationIndex.getIndex(), requiresDocMigration, requiresAuthoritiesMigration);
             migrationJob.run();
@@ -100,7 +106,7 @@ public class MigrationService {
         String sourceWorkspaceIndex = currentVersion == null ? "workspace" : "workspace_" + currentVersion;
         String sourceTransactionIndex = currentVersion == null ? "transactions" : "transactions_" + currentVersion;
 
-        if (indicesExists(sourceWorkspaceIndex, sourceTransactionIndex)) {
+        if (adminService.indicesExists(sourceWorkspaceIndex, sourceTransactionIndex)) {
             log.info("Index \"{}\" and Index \"{}\" requires migration.", sourceWorkspaceIndex, sourceTransactionIndex);
             return true;
         } else {
@@ -150,10 +156,6 @@ public class MigrationService {
             appInfo.setCreationDate(new Date());
         }
         return appInfo;
-    }
-
-    private boolean indicesExists(String value, String... values) throws IOException {
-        return client.indices().exists(req -> req.index(value, values)).value();
     }
 
     private MigrationState getMigrationState(String version) throws IOException {

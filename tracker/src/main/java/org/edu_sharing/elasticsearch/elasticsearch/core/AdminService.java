@@ -61,6 +61,20 @@ public class AdminService {  //, SmartInitializingSingleton {
         }
     }
 
+    public boolean indecesConfiguredExist() throws IOException{
+        for(IndexConfiguration indexConfiguration : indexConfigurations){
+            if(!indicesExists(indexConfiguration.getIndex())){
+                log.info("index does not exist "+ indexConfiguration.getIndex());
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean indicesExists(String value, String... values) throws IOException {
+        return client.indices().exists(req -> req.index(value, values)).value();
+    }
+
     @PostConstruct
     public void init() {
         if (!autocreateIndex) {
