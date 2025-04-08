@@ -115,15 +115,6 @@ config:
 
     rules:
 
-      breakersTripped:
-        ## @param config.metrics.rules.breakersTripped.enabled Enable metric rule breakersTripped
-        enabled: true
-        ## @param config.metrics.rules.breakersTripped.for Set metric rule breakersTripped wait interval
-        for: 1m
-        labels:
-          ## @param config.metrics.rules.breakersTripped.labels.severity Set metric rule breakersTripped severity level
-          severity: critical
-
       clusterHealthRed:
         ## @param config.metrics.rules.clusterHealthRed.enabled Enable metric rule clusterHealthRed
         enabled: true
@@ -152,15 +143,6 @@ config:
         for: 1m
         labels:
           ## @param config.metrics.rules.jvmHighGCRate.labels.severity Set metric rule jvmHighGCRate severity level
-          severity: critical
-
-      shardsDelayed:
-        ## @param config.metrics.rules.shardsDelayed.enabled Enable metric rule shardsDelayed
-        enabled: true
-        ## @param config.metrics.rules.shardsDelayed.for Set metric rule shardsDelayed wait interval
-        for: 1m
-        labels:
-          ## @param config.metrics.rules.shardsDelayed.labels.severity Set metric rule shardsDelayed severity level
           severity: critical
 
       shardsUnassigned:
