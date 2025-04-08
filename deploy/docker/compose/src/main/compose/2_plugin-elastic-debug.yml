@@ -25,6 +25,6 @@ services:
 
   repository-search-elastic-migration:
     environment:
-      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8000"
+      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:8000"
     ports:
       - "${COMMON_BIND_HOST:-127.0.0.1}:${REPOSITORY_SEARCH_ELASTIC_MIGRATION_PORT_JPDA:-8402}:8000"
