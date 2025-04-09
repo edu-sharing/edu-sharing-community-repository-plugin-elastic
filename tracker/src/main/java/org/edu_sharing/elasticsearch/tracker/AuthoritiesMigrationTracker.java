@@ -51,6 +51,7 @@ public class AuthoritiesMigrationTracker extends DefaultTransactionTracker{
         List<Long> dbnodeids = nodes.stream().map(Node::getId).collect(Collectors.toList());
         GetNodeMetadataParam paramsTypeCheck = new GetNodeMetadataParam();
         paramsTypeCheck.setIncludeType(true);
+        paramsTypeCheck.setIncludeProperties(false);
         paramsTypeCheck.setIncludeAspects(false);
         paramsTypeCheck.setIncludeAclId(false);
         paramsTypeCheck.setIncludeNodeRef(false);
