@@ -103,7 +103,7 @@ config:
           ## @param config.metrics.rules.jvmHighGCRate.config.max Set metric rule jvmHighGCRate max gc rate
           max: 0.3
         ## @param config.metrics.rules.jvmHighGCRate.for Set metric rule jvmHighGCRate wait interval
-        for: 1m
+        for: 5m
         labels:
           ## @param config.metrics.rules.jvmHighGCRate.labels.severity Set metric rule jvmHighGCRate severity level
           severity: critical
@@ -113,9 +113,9 @@ config:
         enabled: true
         config:
           ## @param config.metrics.rules.trackingACLDelay.config.max Set metric rule trackingACLDelay max delay seconds
-          max: 60
+          max: 300
         ## @param config.metrics.rules.trackingACLDelay.for Set metric rule trackingACLDelay wait interval
-        for: 1m
+        for: 30m
         labels:
           ## @param config.metrics.rules.trackingACLDelay.labels.severity Set metric rule trackingACLDelay severity level
           severity: critical
@@ -125,9 +125,9 @@ config:
         enabled: true
         config:
           ## @param config.metrics.rules.trackingACLProgress.config.min Set metric rule trackingACLProgress min progress rate
-          min: 100
+          min: 95
         ## @param config.metrics.rules.trackingACLProgress.for Set metric rule trackingACLProgress wait interval
-        for: 1m
+        for: 5m
         labels:
           ## @param config.metrics.rules.trackingACLProgress.labels.severity Set metric rule trackingACLProgress severity level
           severity: critical
@@ -137,9 +137,9 @@ config:
         enabled: true
         config:
           ## @param config.metrics.rules.trackingTransactionDelay.config.max Set metric rule trackingTransactionDelay max delay seconds
-          max: 60
+          max: 300
         ## @param config.metrics.rules.trackingTransactionDelay.for Set metric rule trackingTransactionDelay wait interval
-        for: 1m
+        for: 30m
         labels:
           ## @param config.metrics.rules.trackingTransactionDelay.labels.severity Set metric rule trackingTransactionDelay severity level
           severity: critical
@@ -149,9 +149,9 @@ config:
         enabled: true
         config:
           ## @param config.metrics.rules.trackingTransactionProgress.config.min Set metric rule trackingTransactionProgress min progress rate
-          min: 100
+          min: 95
         ## @param config.metrics.rules.trackingTransactionProgress.for Set metric rule trackingTransactionProgress wait interval
-        for: 1m
+        for: 5m
         labels:
           ## @param config.metrics.rules.trackingTransactionProgress.labels.severity Set metric rule trackingTransactionProgress severity level
           severity: critical

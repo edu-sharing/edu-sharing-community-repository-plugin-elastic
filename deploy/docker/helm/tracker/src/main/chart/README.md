@@ -35,23 +35,23 @@
 | `config.metrics.relabelings`                                       | Define relabelings for metrics                                | `[]`                                           |
 | `config.metrics.rules.jvmHighGCRate.enabled`                       | Enable metric rule jvmHighGCRate                              | `true`                                         |
 | `config.metrics.rules.jvmHighGCRate.config.max`                    | Set metric rule jvmHighGCRate max gc rate                     | `0.3`                                          |
-| `config.metrics.rules.jvmHighGCRate.for`                           | Set metric rule jvmHighGCRate wait interval                   | `1m`                                           |
+| `config.metrics.rules.jvmHighGCRate.for`                           | Set metric rule jvmHighGCRate wait interval                   | `5m`                                           |
 | `config.metrics.rules.jvmHighGCRate.labels.severity`               | Set metric rule jvmHighGCRate severity level                  | `critical`                                     |
 | `config.metrics.rules.trackingACLDelay.enabled`                    | Enable metric rule trackingACLDelay                           | `true`                                         |
-| `config.metrics.rules.trackingACLDelay.config.max`                 | Set metric rule trackingACLDelay max delay seconds            | `60`                                           |
-| `config.metrics.rules.trackingACLDelay.for`                        | Set metric rule trackingACLDelay wait interval                | `1m`                                           |
+| `config.metrics.rules.trackingACLDelay.config.max`                 | Set metric rule trackingACLDelay max delay seconds            | `300`                                          |
+| `config.metrics.rules.trackingACLDelay.for`                        | Set metric rule trackingACLDelay wait interval                | `30m`                                          |
 | `config.metrics.rules.trackingACLDelay.labels.severity`            | Set metric rule trackingACLDelay severity level               | `critical`                                     |
 | `config.metrics.rules.trackingACLProgress.enabled`                 | Enable metric rule trackingACLProgress                        | `true`                                         |
-| `config.metrics.rules.trackingACLProgress.config.min`              | Set metric rule trackingACLProgress min progress rate         | `100`                                          |
-| `config.metrics.rules.trackingACLProgress.for`                     | Set metric rule trackingACLProgress wait interval             | `1m`                                           |
+| `config.metrics.rules.trackingACLProgress.config.min`              | Set metric rule trackingACLProgress min progress rate         | `95`                                           |
+| `config.metrics.rules.trackingACLProgress.for`                     | Set metric rule trackingACLProgress wait interval             | `5m`                                           |
 | `config.metrics.rules.trackingACLProgress.labels.severity`         | Set metric rule trackingACLProgress severity level            | `critical`                                     |
 | `config.metrics.rules.trackingTransactionDelay.enabled`            | Enable metric rule trackingTransactionDelay                   | `true`                                         |
-| `config.metrics.rules.trackingTransactionDelay.config.max`         | Set metric rule trackingTransactionDelay max delay seconds    | `60`                                           |
-| `config.metrics.rules.trackingTransactionDelay.for`                | Set metric rule trackingTransactionDelay wait interval        | `1m`                                           |
+| `config.metrics.rules.trackingTransactionDelay.config.max`         | Set metric rule trackingTransactionDelay max delay seconds    | `300`                                          |
+| `config.metrics.rules.trackingTransactionDelay.for`                | Set metric rule trackingTransactionDelay wait interval        | `30m`                                          |
 | `config.metrics.rules.trackingTransactionDelay.labels.severity`    | Set metric rule trackingTransactionDelay severity level       | `critical`                                     |
 | `config.metrics.rules.trackingTransactionProgress.enabled`         | Enable metric rule trackingTransactionProgress                | `true`                                         |
-| `config.metrics.rules.trackingTransactionProgress.config.min`      | Set metric rule trackingTransactionProgress min progress rate | `100`                                          |
-| `config.metrics.rules.trackingTransactionProgress.for`             | Set metric rule trackingTransactionProgress wait interval     | `1m`                                           |
+| `config.metrics.rules.trackingTransactionProgress.config.min`      | Set metric rule trackingTransactionProgress min progress rate | `95`                                           |
+| `config.metrics.rules.trackingTransactionProgress.for`             | Set metric rule trackingTransactionProgress wait interval     | `5m`                                           |
 | `config.metrics.rules.trackingTransactionProgress.labels.severity` | Set metric rule trackingTransactionProgress severity level    | `critical`                                     |
 | `config.override`                                                  | Configure overrides                                           | `""`                                           |
 | `config.repository.host`                                           | Configure repository host                                     | `edusharing-repository-service`                |
