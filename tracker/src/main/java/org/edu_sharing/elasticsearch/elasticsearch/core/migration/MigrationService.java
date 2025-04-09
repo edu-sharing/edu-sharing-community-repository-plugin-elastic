@@ -342,7 +342,7 @@ public class MigrationService {
                             }
                         }
 
-                        log.info("delete document migration transactions index");
+                        log.info("delete authorities migration transactions index");
                         adminService.deleteIndex(indexConfiguration);
 
                         if (requiresDocumentMigration) {
