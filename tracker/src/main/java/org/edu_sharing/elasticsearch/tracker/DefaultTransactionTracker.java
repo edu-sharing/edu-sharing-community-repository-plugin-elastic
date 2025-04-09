@@ -220,7 +220,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         }
         return toIndex;
     }
-    private List<NodeMetadata> filterByNodeTypes(List<NodeMetadata> nodeData, String... types ) {
+    public List<NodeMetadata> filterByNodeTypes(List<NodeMetadata> nodeData, String... types ) {
         return nodeData.stream().filter(n -> Arrays.asList(types).contains(n.getType())).collect(Collectors.toList());
     }
 

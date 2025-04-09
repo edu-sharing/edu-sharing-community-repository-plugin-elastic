@@ -162,9 +162,13 @@ public class AlfrescoWebscriptClient {
 
     public List<NodeMetadata> getNodeMetadataByIds(List<Long> dbNodeIds) {
         GetNodeMetadataParam getNodeMetadataParam = new GetNodeMetadataParam();
-        getNodeMetadataParam.setNodeIds(dbNodeIds);
         getNodeMetadataParam.setIncludeChildAssociations(false);
         getNodeMetadataParam.setIncludeParentAssociations(false);
+        return getNodeMetadataByIds(dbNodeIds, getNodeMetadataParam);
+    }
+
+    public List<NodeMetadata> getNodeMetadataByIds(List<Long> dbNodeIds, GetNodeMetadataParam getNodeMetadataParam) {
+        getNodeMetadataParam.setNodeIds(dbNodeIds);
 
         NodeMetadatas nmds;
         try {
@@ -173,26 +177,22 @@ public class AlfrescoWebscriptClient {
         }catch (ResponseProcessingException e){
             List<NodeMetadata> fallbackResult = new ArrayList<>();
             for(Long dbid : dbNodeIds){
-                GetNodeMetadataParam getNodeMetadataParamSingle = new GetNodeMetadataParam();
-                getNodeMetadataParamSingle.setNodeIds(Collections.singletonList(dbid));
-                getNodeMetadataParamSingle.setIncludeChildAssociations(false);
-                getNodeMetadataParamSingle.setIncludeParentAssociations(false);
+                getNodeMetadataParam.setNodeIds(Collections.singletonList(dbid));
                 try {
-                    NodeMetadatas nmdsSingle = getNodeMetadata(getNodeMetadataParamSingle);
+                    NodeMetadatas nmdsSingle = getNodeMetadata(getNodeMetadataParam);
                     if(nmdsSingle != null) fallbackResult.addAll(nmdsSingle.getNodes());
                     //finally log the broken node
                 }catch (ResponseProcessingException e2){
                     String url = getUrl(URL_NODE_METADATA);
                     Response resp = client.target(url)
                             .request(MediaType.APPLICATION_JSON)
-                            .post(Entity.json(getNodeMetadataParamSingle));
+                            .post(Entity.json(getNodeMetadataParam));
                     String valueAsString = resp.readEntity(String.class);
                     logger.warn("problems with node:" + valueAsString, e);
                 }
             }
             return fallbackResult;
         }
-
     }
 
     public List<NodeMetadata> getNodeMetadataByAllowedTypes(List<Node> nodes, final List<String> types) {
