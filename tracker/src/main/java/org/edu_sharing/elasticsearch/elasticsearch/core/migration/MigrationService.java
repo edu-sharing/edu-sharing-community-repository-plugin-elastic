@@ -20,7 +20,6 @@ import org.edu_sharing.elasticsearch.tracker.AuthoritiesMigrationTracker;
 import org.edu_sharing.elasticsearch.tracker.DefaultTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.TrackerServiceFactory;
 import org.edu_sharing.elasticsearch.tracker.strategy.MaxTransactionIdStrategy;
-import org.edu_sharing.repository.client.tools.CCConstants;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
@@ -336,7 +335,6 @@ public class MigrationService {
                         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
                         StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
                         AuthoritiesMigrationTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesMigrationTracker::new,migrationTransactionStateService,new MaxTransactionIdStrategy(maxTxnId));
-                        migrationTracker.setIncludeNodeTypes(List.of(CCConstants.CM_TYPE_PERSON,CCConstants.CM_TYPE_AUTHORITY_CONTAINER));
 
                         while (true) {
                             if (!migrationTracker.track()) {

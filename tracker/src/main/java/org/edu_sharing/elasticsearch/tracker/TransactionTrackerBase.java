@@ -55,7 +55,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     @Setter
     int numberOfTransactions = 200;
 
-    @Setter(AccessLevel.PUBLIC)
+    @Setter(AccessLevel.PROTECTED)
     protected List<String> includeNodeTypes = null;
 
     protected ForkJoinPool threadPool;

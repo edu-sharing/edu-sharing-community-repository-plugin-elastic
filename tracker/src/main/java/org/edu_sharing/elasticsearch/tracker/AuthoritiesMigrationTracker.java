@@ -18,6 +18,7 @@ public class AuthoritiesMigrationTracker extends DefaultTransactionTracker{
 
     public AuthoritiesMigrationTracker(){
         super();
+        this.setIncludeNodeTypes(List.of(CCConstants.CM_TYPE_PERSON,CCConstants.CM_TYPE_AUTHORITY_CONTAINER));
     }
 
     @Override
