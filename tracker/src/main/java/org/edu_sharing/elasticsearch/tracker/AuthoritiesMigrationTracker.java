@@ -6,6 +6,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.tools.Tools;
+import org.edu_sharing.repository.client.tools.CCConstants;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -46,33 +47,10 @@ public class AuthoritiesMigrationTracker extends DefaultTransactionTracker{
         }
     }
 
-    public void indexNodes(List<Node> nodes) throws IOException {
-
-        List<Long> dbnodeids = nodes.stream().map(Node::getId).collect(Collectors.toList());
-        GetNodeMetadataParam paramsTypeCheck = new GetNodeMetadataParam();
-        paramsTypeCheck.setIncludeType(true);
-        paramsTypeCheck.setIncludeProperties(false);
-        paramsTypeCheck.setIncludeAspects(false);
-        paramsTypeCheck.setIncludeAclId(false);
-        paramsTypeCheck.setIncludeNodeRef(false);
-        paramsTypeCheck.setIncludeChildAssociations(false);
-        paramsTypeCheck.setIncludeChildIds(false);
-        paramsTypeCheck.setIncludeOwner(false);
-        paramsTypeCheck.setIncludeParentAssociations(false);
-        paramsTypeCheck.setIncludePaths(false);
-        paramsTypeCheck.setIncludeTxnId(false);
-        log.info("start getTypes");
-        List<NodeMetadata> nodeTypes = alfClient.getNodeMetadataByIds(dbnodeids, paramsTypeCheck);
-        log.info("finished getTypes");
-        List<Long> filterNodeIds = filterByNodeTypes(nodeTypes).stream().map(n -> n.getId()).collect(Collectors.toList());
-        log.info("getNodeMetadata start " + nodes.size());
-        List<NodeMetadata> nodeData = alfClient.getNodeMetadataByIds(filterNodeIds);
-        log.info("getNodeMetadata done " + nodeData.size());
-        if(nodeData.size() > 0)
-            indexNodesMetadata(nodeData);
-    }
-
     public void indexNodesMetadata(List<NodeMetadata> nodeData) throws IOException {
+        if(nodeData.stream().anyMatch(n -> !List.of("cm:person","cm:authorityContainer").contains(n.getType()))) {
+            throw new RuntimeException("no person or authority!!!");
+        }
         // authorities
         log.info("start index Authorities/Persons:"+nodeData.size());
         List<NodeData> toIndexAuthorities = prepareAuthorities(nodeData);

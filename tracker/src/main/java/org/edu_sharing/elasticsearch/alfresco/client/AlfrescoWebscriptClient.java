@@ -75,11 +75,15 @@ public class AlfrescoWebscriptClient {
     }
 
     public List<Node> getNodes(List<Long> transactionIds) {
-
-        String url = getUrl(URL_NODES_TRANSACTION);
-
         GetNodeParam p = new GetNodeParam();
         p.setTxnIds(transactionIds);
+        return getNodes(p);
+    }
+
+
+    public List<Node> getNodes(GetNodeParam p) {
+
+        String url = getUrl(URL_NODES_TRANSACTION);
         try {
             Nodes node = client.target(url)
                     .request(MediaType.APPLICATION_JSON)
@@ -88,13 +92,13 @@ public class AlfrescoWebscriptClient {
         } catch (ResponseProcessingException e) {
             logger.warn("Could not parse nodes for all transaction ids, will fetch individually...", e);
             List<Node> result = new ArrayList<>();
-            for (Long transactionId : transactionIds) {
-                GetNodeParam p2 = new GetNodeParam();
-                p2.setTxnIds(Collections.singletonList(transactionId));
+            for (Long transactionId : p.getTxnIds()) {
+
+                p.setTxnIds(Collections.singletonList(transactionId));
                 try {
                     Nodes node = client.target(url)
                             .request(MediaType.APPLICATION_JSON)
-                            .post(Entity.json(p2)).readEntity(Nodes.class);
+                            .post(Entity.json(p)).readEntity(Nodes.class);
                     result.addAll(node.getNodes());
                 } catch (ResponseProcessingException e2) {
                     logger.warn("Error reading node for transaction id " + transactionId, e2);

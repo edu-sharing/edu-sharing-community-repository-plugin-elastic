@@ -4,10 +4,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.edu_sharing.elasticsearch.alfresco.client.AlfrescoWebscriptClient;
-import org.edu_sharing.elasticsearch.alfresco.client.Node;
-import org.edu_sharing.elasticsearch.alfresco.client.Transaction;
-import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
+import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
@@ -57,6 +54,9 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
     @Setter
     int numberOfTransactions = 200;
+
+    @Setter(AccessLevel.PUBLIC)
+    protected List<String> includeNodeTypes = null;
 
     protected ForkJoinPool threadPool;
 
@@ -110,8 +110,15 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
                     .collect(Collectors.toList());
             log.info("got " + transactionIds.size() + " transactions last:" + transactionIds.get(transactionIds.size() - 1));
 
-
-            List<Node> nodes = alfClient.getNodes(transactionIds);
+            GetNodeParam getNodeParam;
+            if(this.includeNodeTypes != null && !this.includeNodeTypes.isEmpty()) {
+                getNodeParam = new GetNodeParamExtension();
+                ((GetNodeParamExtension)getNodeParam).setIncludeNodeTypes(this.includeNodeTypes);
+            }else{
+                getNodeParam = new GetNodeParam();
+            }
+            getNodeParam.setTxnIds(transactionIds);
+            List<Node> nodes = alfClient.getNodes(getNodeParam);
             log.info("got " + nodes.size() + " nodes");
 
             eduSharingClient.refreshValuespaceCache();
