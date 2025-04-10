@@ -119,7 +119,7 @@ config:
         ## @param config.metrics.rules.clusterHealthRed.enabled Enable metric rule clusterHealthRed
         enabled: true
         ## @param config.metrics.rules.clusterHealthRed.for Set metric rule clusterHealthRed wait interval
-        for: 1m
+        for: 5m
         labels:
           ## @param config.metrics.rules.clusterHealthRed.labels.severity Set metric rule clusterHealthRed severity level
           severity: critical
@@ -128,7 +128,7 @@ config:
         ## @param config.metrics.rules.clusterHealthYellow.enabled Enable metric rule clusterHealthYellow
         enabled: true
         ## @param config.metrics.rules.clusterHealthYellow.for Set metric rule clusterHealthYellow wait interval
-        for: 1m
+        for: 5m
         labels:
           ## @param config.metrics.rules.clusterHealthYellow.labels.severity Set metric rule clusterHealthYellow severity level
           severity: critical
@@ -140,7 +140,7 @@ config:
           ## @param config.metrics.rules.jvmHighGCRate.config.max Set metric rule jvmHighGCRate max gc rate
           max: 0.3
         ## @param config.metrics.rules.jvmHighGCRate.for Set metric rule jvmHighGCRate wait interval
-        for: 1m
+        for: 5m
         labels:
           ## @param config.metrics.rules.jvmHighGCRate.labels.severity Set metric rule jvmHighGCRate severity level
           severity: critical
@@ -149,7 +149,7 @@ config:
         ## @param config.metrics.rules.shardsUnassigned.enabled Enable metric rule shardsUnassigned
         enabled: true
         ## @param config.metrics.rules.shardsUnassigned.for Set metric rule shardsUnassigned wait interval
-        for: 1m
+        for: 5m
         labels:
           ## @param config.metrics.rules.shardsUnassigned.labels.severity Set metric rule shardsUnassigned severity level
           severity: critical
