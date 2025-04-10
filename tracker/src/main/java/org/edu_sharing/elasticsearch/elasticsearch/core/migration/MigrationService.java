@@ -9,7 +9,6 @@ import co.elastic.clients.transport.endpoints.BooleanResponse;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
@@ -48,7 +47,7 @@ public class MigrationService {
 
 
     @Value("${migration.authorities.transactions.max:5000}")
-    int æuthoritiesTrackerNumberOfTransactions;
+    int authoritiesTrackerNumberOfTransactions;
 
     public void runMigration() throws IOException, InterruptedException {
         AppInfo appInfo = getAppInfo();
@@ -341,7 +340,7 @@ public class MigrationService {
                         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
                         StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
                         AuthoritiesMigrationTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesMigrationTracker::new,migrationTransactionStateService,new MaxTransactionIdStrategy(maxTxnId));
-                        migrationTracker.setNumberOfTransactions(æuthoritiesTrackerNumberOfTransactions);
+                        migrationTracker.setNumberOfTransactions(authoritiesTrackerNumberOfTransactions);
                         while (true) {
                             if (!migrationTracker.track()) {
                                 break;
