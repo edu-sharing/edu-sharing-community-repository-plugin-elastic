@@ -78,7 +78,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
             long lastTransactionId = Optional.ofNullable(txn).map(Tx::getTxnId).orElse(0L);
             long lastTransactionTimestamp = Optional.ofNullable(txn).map(Tx::getTxnCommitTime).orElse(0L);
-            log.info("starting lastTransactionId: {} timestamp: {}", lastTransactionId, lastTransactionTimestamp);
+            log.info("starting lastTransactionId: {} timestamp: {} numberOfTransactions: {}", lastTransactionId, lastTransactionTimestamp, numberOfTransactions);
 
 
             long nextTransactionId = lastTransactionId + 1;

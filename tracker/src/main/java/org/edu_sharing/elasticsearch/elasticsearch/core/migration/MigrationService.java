@@ -9,6 +9,7 @@ import co.elastic.clients.transport.endpoints.BooleanResponse;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
@@ -21,6 +22,7 @@ import org.edu_sharing.elasticsearch.tracker.DefaultTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.TrackerServiceFactory;
 import org.edu_sharing.elasticsearch.tracker.strategy.MaxTransactionIdStrategy;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
@@ -43,6 +45,10 @@ public class MigrationService {
     private final TrackerServiceFactory trackerServiceFactory;
     private final StatusIndexService<Tx> transactionStateService;
     private final List<MigrationInfo> migrationInfos;
+
+
+    @Value("${migration.authorities.transactions.max:5000}")
+    int æuthoritiesTrackerNumberOfTransactions;
 
     public void runMigration() throws IOException, InterruptedException {
         AppInfo appInfo = getAppInfo();
@@ -335,7 +341,7 @@ public class MigrationService {
                         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
                         StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
                         AuthoritiesMigrationTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesMigrationTracker::new,migrationTransactionStateService,new MaxTransactionIdStrategy(maxTxnId));
-
+                        migrationTracker.setNumberOfTransactions(æuthoritiesTrackerNumberOfTransactions);
                         while (true) {
                             if (!migrationTracker.track()) {
                                 break;
