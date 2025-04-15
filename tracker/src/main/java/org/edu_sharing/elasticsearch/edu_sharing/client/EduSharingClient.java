@@ -27,6 +27,7 @@ import javax.ws.rs.core.*;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -225,7 +226,7 @@ public class EduSharingClient {
 
                 Map<String, List<String>> valuespacesForLanguage = data.getValueSpaces().get(language);
                 if(valuespacesForLanguage == null){
-                    valuespacesForLanguage = new HashMap<>();
+                    valuespacesForLanguage = new ConcurrentHashMap<>();
                     data.getValueSpaces().put(language,valuespacesForLanguage);
                 }
                 if(translated instanceof List){
