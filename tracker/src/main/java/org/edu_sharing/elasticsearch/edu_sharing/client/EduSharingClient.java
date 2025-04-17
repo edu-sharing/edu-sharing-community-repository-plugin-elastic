@@ -1,5 +1,7 @@
 package org.edu_sharing.elasticsearch.edu_sharing.client;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -110,10 +112,18 @@ public class EduSharingClient {
     public void init()  throws IOException {
         authorizationHeader = "Basic "
                 + org.apache.cxf.common.util.Base64Utility.encode(String.format("%s:%s",alfrescoUsername,alfrescoPassword).getBytes());
+
+        ObjectMapper mapper = new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        JacksonJsonProvider provider = new JacksonJsonProvider();
+        provider.setMapper(mapper);
+
         educlient = ClientBuilder.newBuilder()
                 .register(JacksonJsonProvider.class)
                 .register(PreviewDataReader.class)
                 .build();
+
         if (Boolean.parseBoolean(logRequests)) {
             educlient.register(new LoggingFeature());
         }
