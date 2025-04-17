@@ -120,7 +120,7 @@ public class EduSharingClient {
         provider.setMapper(mapper);
 
         educlient = ClientBuilder.newBuilder()
-                .register(JacksonJsonProvider.class)
+                .register(provider)
                 .register(PreviewDataReader.class)
                 .build();
 
