@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class AuthorityService {
@@ -67,6 +69,17 @@ public class AuthorityService {
 
         }
         logger.info("returning");
+    }
+
+    public void delete(List<Node> nodes) throws IOException {
+        nodes = nodes.stream().filter(n -> {
+            try {
+                return workspaceService.exists(n.getId()+"",index);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }).collect(Collectors.toList());
+        workspaceService.delete(nodes,index);
     }
 
     public void refreshIndex() throws IOException {

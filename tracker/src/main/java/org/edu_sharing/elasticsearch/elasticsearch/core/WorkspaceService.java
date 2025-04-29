@@ -993,6 +993,10 @@ public class WorkspaceService {
     }
 
     public boolean exists(String id) throws IOException {
+        return exists(id, index);
+    }
+
+    public boolean exists(String id, String index) throws IOException {
         return client.exists(req -> req
                         .index(index)
                         .id(id))
@@ -1000,6 +1004,10 @@ public class WorkspaceService {
     }
 
     public void delete(List<Node> nodes) throws IOException {
+        delete(nodes,index);
+    }
+
+    public void delete(List<Node> nodes, String index) throws IOException {
         logger.info("starting delete size:" + nodes.size());
         for (Node node : nodes) {
             logger.debug("nodeid to delete: " + node.getNodeRef() + " / " + node.getId());

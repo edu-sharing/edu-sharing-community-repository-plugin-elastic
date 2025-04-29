@@ -80,6 +80,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
         workspaceService.beforeDeleteCleanupCollectionReplicas(toDelete);
         workspaceService.delete(toDelete);
+        authorityService.delete(toDelete);
 
 
         // index nodes
