@@ -31,6 +31,9 @@
 
   <properties>
 
+    <!-- git extension controlled props -->
+    <project.version.base>git</project.version.base>
+
     <alfresco.sdk.version>3.1.0</alfresco.sdk.version>
 
     <!-- release-2 -->
