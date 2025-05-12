@@ -1,16 +1,14 @@
-FROM ${docker.from.openjdk}
+FROM ${docker.from.openjdk.17.liberica.debian}
 
 ########################################################################################################################
 
 RUN set -eux \
     && apt-get update -y \
     && apt-get install -y --no-install-recommends \
-		curl \
-        jq \
+        curl \
+        wget \
 		nano \
         wait-for-it \
-        wget \
-        xmlstarlet \
     && apt-get clean \
     && rm -r /var/lib/apt/lists/*
 

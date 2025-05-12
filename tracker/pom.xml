@@ -19,10 +19,10 @@
   <name>edu_sharing-community-repository-plugin-elastic-tracker</name>
 
   <properties>
-    <spring.boot.version>2.7.18</spring.boot.version>
-    <maven.compiler.source>11</maven.compiler.source>
-    <maven.compiler.target>11</maven.compiler.target>
-    <java.version>11</java.version>
+    <spring.boot.version>3.4.5</spring.boot.version>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <java.version>17</java.version>
   </properties>
 
   <profiles>
@@ -32,7 +32,7 @@
         <jdk>!1.8</jdk>
       </activation>
       <properties>
-        <maven.compiler.release>11</maven.compiler.release>
+        <maven.compiler.release>17</maven.compiler.release>
       </properties>
     </profile>
   </profiles>
@@ -68,14 +68,14 @@
       <dependency>
         <groupId>org.springframework</groupId>
         <artifactId>spring-web</artifactId>
-        <version>5.3.37</version>
+        <version>6.2.6</version>
       </dependency>
       <!-- security patches end -->
 
       <dependency>
         <groupId>org.apache.cxf</groupId>
         <artifactId>cxf-bom</artifactId>
-        <version>3.4.10</version>
+        <version>3.6.5</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
@@ -142,7 +142,7 @@
     <dependency>
       <groupId>org.eclipse.parsson</groupId>
       <artifactId>parsson</artifactId>
-      <version>1.1.4</version>
+      <version>1.1.7</version>
     </dependency>
 
 
@@ -164,6 +164,7 @@
     <dependency>
       <groupId>com.fasterxml.jackson.jakarta.rs</groupId>
       <artifactId>jackson-jakarta-rs-json-provider</artifactId>
+      <version>2.18.3</version>
     </dependency>
 
     <dependency>
@@ -192,12 +193,24 @@
     <dependency>
       <groupId>jakarta.json</groupId>
       <artifactId>jakarta.json-api</artifactId>
-      <version>2.1.2</version>
+      <version>2.1.3</version>
+    </dependency>
+
+    <dependency>
+      <groupId>jakarta.ws.rs</groupId>
+      <artifactId>jakarta.ws.rs-api</artifactId>
+      <version>3.1.0</version>
     </dependency>
 
     <dependency>
       <groupId>org.edu_sharing</groupId>
       <artifactId>edu_sharing-community-repository-backend-services-rest-client-java</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.jaxrs</groupId>
+          <artifactId>jackson-jaxrs-json-provider</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.google.code.gson</groupId>
@@ -248,6 +261,17 @@
     <dependency>
       <groupId>com.fasterxml.jackson.jaxrs</groupId>
       <artifactId>jackson-jaxrs-json-provider</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.glassfish.jersey.core</groupId>
+      <artifactId>jersey-client</artifactId>
+      <version>3.1.2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.jersey.core</groupId>
+      <artifactId>jersey-common</artifactId>
+      <version>3.1.3</version>
     </dependency>
 
   </dependencies>
