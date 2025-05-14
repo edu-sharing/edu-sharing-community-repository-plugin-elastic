@@ -4,6 +4,7 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.BulkIndexByScrollFailure;
 import co.elastic.clients.elasticsearch._types.Conflicts;
 import co.elastic.clients.elasticsearch._types.Result;
+import co.elastic.clients.elasticsearch._types.Time;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
@@ -11,6 +12,7 @@ import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import co.elastic.clients.elasticsearch.core.bulk.OperationType;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
+import co.elastic.clients.elasticsearch.core.search.ResponseBody;
 import co.elastic.clients.json.JsonData;
 import co.elastic.clients.util.ObjectBuilder;
 import com.google.gson.GsonBuilder;
@@ -1050,6 +1052,46 @@ public class WorkspaceService {
                 }
                 , Map.class);
         return searchResponse.hits();
+    }
+
+    public void scroll(Query query, int pageSize, Integer maxResultsSize, String scrollTimeout, List<String> excludes, Consumer<Hit<Map>> hitConsumer) throws IOException {
+
+        Time time = Time.of(t -> t.time(scrollTimeout));
+        SearchRequest.Builder req = new SearchRequest.Builder()
+                .index(index)
+                .scroll(time)
+                .size(pageSize)
+                .query(query).trackTotalHits(t->t.enabled(true));
+        if (excludes != null) {
+            req.source(src -> src.filter(fetch -> fetch.excludes(excludes)));
+        }
+        String scrollId = null;
+        HitsMetadata<Map> hits;
+        ResponseBody<Map> searchResponse;
+        int hitsProcessed = 0;
+        do{
+            if(scrollId == null) {
+                searchResponse = client
+                        .search(req.build(), Map.class);
+            }else {
+                final String usedScrollId = scrollId;
+                searchResponse = client
+                        .scroll(scroll -> scroll.scrollId(usedScrollId).scroll(time), Map.class);
+            }
+            scrollId = searchResponse.scrollId();
+            hits = searchResponse.hits();
+
+            for(Hit<Map> hit : hits.hits()){
+                if(hitConsumer != null) hitConsumer.accept(hit);
+                hitsProcessed++;
+                if(maxResultsSize != null && (hitsProcessed == maxResultsSize)){
+                    logger.debug("stop scrolling cause {} reached. query:{}",maxResultsSize,query);
+                    return;
+                }
+            }
+            logger.debug("processed {} searchhits. query:{}",hitsProcessed,query);
+        }while (!hits.hits().isEmpty());
+
     }
 
     public Serializable getProperty(String nodeRef, String property) throws IOException {

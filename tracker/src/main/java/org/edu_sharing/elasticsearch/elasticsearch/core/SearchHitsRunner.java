@@ -28,23 +28,6 @@ public final class SearchHitsRunner {
     }
 
     public void run(Query query, int pageSize, Integer maxResultsSize,  Consumer<Hit<Map>> hitConsumer)throws IOException {
-        int page = 0;
-        HitsMetadata<Map> searchHits = null;
-        do{
-            if(searchHits != null){
-                page+=pageSize;
-            }
-            searchHits = workspaceService.search(query, page, pageSize);
-            if(maxResultsSize != null && searchHits.total().value() > maxResultsSize){
-                logger.warn("max result size has been reached: found {} of {} allowed", searchHits.total().value(), maxResultsSize);
-                return;
-            }
-            logger.debug("result is smaller than limit, will continue: found {} of {} allowed", searchHits.total().value(), maxResultsSize);
-
-            for(Hit<Map> searchHit : searchHits.hits()){
-                hitConsumer.accept(searchHit);
-            }
-
-        }while(searchHits.total() != null && searchHits.total().value() > page);
+        workspaceService.scroll(query,pageSize, maxResultsSize,"1m",null,hitConsumer);
     }
 }
