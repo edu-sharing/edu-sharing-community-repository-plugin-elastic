@@ -1056,41 +1056,49 @@ public class WorkspaceService {
 
     public void scroll(Query query, int pageSize, Integer maxResultsSize, String scrollTimeout, List<String> excludes, Consumer<Hit<Map>> hitConsumer) throws IOException {
 
-        Time time = Time.of(t -> t.time(scrollTimeout));
-        SearchRequest.Builder req = new SearchRequest.Builder()
-                .index(index)
-                .scroll(time)
-                .size(pageSize)
-                .query(query).trackTotalHits(t->t.enabled(true));
-        if (excludes != null) {
-            req.source(src -> src.filter(fetch -> fetch.excludes(excludes)));
-        }
         String scrollId = null;
-        HitsMetadata<Map> hits;
-        ResponseBody<Map> searchResponse;
-        int hitsProcessed = 0;
-        do{
-            if(scrollId == null) {
-                searchResponse = client
-                        .search(req.build(), Map.class);
-            }else {
-                final String usedScrollId = scrollId;
-                searchResponse = client
-                        .scroll(scroll -> scroll.scrollId(usedScrollId).scroll(time), Map.class);
+        try {
+            Time time = Time.of(t -> t.time(scrollTimeout));
+            SearchRequest.Builder req = new SearchRequest.Builder()
+                    .index(index)
+                    .scroll(time)
+                    .size(pageSize)
+                    .query(query).trackTotalHits(t -> t.enabled(true));
+            if (excludes != null) {
+                req.source(src -> src.filter(fetch -> fetch.excludes(excludes)));
             }
-            scrollId = searchResponse.scrollId();
-            hits = searchResponse.hits();
 
-            for(Hit<Map> hit : hits.hits()){
-                if(hitConsumer != null) hitConsumer.accept(hit);
-                hitsProcessed++;
-                if(maxResultsSize != null && (hitsProcessed == maxResultsSize)){
-                    logger.debug("stop scrolling cause {} reached. query:{}",maxResultsSize,query);
-                    return;
+            HitsMetadata<Map> hits;
+            ResponseBody<Map> searchResponse;
+            int hitsProcessed = 0;
+            do {
+                if (scrollId == null) {
+                    searchResponse = client
+                            .search(req.build(), Map.class);
+                } else {
+                    final String usedScrollId = scrollId;
+                    searchResponse = client
+                            .scroll(scroll -> scroll.scrollId(usedScrollId).scroll(time), Map.class);
                 }
+                scrollId = searchResponse.scrollId();
+                hits = searchResponse.hits();
+
+                for (Hit<Map> hit : hits.hits()) {
+                    if (hitConsumer != null) hitConsumer.accept(hit);
+                    hitsProcessed++;
+                    if (maxResultsSize != null && (hitsProcessed == maxResultsSize)) {
+                        logger.debug("stop scrolling cause {} reached. query:{}", maxResultsSize, query);
+                        return;
+                    }
+                }
+                logger.debug("processed {} searchhits. query:{}", hitsProcessed, query);
+            } while (!hits.hits().isEmpty());
+        }finally {
+            String fscrollId = scrollId;
+            if (scrollId != null && !scrollId.isEmpty()) {
+                client.clearScroll(cs -> cs.scrollId(fscrollId));
             }
-            logger.debug("processed {} searchhits. query:{}",hitsProcessed,query);
-        }while (!hits.hits().isEmpty());
+        }
 
     }
 
