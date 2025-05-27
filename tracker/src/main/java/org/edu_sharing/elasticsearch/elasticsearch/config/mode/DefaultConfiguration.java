@@ -5,9 +5,11 @@ import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.WaitForMigrationJob;
 import org.edu_sharing.elasticsearch.jobs.AclTrackerJob;
+import org.edu_sharing.elasticsearch.jobs.CascadeTrackerJob;
 import org.edu_sharing.elasticsearch.jobs.StatisticsTrackerJob;
 import org.edu_sharing.elasticsearch.jobs.TransactionTrackerJob;
 import org.edu_sharing.elasticsearch.tracker.AclTracker;
+import org.edu_sharing.elasticsearch.tracker.CascadeTracker;
 import org.edu_sharing.elasticsearch.tracker.StatisticsTracker;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -38,5 +40,10 @@ public class DefaultConfiguration {
     @ConditionalOnProperty(prefix = "statistic", name = "enabled", havingValue = "true")
     public StatisticsTrackerJob statisticsTrackerJob(StatisticsTracker statisticsTracker, TrackerAvailabilityTickService tickService){
         return new StatisticsTrackerJob(statisticsTracker, tickService);
+    }
+
+    @Bean
+    public CascadeTrackerJob cascadeTrackerJob(CascadeTracker cascadeTracker){
+        return new CascadeTrackerJob(cascadeTracker);
     }
 }

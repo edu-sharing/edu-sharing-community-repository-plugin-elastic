@@ -1,11 +1,9 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.BulkIndexByScrollFailure;
-import co.elastic.clients.elasticsearch._types.Conflicts;
-import co.elastic.clients.elasticsearch._types.Result;
-import co.elastic.clients.elasticsearch._types.Time;
+import co.elastic.clients.elasticsearch._types.*;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
@@ -31,10 +29,12 @@ import org.apache.tomcat.util.buf.StringUtils;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
+import org.edu_sharing.elasticsearch.elasticsearch.core.model.ElasticNode;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.utils.NodeMetadataSimple;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
+import org.edu_sharing.elasticsearch.tracker.CascadeTracker;
 import org.edu_sharing.elasticsearch.tracker.Partition;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,7 +52,6 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -156,6 +155,22 @@ public class WorkspaceService {
         List<BulkOperation> operations = new ArrayList<>();
         for (NodeData nodeData : nodes) {
             NodeMetadata node = nodeData.getNodeMetadata();
+            // check if a formally moved node was moved again
+            if(nodeData.getNodeMetadata().getAspects().contains("sys:cascadeUpdate")){
+                HitsMetadata<ElasticNode> hits =  search(QueryBuilders.ids(i -> i.values(Long.toString(nodeData.getNodeMetadata().getId()))),
+                        0,
+                        1,
+                        null,
+                        ElasticNode.class);
+                if(hits != null && !hits.hits().isEmpty()){
+                    String cascadeTx = (String)hits.hits().get(0).source().getProperties().get(CascadeTracker.propCascadeTx);
+                    if(cascadeTx != null){
+                        if(Long.parseLong(cascadeTx) < Long.parseLong((String)nodeData.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName(CascadeTracker.propCascadeTx)))){
+                           nodeData.setRefreshPath(true);
+                        }
+                    }
+                }
+            }
             DataBuilder builder = new DataBuilder();
             fillData(nodeData, builder);
             Object data = builder.build();
@@ -229,6 +244,9 @@ public class WorkspaceService {
             builder.field("aclId", node.getAclId());
             builder.field("txnId", node.getTxnId());
             builder.field("dbid", node.getId());
+            if(nodeData.isRefreshPath()){
+                builder.field(CascadeTracker.flag, true);
+            }
 
             List<String> parentUuids = Arrays.asList(node.getPaths().get(0).getApath().split("/"));
             parentUuids.stream().skip(parentUuids.size() - 1).findFirst()
@@ -603,7 +621,7 @@ public class WorkspaceService {
         }
     }
 
-    private void addNodePath(DataBuilder builder, NodeMetadata node) {
+    public void addNodePath(DataBuilder builder, NodeMetadata node) {
         {
             String[] pathEle = node.getPaths().get(0).getApath().split("/");
             builder.field("path", Arrays.copyOfRange(pathEle, 1, pathEle.length));
@@ -811,7 +829,7 @@ public class WorkspaceService {
             boolean collectionDeleted = collectionCheckQuery.equals(queryCollection);
             logger.info("cleanup collection cause " + (collectionDeleted ? "collection deleted" : "usage/proposal deleted"));
 
-            searchHitsRunner.run(collectionCheckQuery, hitIO -> {
+            searchHitsRunner.run(collectionCheckQuery, Map.class, hitIO -> {
                 Map source = hitIO.source();
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> collections = (List<Map<String, Object>>) source.get("collections");
@@ -866,7 +884,7 @@ public class WorkspaceService {
     private void onUpdateRefreshUsageCollectionReplicas(NodeMetadataSimple node, boolean update, boolean resyncIndex) throws IOException {
         // a collection -> refresh replicas for each item inside this collection
         if ("ccm:map".equals(node.getType())) {
-            searchHitsRunner.run(InternalQueries.queryCollectionNodes(node.getId()), maxCollectionChildItemsUpdateSize, (hit) -> {
+            searchHitsRunner.run(InternalQueries.queryCollectionNodes(node.getId()), maxCollectionChildItemsUpdateSize, Map.class, (hit) -> {
                 try {
                     onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(hit.source()), true, false);
                 } catch (IOException e) {
@@ -896,7 +914,7 @@ public class WorkspaceService {
 
         Query queryProposals = InternalQueries.queryProposals(node, queryProposal);
         long startTimeMs = System.currentTimeMillis();
-        Consumer<Hit<Map>> action = hit -> {
+        SearchHitsRunner.IOConsumer<Hit<Map>> action = hit -> {
             long dbId = ((Number) hit.source().get("dbid")).longValue();
             GetNodeMetadataParam param = new GetNodeMetadataParam();
             param.setNodeIds(Arrays.asList(new Long[]{dbId}));
@@ -939,8 +957,9 @@ public class WorkspaceService {
             }
         };
         // run queries and apply action above
-        searchHitsRunner.run(queryUsages, 25, update ? maxCollectionChildItemsUpdateSize : null, action);
-        searchHitsRunner.run(queryProposals, 25, update ? maxCollectionChildItemsUpdateSize : null, action);
+
+        searchHitsRunner.run(queryUsages, 25, update ? maxCollectionChildItemsUpdateSize : null, null,Map.class,action);
+        searchHitsRunner.run(queryProposals, 25, update ? maxCollectionChildItemsUpdateSize : null, null, Map.class, action);
         builder.endArray();
         builder.endObject();
         // since the node was indexed before an explicit write is not required and slows down the performance
@@ -1035,11 +1054,11 @@ public class WorkspaceService {
     }
 
     public HitsMetadata<Map> search(Query queryBuilder, int from, int size) throws IOException {
-        return this.search(queryBuilder, from, size, null);
+        return this.search(queryBuilder, from, size, null, Map.class);
     }
 
-    public HitsMetadata<Map> search(Query query, int from, int size, List<String> excludes) throws IOException {
-        SearchResponse<Map> searchResponse = client.search(req -> {
+    public <T> HitsMetadata<T> search(Query query, int from, int size, List<String> excludes, Class<T> modelClass) throws IOException {
+        SearchResponse<T> searchResponse = client.search(req -> {
                     req.index(index)
                             .query(query)
                             .from(from)
@@ -1050,11 +1069,11 @@ public class WorkspaceService {
                     }
                     return req;
                 }
-                , Map.class);
+                , modelClass);
         return searchResponse.hits();
     }
 
-    public void scroll(Query query, int pageSize, Integer maxResultsSize, String scrollTimeout, List<String> excludes, Consumer<Hit<Map>> hitConsumer) throws IOException {
+    public <T> void scroll(Query query, int pageSize, Integer maxResultsSize, String scrollTimeout, List<String> excludes, List<SortOptions> sortOptions, Class<T> modelClass, SearchHitsRunner.IOConsumer<Hit<T>> hitConsumer) throws IOException {
 
         String scrollId = null;
         try {
@@ -1067,23 +1086,26 @@ public class WorkspaceService {
             if (excludes != null) {
                 req.source(src -> src.filter(fetch -> fetch.excludes(excludes)));
             }
+            if(sortOptions != null) {
+                req.sort(sortOptions);
+            }
 
-            HitsMetadata<Map> hits;
-            ResponseBody<Map> searchResponse;
+            HitsMetadata<T> hits;
+            ResponseBody<T> searchResponse;
             int hitsProcessed = 0;
             do {
                 if (scrollId == null) {
                     searchResponse = client
-                            .search(req.build(), Map.class);
+                            .search(req.build(), modelClass);
                 } else {
                     final String usedScrollId = scrollId;
                     searchResponse = client
-                            .scroll(scroll -> scroll.scrollId(usedScrollId).scroll(time), Map.class);
+                            .scroll(scroll -> scroll.scrollId(usedScrollId).scroll(time), modelClass);
                 }
                 scrollId = searchResponse.scrollId();
                 hits = searchResponse.hits();
 
-                for (Hit<Map> hit : hits.hits()) {
+                for (Hit<T> hit : hits.hits()) {
                     if (hitConsumer != null) hitConsumer.accept(hit);
                     hitsProcessed++;
                     if (maxResultsSize != null && (hitsProcessed == maxResultsSize)) {
@@ -1121,7 +1143,7 @@ public class WorkspaceService {
         String identifier = Tools.getIdentifier(nodeRef);
         Query query = InternalQueries.queryByUUID(uuid, protocol, identifier);
 
-        HitsMetadata<Map> sh = this.search(query, 0, 1, excludes);
+        HitsMetadata<Map> sh = this.search(query, 0, 1, excludes, Map.class);
         if (sh == null || sh.total().value() == 0) {
             return null;
         }

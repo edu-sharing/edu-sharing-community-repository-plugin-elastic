@@ -3,6 +3,7 @@ package org.edu_sharing.elasticsearch.alfresco.client;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,55 +14,47 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NodeData {
+    @Setter
     NodeMetadata nodeMetadata;
+    @Setter
     NodePreview nodePreview;
+    @Setter
     Reader reader;
+    @Setter
     String fullText;
 
     Map<String,List<String>> permissions;
 
+    @Setter
+    boolean refreshPath = false;
+
     List<NodeData> children = new ArrayList<>();
 
+    @Setter
     Map<String, Map<String, List<String>>> valueSpaces = new HashMap<>();
 
     public NodeMetadata getNodeMetadata() {
         return nodeMetadata;
     }
 
-    public void setNodeMetadata(NodeMetadata nodeMetadata) {
-        this.nodeMetadata = nodeMetadata;
+    public boolean isRefreshPath() {
+        return refreshPath;
     }
 
     public NodePreview getNodePreview() {
         return nodePreview;
     }
 
-    public void setNodePreview(NodePreview nodePreview) {
-        this.nodePreview = nodePreview;
-    }
-
     public Reader getReader() {
         return reader;
-    }
-
-    public void setReader(Reader reader) {
-        this.reader = reader;
     }
 
     public Map<String, Map<String, List<String>>> getValueSpaces() {
         return valueSpaces;
     }
 
-    public void setValueSpaces(Map<String, Map<String, List<String>>> valueSpaces) {
-        this.valueSpaces = valueSpaces;
-    }
-
     public String getFullText() {
         return fullText;
-    }
-
-    public void setFullText(String fullText) {
-        this.fullText = fullText;
     }
 
     public void setAccessControlList(AccessControlList accessControlList) {
