@@ -1,0 +1,60 @@
+{{- if .Values.global.backup.velero.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "edusharing_common_lib.names.name" . }}-file
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
+data:
+  backup-pre.sh: |-
+    #!/bin/bash
+    set -e
+    while ! curl -s --fail "localhost:9200/_cluster/health?wait_for_status=green"; do echo -n "."; sleep 5 ; done
+    NODE_NAME=$(env | grep '^node.name=' | sed "s/node.name=//")
+    if [[ "${NODE_NAME##*-}" == "0" ]]; then
+      PATH_REPO=$(env | grep '^path.repo=' | sed "s/path.repo=//")
+      curl -s "localhost:9200/_snapshot" | grep -q "backup" || \
+        curl -s -X PUT "localhost:9200/_snapshot/backup" -H 'Content-Type: application/json' -d '{
+          "type": "fs",
+          "settings": {
+            "location": "$PATH_REPO"
+          }
+        }'
+      curl -s -X PUT "localhost:9200/_snapshot/backup/snapshot_$(date +%Y%m%d%H%M%S)?wait_for_completion=true" -H 'Content-Type: application/json' -d '{
+        "include_global_state": true
+      }'
+    fi
+  backup-post.sh: |-
+    #!/bin/bash
+    set -e
+    while ! curl -s --fail "localhost:9200/_cluster/health?wait_for_status=green"; do echo -n "."; sleep 5 ; done
+    NODE_NAME=$(env | grep '^node.name=' | sed "s/node.name=//")
+    if [[ "${NODE_NAME##*-}" == "0" ]]; then
+      ALL_SNAPSHOTS=$(curl -s "localhost:9200/_snapshot/backup/_all" | grep -o "snapshot_[0-9-]*")
+      for SNAPSHOT in $ALL_SNAPSHOTS; do
+        if [[ $(echo $SNAPSHOT | sed 's/snapshot_//') < $(date -d "30 days ago" +%Y%m%d%H%M%S) ]]; then
+          curl -s -X DELETE "localhost:9200/_snapshot/backup/$SNAPSHOT"
+        fi
+      done
+    fi
+  restore-post.sh: |-
+    #!/bin/bash
+    set -e
+    touch /run/lock/velero.lock
+    while ! curl -s --fail "localhost:9200/_cluster/health?wait_for_status=green"; do echo -n "."; sleep 5 ; done
+    NODE_NAME=$(env | grep '^node.name=' | sed "s/node.name=//")
+    if [[ "${NODE_NAME##*-}" == "0" ]]; then
+      PATH_REPO=$(env | grep '^path.repo=' | sed "s/path.repo=//")
+      curl -s "localhost:9200/_snapshot" | grep -q "backup" || \
+        curl -s -X PUT "localhost:9200/_snapshot/backup" -H 'Content-Type: application/json' -d '{
+          "type": "fs",
+          "settings": {
+            "location": "$PATH_REPO"
+          }
+        }'
+      LATEST_SNAPSHOT=$(curl -s "localhost:9200/_snapshot/backup/_all" | grep -o "snapshot_[0-9-]*" | sort | tail -n1)
+      curl -s -X POST "localhost:9200/_snapshot/backup/$LATEST_SNAPSHOT/_restore?wait_for_completion=true" -H 'Content-Type: application/json' -d '{
+        "include_global_state": true
+      }'
+    fi
+    rm /run/lock/velero.lock
+{{- end }}

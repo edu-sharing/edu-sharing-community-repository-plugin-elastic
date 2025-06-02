@@ -24,6 +24,9 @@ spec:
         {{- end }}
       annotations:
         checksum/configmap-env: {{ include (print .Template.BasePath "/configmap-env.yaml") . | sha256sum | trunc 63 }}
+        {{- if .Values.global.backup.velero.enabled }}
+        checksum/configmap-file: {{ include (print .Template.BasePath "/configmap-file.yaml") . | sha256sum | trunc 63 }}
+        {{- end }}
         {{- if not .Values.global.metrics.servicemonitor.enabled }}
         prometheus.io/path: "/metrics"
         prometheus.io/port: "9114"
@@ -37,6 +40,15 @@ spec:
         {{- end }}
         {{- with merge .Values.podAnnotations .Values.global.annotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.global.backup.velero.enabled }}
+        backup.velero.io/backup-volumes: share-data
+        pre.hook.backup.velero.io/command: '["/bin/bash", "-c", "/scripts/backup-pre.sh"]'
+        pre.hook.backup.velero.io/timeout: {{ .Values.global.backup.velero.hook.timeout }}
+        post.hook.backup.velero.io/command: '["/bin/bash", "-c", "/scripts/backup-post.sh"]'
+        post.hook.backup.velero.io/timeout: {{ .Values.global.backup.velero.hook.timeout }}
+        post.hook.restore.velero.io/command: '["/bin/bash", "-c", "/scripts/restore-post.sh"]'
+        post.hook.restore.velero.io/timeout: {{ .Values.global.backup.velero.hook.timeout }}
         {{- end }}
     spec:
       {{- if (or (default .Values.global.cluster.storage.data.permission .Values.persistence.data.permission) .Values.global.cluster.sysctl.enabled) }}
@@ -201,11 +213,26 @@ spec:
           mountPath: /usr/share/elasticsearch/data
         - name: share-data
           mountPath: /usr/share/elasticsearch/share
+        {{- if .Values.global.backup.velero.enabled }}
+        - name: file
+          mountPath: /scripts/backup-pre.sh
+          subPath: backup-pre.sh
+        - name: file
+          mountPath: /scripts/backup-post.sh
+          subPath: backup-post.sh
+        - name: file
+          mountPath: /scripts/restore-post.sh
+          subPath: restore-post.sh
+        {{- end }}
         {{- with .Values.startupProbe }}
         startupProbe:
-          httpGet:
-            path: /_cluster/health?local=true&timeout={{ .timeoutSeconds }}s
-            port: api
+          exec:
+            command:
+              - "/bin/bash"
+              - "-ec"
+              - |
+                [[ -f /run/lock/velero.lock ]] && exit 1
+                curl -s --fail localhost:9200/_cluster/health?local=true&timeout={{ .timeoutSeconds }}s
           failureThreshold: {{ .failureThreshold }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
           periodSeconds: {{ .periodSeconds }}
@@ -341,6 +368,12 @@ spec:
       volumes:
       - name: share-data
         {{ tpl .Values.persistence.share.data.type . | nindent 8 }}
+      {{- if .Values.global.backup.velero.enabled }}
+      - name: file
+        configMap:
+          name: {{ include "edusharing_common_lib.names.name" . }}-file
+          defaultMode: 0755
+      {{- end }}
   volumeClaimTemplates:
   - metadata:
       name: data
@@ -370,6 +403,9 @@ spec:
         app.kubernetes.io/stage: {{ .name }}
       annotations:
         checksum/configmap-env: {{ include (print $.Template.BasePath "/configmap-env.yaml") $ | sha256sum | trunc 63 }}
+        {{- if $.Values.global.backup.velero.enabled }}
+        checksum/configmap-file: {{ include (print .Template.BasePath "/configmap-file.yaml") $ | sha256sum | trunc 63 }}
+        {{- end }}
         {{- if not $.Values.global.metrics.servicemonitor.enabled }}
         prometheus.io/path: "/metrics"
         prometheus.io/port: "9114"
@@ -383,6 +419,15 @@ spec:
         {{- end }}
         {{- with merge $.Values.podAnnotations $.Values.global.annotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if $.Values.global.backup.velero.enabled }}
+        backup.velero.io/backup-volumes: share-data
+        pre.hook.backup.velero.io/command: '["/bin/bash", "-c", "/scripts/backup-pre.sh"]'
+        pre.hook.backup.velero.io/timeout: {{ $.Values.global.backup.velero.hook.timeout }}
+        post.hook.backup.velero.io/command: '["/bin/bash", "-c", "/scripts/backup-post.sh"]'
+        post.hook.backup.velero.io/timeout: {{ $.Values.global.backup.velero.hook.timeout }}
+        post.hook.restore.velero.io/command: '["/bin/bash", "-c", "/scripts/restore-post.sh"]'
+        post.hook.restore.velero.io/timeout: {{ $.Values.global.backup.velero.hook.timeout }}
         {{- end }}
     spec:
       {{- if (or (default $.Values.global.cluster.storage.data.permission $.Values.persistence.data.permission) $.Values.global.cluster.sysctl.enabled) }}
@@ -547,11 +592,26 @@ spec:
           mountPath: /usr/share/elasticsearch/data
         - name: share-data
           mountPath: /usr/share/elasticsearch/share
+        {{- if $.Values.global.backup.velero.enabled }}
+        - name: file
+          mountPath: /scripts/backup-pre.sh
+          subPath: backup-pre.sh
+        - name: file
+          mountPath: /scripts/backup-post.sh
+          subPath: backup-post.sh
+        - name: file
+          mountPath: /scripts/restore-post.sh
+          subPath: restore-post.sh
+        {{- end }}
         {{- with $.Values.startupProbe }}
         startupProbe:
-          httpGet:
-            path: /_cluster/health?local=true&timeout={{ .timeoutSeconds }}s
-            port: api
+          exec:
+            command:
+              - "/bin/bash"
+              - "-ec"
+              - |
+                [[ -f /run/lock/velero.lock ]] && exit 1
+                curl -s --fail localhost:9200/_cluster/health?local=true&timeout={{ .timeoutSeconds }}s
           failureThreshold: {{ .failureThreshold }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
           periodSeconds: {{ .periodSeconds }}
@@ -683,6 +743,12 @@ spec:
       volumes:
       - name: share-data
         {{ tpl $.Values.persistence.share.data.type $ | nindent 8 }}
+      {{- if $.Values.global.backup.velero.enabled }}
+      - name: file
+        configMap:
+          name: {{ include "edusharing_common_lib.names.name" $ }}-file
+          defaultMode: 0755
+      {{- end }}
   volumeClaimTemplates:
   - metadata:
       name: data

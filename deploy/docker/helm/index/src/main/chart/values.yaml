@@ -8,6 +8,15 @@ global:
   ## @param global.annotations Define global annotations
   annotations: {}
 
+  backup:
+
+    velero:
+      ## @param global.backup.velero.enabled Enable velero backup
+      enabled: false
+      hook:
+        ## @param global.backup.velero.hook.timeout Set velero hook timeout
+        timeout: 300s
+
   cluster:
 
     istio:
