@@ -1,5 +1,6 @@
 package org.edu_sharing.elasticsearch.tracker;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.FieldSort;
 import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
@@ -11,8 +12,10 @@ import org.edu_sharing.elasticsearch.alfresco.client.AlfrescoWebscriptClient;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.elasticsearch.core.SearchHitsRunner;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
+import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompletedAware;
 import org.edu_sharing.elasticsearch.elasticsearch.core.model.ElasticNode;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
+import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +25,7 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class CascadeTracker {
+public class CascadeTracker implements MigrationCompletedAware {
 
     public final static String propCascadeTx = "sys:cascadeTx";
     public final static String propDbid ="sys:node-dbid";
@@ -32,6 +35,8 @@ public class CascadeTracker {
 
     private final WorkspaceService workspaceService;
     private final AlfrescoWebscriptClient alfrescoWebscriptClient;
+
+    private boolean migrated = false;
 
     private final Query resolveCascadeQuery = QueryBuilders.bool()
             // for existing
@@ -56,15 +61,26 @@ public class CascadeTracker {
                     .order(SortOrder.Asc))));
 
     public void track(){
+
+        if(!migrated){
+            return;
+        }
+
         log.info("Track start");
         try{
-            new SearchHitsRunner(workspaceService).run(
+            new SearchHitsRunner(workspaceService, MetricContextHolder.getCascadeContext()).run(
                     resolveCascadeQuery,
                     100,
                     null,
                     List.of(resolveCascadeSortOptions),
                     ElasticNode.class,
                     h -> processCascade(h.source()));
+        }catch(ElasticsearchException e){
+            if(e.error()!=null && e.error().toString().contains("No mapping found for [properties.sys:cascadeTx.keyword]")){
+                log.warn("No mapping found for [properties.sys:cascadeTx.keyword]. presumable new index.");
+                return;
+            }
+            throw e;
         }catch (IOException e){
             log.error(e.getMessage(),e);
         }
@@ -111,5 +127,11 @@ public class CascadeTracker {
                 workspaceService.update(nodeMetadata.getId(),builder.build());
             }
         }
+    }
+
+
+    @Override
+    public void MigrationCompleted() {
+        migrated = true;
     }
 }

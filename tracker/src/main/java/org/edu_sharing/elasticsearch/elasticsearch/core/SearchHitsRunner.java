@@ -3,6 +3,7 @@ package org.edu_sharing.elasticsearch.elasticsearch.core;
 import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.search.Hit;
+import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,8 +15,13 @@ public final class SearchHitsRunner  {
     private static final Logger logger = LoggerFactory.getLogger(SearchHitsRunner.class);
 
     private final WorkspaceService workspaceService;
+    private final MetricContextHolder.MetricContext metricContext;
     public SearchHitsRunner(WorkspaceService workspaceService){
+        this(workspaceService,null);
+    }
+    public SearchHitsRunner(WorkspaceService workspaceService, MetricContextHolder.MetricContext metricContext) {
         this.workspaceService = workspaceService;
+        this.metricContext = metricContext;
     }
 
     public <T> void run(Query query, Class<T> modelClass, IOConsumer<Hit<T>> hitConsumer) throws IOException {
@@ -27,7 +33,7 @@ public final class SearchHitsRunner  {
     }
 
     public <T> void run(Query query, int pageSize, Integer maxResultsSize, List<SortOptions> sortOptions, Class<T> modelClass, IOConsumer<Hit<T>> hitConsumer) throws IOException {
-        workspaceService.scroll(query,pageSize, maxResultsSize,"1m",null,sortOptions,modelClass,hitConsumer);
+        workspaceService.scroll(query,pageSize, maxResultsSize,"1m",null,sortOptions,modelClass,hitConsumer,metricContext);
     }
 
     @FunctionalInterface

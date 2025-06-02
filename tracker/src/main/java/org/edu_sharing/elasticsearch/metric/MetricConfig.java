@@ -21,16 +21,25 @@ public class MetricConfig {
     @Getter
     private final AtomicLong transactionTimestamp = new AtomicLong();
     @PostConstruct public void init() {
-        Gauge.builder("transactionProgress", MetricContextHolder.getTransactionContext().getProgress(),
-                (p) -> p.get() /((double) PROGRESS_FACTOR)).description("Transaction progress").register(meterRegistry);
-        Gauge.builder("transactionDelay",  MetricContextHolder.getTransactionContext().getTimestamp(),
+        MetricContextHolder.MetricContext txContext = MetricContextHolder.getTransactionContext();
+        Gauge.builder(txContext.labelProgress, txContext.getProgress(),
+                (p) -> p.get() /((double) PROGRESS_FACTOR)).description(txContext.descriptionProgress).register(meterRegistry);
+        Gauge.builder(txContext.getLabelProgress(),  txContext.getTimestamp(),
                 p -> (System.currentTimeMillis() - p.get()) / 1000.
-        ).description("Transaction Delay in seconds").register(meterRegistry);
+        ).description(txContext.descriptionDelay).register(meterRegistry);
 
-        Gauge.builder("aclProgress", MetricContextHolder.getAclContext().getProgress(),
-                (p) -> p.get() /((double) PROGRESS_FACTOR)).description("ACL progress").register(meterRegistry);
-        Gauge.builder("aclDelay",  MetricContextHolder.getAclContext().getTimestamp(),
+        MetricContextHolder.MetricContext aclContext = MetricContextHolder.getAclContext();
+        Gauge.builder(aclContext.labelProgress, aclContext.getProgress(),
+                (p) -> p.get() /((double) PROGRESS_FACTOR)).description(aclContext.descriptionProgress).register(meterRegistry);
+        Gauge.builder(aclContext.labelDelay,  aclContext.getTimestamp(),
                 p -> (System.currentTimeMillis() - p.get()) / 1000.
-        ).description("ACL Delay in seconds").register(meterRegistry);
+        ).description(aclContext.descriptionDelay).register(meterRegistry);
+
+        MetricContextHolder.MetricContext cascadeContext = MetricContextHolder.getCascadeContext();
+        Gauge.builder(cascadeContext.labelProgress, cascadeContext.getProgress(),
+                (p) -> p.get() /((double) PROGRESS_FACTOR)).description(cascadeContext.descriptionProgress).register(meterRegistry);
+        Gauge.builder(cascadeContext.labelDelay,  cascadeContext.getTimestamp(),
+                p -> (System.currentTimeMillis() - p.get()) / 1000.
+        ).description(cascadeContext.descriptionDelay).register(meterRegistry);
     }
 }

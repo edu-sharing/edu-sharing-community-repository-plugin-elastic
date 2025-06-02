@@ -11,6 +11,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
+import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 
 import java.io.IOException;
@@ -133,12 +134,11 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             commit(transactionStateService, new Tx(last.getId(), last.getCommitTimeMs()));
 
             // log progress
-            DecimalFormat df = new DecimalFormat("0.00");
             MetricContextHolder.getTransactionContext().getProgress().set((long) (calcProgress(transactions, transactionIds) * PROGRESS_FACTOR));
             MetricContextHolder.getTransactionContext().getTimestamp().set(lastTransactionTimestamp);
             log.info("finished {}% ({} hours behind), lastTransactionId: {} transactions: {} nodes: {} Stack size: {}",
-                    df.format(calcProgress(transactions, transactionIds)),
-                    df.format((System.currentTimeMillis() - lastTransactionTimestamp) / 1000.0 / 60 / 24),
+                    Tools.df.format(calcProgress(transactions, transactionIds)),
+                    Tools.df.format((System.currentTimeMillis() - lastTransactionTimestamp) / 1000.0 / 60 / 24),
                     last,
                     Arrays.toString(transactionIds.toArray()),
                     nodes.size(),

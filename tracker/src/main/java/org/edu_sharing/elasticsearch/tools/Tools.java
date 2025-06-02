@@ -3,8 +3,11 @@ package org.edu_sharing.elasticsearch.tools;
 import org.apache.commons.codec.binary.Base64;
 
 import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
 
 public class Tools {
+
+    public static final DecimalFormat df = new DecimalFormat("0.00");
 
     public static final long WAIT_FOR_SERVICE = 10000;
 
