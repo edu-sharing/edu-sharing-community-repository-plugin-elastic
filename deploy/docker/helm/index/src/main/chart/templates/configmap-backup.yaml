@@ -1,0 +1,116 @@
+{{- if .Values.global.backup.velero.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "edusharing_common_lib.names.name" . }}-backup
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
+data:
+  backup-pre.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    trap 'echo "ERROR at line $LINENO, exit code $?"' ERR
+
+    BACKUP_ROOT="/usr/share/elasticsearch/share/${HOSTNAME%-*}"
+    mkdir -p "${BACKUP_ROOT}"
+
+    exec > >(tee -a "${BACKUP_ROOT}/backup-pre-${HOSTNAME##*-}.log") 2>&1
+    set -x
+
+    ES_URL="http://localhost:9200"
+    REPO="backup"
+    SNAPSHOT="snapshot_$(date +%Y%m%d%H%M%S)"
+
+    echo "waiting for elasticsearch"
+    until curl -fsS "${ES_URL}/_cluster/health?wait_for_status=green"; do echo -n "."; sleep 5 ; done
+
+    if [[ $(hostname) == *-0 ]]; then
+      if ! curl -fsS "${ES_URL}/_snapshot/${REPO}" >/dev/null; then
+        curl -fsS -X PUT "${ES_URL}/_snapshot/${REPO}" \
+          -H 'Content-Type: application/json' \
+          -d "{
+            \"type\": \"fs\",
+            \"settings\": {
+              \"location\": \"${BACKUP_ROOT}\"
+            }
+          }"
+      fi
+      curl -fsS -X PUT "${ES_URL}/_snapshot/${REPO}/${SNAPSHOT}?wait_for_completion=true" \
+        -H 'Content-Type: application/json' \
+        -d '{
+          "include_global_state": false
+        }'
+    fi
+  backup-post.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    trap 'echo "ERROR at line $LINENO, exit code $?"' ERR
+
+    BACKUP_ROOT="/usr/share/elasticsearch/share/${HOSTNAME%-*}"
+    mkdir -p "${BACKUP_ROOT}"
+
+    exec > >(tee -a "${BACKUP_ROOT}/backup-post-${HOSTNAME##*-}.log") 2>&1
+    set -x
+
+    ES_URL="http://localhost:9200"
+    REPO="backup"
+    CUTOFF="$(date -d "30 days ago" +%Y%m%d%H%M%S)"
+
+    echo "waiting for elasticsearch"
+    until curl -fsS "${ES_URL}/_cluster/health?wait_for_status=green"; do echo -n "."; sleep 5 ; done
+
+    if [[ $(hostname) == *-0 ]]; then
+      ALL_SNAPSHOTS=$(curl -fsS "${ES_URL}/_snapshot/${REPO}/_all" | grep -o "snapshot_[0-9-]*" || true)
+      for SNAPSHOT in $ALL_SNAPSHOTS; do
+        TS="${SNAPSHOT#snapshot_}"
+        if [[ "$TS" < "$CUTOFF" ]]; then
+          curl -fsS -X DELETE "${ES_URL}/_snapshot/${REPO}/$SNAPSHOT" >/dev/null
+        fi
+      done
+    fi
+  restore-post.sh: |-
+    #!/bin/bash
+    set -euo pipefail
+    trap 'echo "ERROR at line $LINENO, exit code $?"' ERR
+
+    BACKUP_ROOT="/usr/share/elasticsearch/share/${HOSTNAME%-*}"
+    mkdir -p "${BACKUP_ROOT}"
+
+    exec > >(tee -a "${BACKUP_ROOT}/restore-post-${HOSTNAME##*-}.log") 2>&1
+    set -x
+
+    ES_URL="http://localhost:9200"
+    REPO="backup"
+
+    echo "waiting for elasticsearch"
+    until curl -fsS "${ES_URL}/_cluster/health?wait_for_status=green"; do echo -n "."; sleep 5 ; done
+
+    if [[ $(hostname) == *-0 ]]; then
+      if ! curl -fsS "${ES_URL}/_snapshot/${REPO}" >/dev/null; then
+        curl -s -X PUT "${ES_URL}/_snapshot/${REPO}" \
+          -H 'Content-Type: application/json' \
+          -d "{
+            \"type\": \"fs\",
+            \"settings\": {
+              \"location\": \"${BACKUP_ROOT}\"
+            }
+          }"
+      fi
+
+      LATEST_SNAPSHOT=$(curl -fsS "${ES_URL}/_snapshot/${REPO}/_all" | grep -o "snapshot_[0-9-]*" | sort | tail -n1)
+
+      if [[ -z "$LATEST_SNAPSHOT" ]]; then
+        echo "no snapshot found in repository ${REPO}"
+        exit 1
+      fi
+
+      curl -fsS -X POST "${ES_URL}/_snapshot/${REPO}/$LATEST_SNAPSHOT/_restore?wait_for_completion=true" \
+        -H 'Content-Type: application/json' \
+        -d '{
+            "include_global_state": false,
+            "indices": "*",
+            "ignore_unavailable": true
+        }'
+
+      touch "${BACKUP_ROOT}/velero.restore.completed"
+    fi
+{{- end }}
