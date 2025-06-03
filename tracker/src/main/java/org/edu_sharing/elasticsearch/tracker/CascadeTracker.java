@@ -86,6 +86,7 @@ public class CascadeTracker implements MigrationCompletedAware {
                     List.of(resolveCascadeSortOptions),
                     ElasticNode.class,
                     h -> processCascade(h.source()));
+            calcMetric();
         }catch(ElasticsearchException e){
             if(e.error()!=null ){
                 if(e.error().toString().contains("No mapping found for [properties.sys:cascadeTx.keyword]")) {
@@ -98,6 +99,7 @@ public class CascadeTracker implements MigrationCompletedAware {
         }catch (IOException e){
             log.error(e.getMessage(),e);
         }
+
     }
 
     private void processCascade(ElasticNode movedNode) throws IOException {
