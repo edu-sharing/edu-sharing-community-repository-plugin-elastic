@@ -15,13 +15,8 @@ public final class SearchHitsRunner  {
     private static final Logger logger = LoggerFactory.getLogger(SearchHitsRunner.class);
 
     private final WorkspaceService workspaceService;
-    private final MetricContextHolder.MetricContext metricContext;
     public SearchHitsRunner(WorkspaceService workspaceService){
-        this(workspaceService,null);
-    }
-    public SearchHitsRunner(WorkspaceService workspaceService, MetricContextHolder.MetricContext metricContext) {
         this.workspaceService = workspaceService;
-        this.metricContext = metricContext;
     }
 
     public <T> void run(Query query, Class<T> modelClass, IOConsumer<Hit<T>> hitConsumer) throws IOException {
@@ -33,7 +28,7 @@ public final class SearchHitsRunner  {
     }
 
     public <T> void run(Query query, int pageSize, Integer maxResultsSize, List<SortOptions> sortOptions, Class<T> modelClass, IOConsumer<Hit<T>> hitConsumer) throws IOException {
-        workspaceService.scroll(query,pageSize, maxResultsSize,"1m",null,sortOptions,modelClass,hitConsumer,metricContext);
+        workspaceService.scroll(query,pageSize, maxResultsSize,"1m",null,sortOptions,modelClass,hitConsumer);
     }
 
     @FunctionalInterface

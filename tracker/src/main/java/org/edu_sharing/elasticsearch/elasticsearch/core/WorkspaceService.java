@@ -1076,7 +1076,7 @@ public class WorkspaceService {
         return searchResponse.hits();
     }
 
-    public <T> void scroll(Query query, int pageSize, Integer maxResultsSize, String scrollTimeout, List<String> excludes, List<SortOptions> sortOptions, Class<T> modelClass, SearchHitsRunner.IOConsumer<Hit<T>> hitConsumer, MetricContextHolder.MetricContext metricContext) throws IOException {
+    public <T> void scroll(Query query, int pageSize, Integer maxResultsSize, String scrollTimeout, List<String> excludes, List<SortOptions> sortOptions, Class<T> modelClass, SearchHitsRunner.IOConsumer<Hit<T>> hitConsumer) throws IOException {
 
         String scrollId = null;
         try {
@@ -1117,12 +1117,6 @@ public class WorkspaceService {
                     }
                 }
                 logger.debug("processed {} searchhits. query:{}", hitsProcessed, query);
-                if(metricContext != null) {
-                    double progress = (hits.total().value() > 0) ? calcScrollProgress(hitsProcessed, hits) : 100d;
-                    logger.info("{} processed {}%",metricContext.getLabelProgress(), Tools.df.format(progress));
-                    metricContext.getProgress().set((long) (progress * PROGRESS_FACTOR));
-                    metricContext.getTimestamp().set(System.currentTimeMillis());
-                }
             } while (!hits.hits().isEmpty());
         }finally {
             String fscrollId = scrollId;
@@ -1131,10 +1125,6 @@ public class WorkspaceService {
             }
         }
 
-    }
-
-    private <T> Double calcScrollProgress(long hitsProcessed, HitsMetadata<T> hits){
-        return (double) hitsProcessed / hits.total().value() * 100.0d;
     }
 
     public Serializable getProperty(String nodeRef, String property) throws IOException {

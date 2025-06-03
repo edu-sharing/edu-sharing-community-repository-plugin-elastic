@@ -16,11 +16,14 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompl
 import org.edu_sharing.elasticsearch.elasticsearch.core.model.ElasticNode;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
+import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.List;
+
+import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
 
 @Component
 @RequiredArgsConstructor
@@ -38,7 +41,13 @@ public class CascadeTracker implements MigrationCompletedAware {
 
     private boolean migrated = false;
 
-    private final Query resolveCascadeQuery = QueryBuilders.bool()
+    private final Query allCascadeQuery = QueryBuilders.exists(e -> e.field(elasticPropCascadeTx));
+
+    private final Query processedCascadeQuery = QueryBuilders.bool(b -> b
+            .must(m -> m.exists(e -> e.field(elasticPropCascadeTx)))
+            .must(m -> m.term(t -> t.field(flag).value(false))));
+
+    private final Query updatedCascadeQuery = QueryBuilders.bool()
             // for existing
             .should(s -> s
                     .bool(b -> b
@@ -68,17 +77,20 @@ public class CascadeTracker implements MigrationCompletedAware {
 
         log.info("Track start");
         try{
-            new SearchHitsRunner(workspaceService, MetricContextHolder.getCascadeContext()).run(
-                    resolveCascadeQuery,
+            new SearchHitsRunner(workspaceService).run(
+                    updatedCascadeQuery,
                     100,
                     null,
                     List.of(resolveCascadeSortOptions),
                     ElasticNode.class,
                     h -> processCascade(h.source()));
         }catch(ElasticsearchException e){
-            if(e.error()!=null && e.error().toString().contains("No mapping found for [properties.sys:cascadeTx.keyword]")){
-                log.warn("No mapping found for [properties.sys:cascadeTx.keyword]. presumable new index.");
-                return;
+            if(e.error()!=null ){
+                if(e.error().toString().contains("No mapping found for [properties.sys:cascadeTx.keyword]")) {
+                    log.warn("No mapping found for [properties.sys:cascadeTx.keyword]. presumable new index.");
+                    return;
+                }
+                log.error(e.error().toString(),e);
             }
             throw e;
         }catch (IOException e){
@@ -109,6 +121,19 @@ public class CascadeTracker implements MigrationCompletedAware {
                 workspaceService.update(dbid, dataBuilder.build());
             }
         });
+
+        workspaceService.refreshWorkspace();
+        long processed = workspaceService.search(processedCascadeQuery, 0, 0).total().value();
+        long all = workspaceService.search(allCascadeQuery, 0, 0).total().value();
+
+        double progress = calcScrollProgress(processed,all);
+        MetricContextHolder.getCascadeContext().getProgress().set((long) (progress * PROGRESS_FACTOR));
+        MetricContextHolder.getCascadeContext().getTimestamp().set(System.currentTimeMillis());
+        log.info("{} processed {}%",MetricContextHolder.getCascadeContext().getLabelProgress(), Tools.df.format(progress));
+    }
+
+    private <T> Double calcScrollProgress(long hitsProcessed, long all){
+        return (double) hitsProcessed / all * 100.0d;
     }
 
     private void processCascadeChild(ElasticNode parent, ElasticNode child) throws IOException {
