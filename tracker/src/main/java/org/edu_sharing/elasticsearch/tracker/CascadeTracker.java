@@ -69,6 +69,8 @@ public class CascadeTracker implements MigrationCompletedAware {
                     .field(elasticPropCascadeTx)
                     .order(SortOrder.Asc))));
 
+    long metricCalculated = 0;
+
     public void track(){
 
         if(!migrated){
@@ -122,17 +124,24 @@ public class CascadeTracker implements MigrationCompletedAware {
             }
         });
 
-        workspaceService.refreshWorkspace();
-        long processed = workspaceService.search(processedCascadeQuery, 0, 0).total().value();
-        long all = workspaceService.search(allCascadeQuery, 0, 0).total().value();
-
-        double progress = calcScrollProgress(processed,all);
-        MetricContextHolder.getCascadeContext().getProgress().set((long) (progress * PROGRESS_FACTOR));
-        MetricContextHolder.getCascadeContext().getTimestamp().set(System.currentTimeMillis());
-        log.info("{} processed {}%",MetricContextHolder.getCascadeContext().getLabelProgress(), Tools.df.format(progress));
+        calcMetric();
     }
 
-    private <T> Double calcScrollProgress(long hitsProcessed, long all){
+    private void calcMetric() throws IOException {
+        if(System.currentTimeMillis() - metricCalculated > 5000) {
+            workspaceService.refreshWorkspace();
+            long processed = workspaceService.search(processedCascadeQuery, 0, 0).total().value();
+            long all = workspaceService.search(allCascadeQuery, 0, 0).total().value();
+
+            double progress = calcProgress(processed, all);
+            MetricContextHolder.getCascadeContext().getProgress().set((long) (progress * PROGRESS_FACTOR));
+            MetricContextHolder.getCascadeContext().getTimestamp().set(System.currentTimeMillis());
+            log.info("{} processed {}%", MetricContextHolder.getCascadeContext().getLabelProgress(), Tools.df.format(progress));
+            metricCalculated = System.currentTimeMillis();
+        }
+    }
+
+    private Double calcProgress(long hitsProcessed, long all){
         return (double) hitsProcessed / all * 100.0d;
     }
 
