@@ -29,7 +29,8 @@ public class TrackerAvailabilityService extends ApplicationAvailabilityBean impl
             log.warn("Liveness probe: Fail cause of last tracking event delay (last event: {}, diff: {}", lastTrackingEvent, System.currentTimeMillis() - lastTrackingEvent);
             return (S) LivenessState.BROKEN;
         }
-        if(state instanceof ReadinessState && "migration-only".equals(mode)) {
+        if(ReadinessState.class.equals(stateType) && "migration-only".equals(mode)) {
+            // migration is ready as long as timeout isn't reached
             return (S) ReadinessState.ACCEPTING_TRAFFIC;
         }
         return state;
