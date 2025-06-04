@@ -15,7 +15,7 @@ public class TrackerAvailabilityService extends ApplicationAvailabilityBean impl
     private long lastTrackingEvent = System.currentTimeMillis();
     @Value("${management.endpoint.health.trackingTimeoutThreshold}")
     private long trackingTimeoutThreshold;
-    @Value("mode")
+    @Value("${mode}")
     private String mode;
     @Override
     public void tick() {
