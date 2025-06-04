@@ -10,6 +10,7 @@ import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
@@ -44,6 +45,7 @@ public class MigrationService {
     private final TrackerServiceFactory trackerServiceFactory;
     private final StatusIndexService<Tx> transactionStateService;
     private final List<MigrationInfo> migrationInfos;
+    private final TrackerAvailabilityTickService trackerAvailabilityTickService;
 
 
     @Value("${migration.authorities.transactions.max:5000}")
@@ -209,6 +211,7 @@ public class MigrationService {
 
             MigrationStep curStep = MigrationStep.valueOf(migrationState.getProgressStep());
             while (true) {
+                trackerAvailabilityTickService.tick();
                 switch (curStep) {
                     case INIT_PROGRESS_STEP: {
                         log.info("start migration");
@@ -342,6 +345,7 @@ public class MigrationService {
                         AuthoritiesMigrationTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesMigrationTracker::new,migrationTransactionStateService,new MaxTransactionIdStrategy(maxTxnId));
                         migrationTracker.setNumberOfTransactions(authoritiesTrackerNumberOfTransactions);
                         while (true) {
+                            trackerAvailabilityTickService.tick();
                             if (!migrationTracker.track()) {
                                 break;
                             }
@@ -367,6 +371,7 @@ public class MigrationService {
                         DefaultTransactionTracker migrationTracker = trackerServiceFactory.createDefaultTrackerService(migrationTransactionStateService, new MaxTransactionIdStrategy(maxTxnId));
 
                         while (true) {
+                            trackerAvailabilityTickService.tick();
                             if (!migrationTracker.track()) {
                                 break;
                             }
