@@ -24,9 +24,6 @@ spec:
         {{- end }}
       annotations:
         checksum/configmap-env: {{ include (print .Template.BasePath "/configmap-env.yaml") . | sha256sum | trunc 63 }}
-        {{- if .Values.global.backup.velero.enabled }}
-        checksum/configmap-file: {{ include (print .Template.BasePath "/configmap-file.yaml") . | sha256sum | trunc 63 }}
-        {{- end }}
         {{- if not .Values.global.metrics.servicemonitor.enabled }}
         prometheus.io/path: "/metrics"
         prometheus.io/port: "9114"
@@ -42,6 +39,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if .Values.global.backup.velero.enabled }}
+        checksum/configmap-backup: {{ include (print .Template.BasePath "/configmap-backup.yaml") . | sha256sum | trunc 63 }}
         backup.velero.io/backup-volumes: share-data
         pre.hook.backup.velero.io/command: '["/bin/bash", "-c", "/scripts/backup-pre.sh"]'
         pre.hook.backup.velero.io/timeout: {{ .Values.global.backup.velero.hook.timeout }}
@@ -214,13 +212,13 @@ spec:
         - name: share-data
           mountPath: /usr/share/elasticsearch/share
         {{- if .Values.global.backup.velero.enabled }}
-        - name: file
+        - name: backup
           mountPath: /scripts/backup-pre.sh
           subPath: backup-pre.sh
-        - name: file
+        - name: backup
           mountPath: /scripts/backup-post.sh
           subPath: backup-post.sh
-        - name: file
+        - name: backup
           mountPath: /scripts/restore-post.sh
           subPath: restore-post.sh
         {{- end }}
@@ -369,9 +367,9 @@ spec:
       - name: share-data
         {{ tpl .Values.persistence.share.data.type . | nindent 8 }}
       {{- if .Values.global.backup.velero.enabled }}
-      - name: file
+      - name: backup
         configMap:
-          name: {{ include "edusharing_common_lib.names.name" . }}-file
+          name: {{ include "edusharing_common_lib.names.name" . }}-backup
           defaultMode: 0755
       {{- end }}
   volumeClaimTemplates:
@@ -403,9 +401,6 @@ spec:
         app.kubernetes.io/stage: {{ .name }}
       annotations:
         checksum/configmap-env: {{ include (print $.Template.BasePath "/configmap-env.yaml") $ | sha256sum | trunc 63 }}
-        {{- if $.Values.global.backup.velero.enabled }}
-        checksum/configmap-file: {{ include (print .Template.BasePath "/configmap-file.yaml") $ | sha256sum | trunc 63 }}
-        {{- end }}
         {{- if not $.Values.global.metrics.servicemonitor.enabled }}
         prometheus.io/path: "/metrics"
         prometheus.io/port: "9114"
@@ -421,6 +416,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if $.Values.global.backup.velero.enabled }}
+        checksum/configmap-backup: {{ include (print .Template.BasePath "/configmap-backup.yaml") $ | sha256sum | trunc 63 }}
         backup.velero.io/backup-volumes: share-data
         pre.hook.backup.velero.io/command: '["/bin/bash", "-c", "/scripts/backup-pre.sh"]'
         pre.hook.backup.velero.io/timeout: {{ $.Values.global.backup.velero.hook.timeout }}
@@ -593,13 +589,13 @@ spec:
         - name: share-data
           mountPath: /usr/share/elasticsearch/share
         {{- if $.Values.global.backup.velero.enabled }}
-        - name: file
+        - name: backup
           mountPath: /scripts/backup-pre.sh
           subPath: backup-pre.sh
-        - name: file
+        - name: backup
           mountPath: /scripts/backup-post.sh
           subPath: backup-post.sh
-        - name: file
+        - name: backup
           mountPath: /scripts/restore-post.sh
           subPath: restore-post.sh
         {{- end }}
@@ -744,9 +740,9 @@ spec:
       - name: share-data
         {{ tpl $.Values.persistence.share.data.type $ | nindent 8 }}
       {{- if $.Values.global.backup.velero.enabled }}
-      - name: file
+      - name: backup
         configMap:
-          name: {{ include "edusharing_common_lib.names.name" $ }}-file
+          name: {{ include "edusharing_common_lib.names.name" $ }}-backup
           defaultMode: 0755
       {{- end }}
   volumeClaimTemplates:
