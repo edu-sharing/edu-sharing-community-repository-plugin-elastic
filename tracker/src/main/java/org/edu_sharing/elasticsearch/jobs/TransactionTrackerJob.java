@@ -1,5 +1,6 @@
 package org.edu_sharing.elasticsearch.jobs;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,11 @@ public class TransactionTrackerJob implements MigrationCompletedAware, Applicati
                 if((e instanceof OutOfMemoryError) && shutDownOnException){
                     log.info("will shutdown tracker cause of exception: {}", e.getMessage(), e);
                     ((ConfigurableApplicationContext) applicationContext).close();
+                }
+                if((e instanceof ElasticsearchException)) {
+                    if(((ElasticsearchException)e).error() != null) {
+                        log.error(((ElasticsearchException)e).error().toString(),e);
+                    }
                 }
             }
         } while (transactionChanges);
