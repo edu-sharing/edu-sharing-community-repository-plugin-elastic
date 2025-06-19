@@ -21,7 +21,7 @@ data:
         "include_global_state": true
       }'
     fi
-    rm -rf /usr/share/elasticsearch/share/.velero
+    rm -f /usr/share/elasticsearch/share/.velero/restored
   backup-post.sh: |-
     #!/bin/bash
     set -e
