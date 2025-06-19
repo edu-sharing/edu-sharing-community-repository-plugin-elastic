@@ -229,7 +229,7 @@ spec:
               - "/bin/bash"
               - "-ec"
               - |
-                [[ -f /run/lock/velero.lock ]] && exit 1
+                [[ -d /usr/share/elasticsearch/share/.velero && ! -e /usr/share/elasticsearch/share/.velero/restored ]] && exit 1
                 curl -s --fail localhost:9200/_cluster/health?local=true&timeout={{ .timeoutSeconds }}s
           failureThreshold: {{ .failureThreshold }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
@@ -606,7 +606,7 @@ spec:
               - "/bin/bash"
               - "-ec"
               - |
-                [[ -f /run/lock/velero.lock ]] && exit 1
+                [[ -d /usr/share/elasticsearch/share/.velero && ! -e /usr/share/elasticsearch/share/.velero/restored ]] && exit 1
                 curl -s --fail localhost:9200/_cluster/health?local=true&timeout={{ .timeoutSeconds }}s
           failureThreshold: {{ .failureThreshold }}
           initialDelaySeconds: {{ .initialDelaySeconds }}

@@ -9,26 +9,24 @@ data:
     #!/bin/bash
     set -e
     while ! curl -s --fail "localhost:9200/_cluster/health?wait_for_status=green"; do echo -n "."; sleep 5 ; done
-    NODE_NAME=$(env | grep '^node.name=' | sed "s/node.name=//")
-    if [[ "${NODE_NAME##*-}" == "0" ]]; then
-      PATH_REPO=$(env | grep '^path.repo=' | sed "s/path.repo=//")
+    if [[ $(hostname) == *-0 ]]; then
       curl -s "localhost:9200/_snapshot" | grep -q "backup" || \
         curl -s -X PUT "localhost:9200/_snapshot/backup" -H 'Content-Type: application/json' -d '{
           "type": "fs",
           "settings": {
-            "location": "$PATH_REPO"
+            "location": "/usr/share/elasticsearch/share"
           }
         }'
       curl -s -X PUT "localhost:9200/_snapshot/backup/snapshot_$(date +%Y%m%d%H%M%S)?wait_for_completion=true" -H 'Content-Type: application/json' -d '{
         "include_global_state": true
       }'
     fi
+    rm -rf /usr/share/elasticsearch/share/.velero
   backup-post.sh: |-
     #!/bin/bash
     set -e
     while ! curl -s --fail "localhost:9200/_cluster/health?wait_for_status=green"; do echo -n "."; sleep 5 ; done
-    NODE_NAME=$(env | grep '^node.name=' | sed "s/node.name=//")
-    if [[ "${NODE_NAME##*-}" == "0" ]]; then
+    if [[ $(hostname) == *-0 ]]; then
       ALL_SNAPSHOTS=$(curl -s "localhost:9200/_snapshot/backup/_all" | grep -o "snapshot_[0-9-]*")
       for SNAPSHOT in $ALL_SNAPSHOTS; do
         if [[ $(echo $SNAPSHOT | sed 's/snapshot_//') < $(date -d "30 days ago" +%Y%m%d%H%M%S) ]]; then
@@ -39,16 +37,13 @@ data:
   restore-post.sh: |-
     #!/bin/bash
     set -e
-    touch /run/lock/velero.lock
     while ! curl -s --fail "localhost:9200/_cluster/health?wait_for_status=green"; do echo -n "."; sleep 5 ; done
-    NODE_NAME=$(env | grep '^node.name=' | sed "s/node.name=//")
-    if [[ "${NODE_NAME##*-}" == "0" ]]; then
-      PATH_REPO=$(env | grep '^path.repo=' | sed "s/path.repo=//")
+    if [[ $(hostname) == *-0 ]]; then
       curl -s "localhost:9200/_snapshot" | grep -q "backup" || \
         curl -s -X PUT "localhost:9200/_snapshot/backup" -H 'Content-Type: application/json' -d '{
           "type": "fs",
           "settings": {
-            "location": "$PATH_REPO"
+            "location": "/usr/share/elasticsearch/share"
           }
         }'
       LATEST_SNAPSHOT=$(curl -s "localhost:9200/_snapshot/backup/_all" | grep -o "snapshot_[0-9-]*" | sort | tail -n1)
@@ -56,5 +51,5 @@ data:
         "include_global_state": true
       }'
     fi
-    rm /run/lock/velero.lock
+    touch /usr/share/elasticsearch/share/.velero/restored
 {{- end }}
