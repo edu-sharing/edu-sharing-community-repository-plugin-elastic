@@ -20,9 +20,9 @@
 
   <properties>
     <spring.boot.version>3.5.3</spring.boot.version>
-    <maven.compiler.source>21</maven.compiler.source>
-    <maven.compiler.target>21</maven.compiler.target>
-    <java.version>21</java.version>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <java.version>17</java.version>
   </properties>
 
   <profiles>
@@ -32,23 +32,13 @@
         <jdk>!1.8</jdk>
       </activation>
       <properties>
-        <maven.compiler.release>21</maven.compiler.release>
+        <maven.compiler.release>17</maven.compiler.release>
       </properties>
     </profile>
   </profiles>
 
 
   <build>
-
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.14.0</version>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-
     <plugins>
 
       <plugin>
