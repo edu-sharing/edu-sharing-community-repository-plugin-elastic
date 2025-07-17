@@ -1,15 +1,9 @@
 package org.edu_sharing.elasticsearch.tracker;
 
-import org.edu_sharing.elasticsearch.alfresco.client.AlfrescoWebscriptClient;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
-import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
-import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
-import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.tools.Tools;
-import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

@@ -27,12 +27,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.tomcat.util.buf.StringUtils;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
-import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
-import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
+import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.model.ElasticNode;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.utils.NodeMetadataSimple;
-import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.CascadeTracker;
@@ -56,8 +54,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
 
 @Component
 public class WorkspaceService {
@@ -87,12 +83,12 @@ public class WorkspaceService {
     private final SearchHitsRunner searchHitsRunner = new SearchHitsRunner(this);
     private final String index;
 
-    public WorkspaceService(co.elastic.clients.elasticsearch.ElasticsearchClient client, ScriptExecutor scriptExecutor, EduSharingClient eduSharingClient, AlfrescoWebscriptClient alfrescoClient, IndexConfiguration workspace) {
+    public WorkspaceService(co.elastic.clients.elasticsearch.ElasticsearchClient client, ScriptExecutor scriptExecutor, EduSharingService eduSharingService, AlfrescoWebscriptClient alfrescoClient, IndexConfiguration workspace) {
         this.client = client;
         this.scriptExecutor = scriptExecutor;
         this.alfrescoClient = alfrescoClient;
         this.index = workspace.getIndex();
-        this.homeRepoId = eduSharingClient.getHomeRepository().getId();
+        this.homeRepoId = eduSharingService.getHomeRepository().getId();
     }
 
     public void updateNodesWithAcl(final long aclId, final Map<String, List<String>> permissions) throws IOException {
@@ -1159,21 +1155,21 @@ public class WorkspaceService {
     /**
      * @return true when all uuids already exist in index
      */
-    public boolean updateNodeStatistics(Map<String, List<NodeStatistic>> nodeStatistics) throws IOException {
+    public boolean updateNodeStatistics(Map<String, List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData>> nodeStatistics) throws IOException {
 
         AtomicBoolean allInIndex = new AtomicBoolean();
         allInIndex.set(true);
 
         try {
-            Collection<List<Map.Entry<String, List<NodeStatistic>>>> partitions = Partition.getPartitions(nodeStatistics.entrySet(), bulkSizeElastic);
+            Collection<List<Map.Entry<String, List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData>>>> partitions = Partition.getPartitions(nodeStatistics.entrySet(), bulkSizeElastic);
             int page = 0;
-            for (List<Map.Entry<String, List<NodeStatistic>>> entries : partitions) {
+            for (List<Map.Entry<String, List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData>>> entries : partitions) {
                 logger.info("starting with page:" + page + " collection size:" + entries.size());
                 try {
                     List<BulkOperation> bulk = new ArrayList<>();
-                    for (Map.Entry<String, List<NodeStatistic>> entry : entries) {
+                    for (Map.Entry<String, List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData>> entry : entries) {
                         String uuid = entry.getKey();
-                        List<NodeStatistic> statistics = entry.getValue();
+                        List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData> statistics = entry.getValue();
                         if (statistics == null || statistics.isEmpty()) continue;
 
                         String nodeRef = CCConstants.STORE_WORKSPACES_SPACES + "/" + uuid;
@@ -1193,7 +1189,7 @@ public class WorkspaceService {
 
                         DataBuilder builder = new DataBuilder();
                         builder.startObject();
-                        for (NodeStatistic nodeStatistic : statistics) {
+                        for (org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData nodeStatistic : statistics) {
                             if (nodeStatistic == null) {
                                 logger.debug("there is a null value in statistics list:" + nodeRef);
                                 continue;

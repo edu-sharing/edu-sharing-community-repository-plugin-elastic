@@ -3,14 +3,7 @@ package org.edu_sharing.elasticsearch.tracker;
 import io.micrometer.core.instrument.util.StringUtils;
 import lombok.Setter;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
-import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
-import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
-import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.tools.Tools;
-import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -133,7 +126,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     }
 
     private void updateNodeStatistics(List<NodeData> toIndex) throws IOException {
-        Map<String, List<NodeStatistic>> updateNodeStatistics = new HashMap<>();
+        Map<String, List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData>> updateNodeStatistics = new HashMap<>();
         for (NodeData nodeDataStat : toIndex) {
             if (!"ccm:io".equals(nodeDataStat.getNodeMetadata().getType()) || !Tools.getProtocol(nodeDataStat.getNodeMetadata().getNodeRef()).equals("workspace")) {
                 continue;
@@ -142,7 +135,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
             long trackTs = System.currentTimeMillis();
             long trackFromTime = trackTs - (historyInDays * 24L * 60L * 60L * 1000L);
             String nodeId = Tools.getUUID(nodeDataStat.getNodeMetadata().getNodeRef());
-            List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTime);
+            List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData> statisticsForNode = eduSharingService.getStatisticsForNode(nodeId, trackFromTime);
             updateNodeStatistics.put(nodeId, statisticsForNode);
             //we don't need cleanup cause former elasticClient.index(..) call removes all statistic data
             //elasticClient.cleanUpNodeStatistics(nodeDataStat);
@@ -210,8 +203,8 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
                 continue;
             }
             threadPool.execute(() -> {
-                eduSharingClient.addPreview(data);
-                eduSharingClient.translateValuespaceProps(data);
+                eduSharingService.addPreview(data);
+                eduSharingService.translateValuespaceProps(data);
             });
         }
 

@@ -7,7 +7,7 @@ import net.sourceforge.cardme.vcard.VCard;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
-import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.repository.client.tools.CCConstants;
@@ -28,12 +28,12 @@ import java.util.stream.Collectors;
 @Service
 public class ScriptExecutor {
     static Logger logger = LogManager.getLogger(ScriptExecutor.class);
-    private final EduSharingClient eduSharingClient;
+    private final EduSharingService eduSharingService;
     private final ScriptLoaderConfiguration.ScriptLoaderService scriptLoaderService;
     private File[] scripts = new File[0];
 
-    public ScriptExecutor(EduSharingClient eduSharingClient, ScriptLoaderConfiguration.ScriptLoaderService scriptLoaderService) {
-        this.eduSharingClient = eduSharingClient;
+    public ScriptExecutor(EduSharingService eduSharingService, ScriptLoaderConfiguration.ScriptLoaderService scriptLoaderService) {
+        this.eduSharingService = eduSharingService;
         this.scriptLoaderService = scriptLoaderService;
         init();
     }
@@ -49,13 +49,13 @@ public class ScriptExecutor {
                 GroovyShell shell = new GroovyShell(sharedData);
                 Map<String, Serializable> result = (Map<String, Serializable>) shell.evaluate(script);
                 if (result != null) {
-                    String mds = eduSharingClient.getMdsId(nodeData);
+                    String mds = eduSharingService.getMdsId(nodeData);
                     for (Map.Entry<String, Serializable> entry : result.entrySet()) {
                         String key = entry.getKey();
                         Serializable value = entry.getValue();
                         builder.field(key, value);
                         logger.debug("Script: " + script.getName() + ", key: " + key + ", value: " + value);
-                        eduSharingClient.translateProperty(nodeData, mds, null, new AbstractMap.SimpleEntry<>(
+                        eduSharingService.translateProperty(nodeData, mds, null, new AbstractMap.SimpleEntry<>(
                                 "customProperties." + entry.getKey(), entry.getValue()
                         ));
                     }

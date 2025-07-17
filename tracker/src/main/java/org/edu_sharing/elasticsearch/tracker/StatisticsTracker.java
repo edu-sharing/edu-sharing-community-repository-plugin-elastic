@@ -1,10 +1,10 @@
 package org.edu_sharing.elasticsearch.tracker;
 
-import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
-import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
+import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,7 +23,7 @@ public class StatisticsTracker {
     long historyInDays;
 
     private final WorkspaceService elasticService;
-    private final EduSharingClient eduSharingClient;
+    private final EduSharingService eduSharingService;
     private final StatusIndexService<StatisticTimestamp> statisticTimestampStateService;
 
 
@@ -31,15 +31,15 @@ public class StatisticsTracker {
 
     Logger logger = LoggerFactory.getLogger(StatisticsTracker.class);
 
-    Map<Integer, List<Map.Entry<String, List<NodeStatistic>>>> currentChunks  = new HashMap<>();
+    Map<Integer, List<Map.Entry<String, List<NodeData>>>> currentChunks  = new HashMap<>();
     int chunkSize = 1000;
     long trackTs = -1;
     long trackTsTo = -1;
     boolean allNodesInIndex = true;
 
-    public StatisticsTracker(WorkspaceService elasticService, EduSharingClient eduSharingClient, StatusIndexService<StatisticTimestamp> statisticTimestampStateService) {
+    public StatisticsTracker(WorkspaceService elasticService, EduSharingService eduSharingService, StatusIndexService<StatisticTimestamp> statisticTimestampStateService) {
         this.elasticService = elasticService;
-        this.eduSharingClient = eduSharingClient;
+        this.eduSharingService = eduSharingService;
         this.statisticTimestampStateService = statisticTimestampStateService;
     }
 
@@ -60,14 +60,14 @@ public class StatisticsTracker {
                 }
 
                 trackTsTo = System.currentTimeMillis();
-                Map<String, List<NodeStatistic>> nodeStatistics = new HashMap<>();
-                List<String> statistics = eduSharingClient.getStatisticsNodeIds(trackFromTime);
+                Map<String, List<NodeData>> nodeStatistics = new HashMap<>();
+                List<String> statistics = eduSharingService.getStatisticsNodeIds(trackFromTime);
                 logger.info("found " + statistics.size() + " statistic changes");
 
                 for(String nodeId : statistics){
                     logger.debug("track statistics for node " + nodeId);
                     try {
-                        List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTimeFull);
+                        List<NodeData> statisticsForNode = eduSharingService.getStatisticsForNode(nodeId, trackFromTimeFull);
                         nodeStatistics.put(nodeId, statisticsForNode);
                     } catch(ResponseProcessingException e) {
                         logger.warn("Could not parse statistics for node " + nodeId, e);
@@ -81,10 +81,10 @@ public class StatisticsTracker {
             }
 
             List<Integer> successfullChunks = new ArrayList<>();
-            for(Map.Entry<Integer, List<Map.Entry<String, List<NodeStatistic>>>> entry : currentChunks.entrySet()){
+            for(Map.Entry<Integer, List<Map.Entry<String, List<NodeData>>>> entry : currentChunks.entrySet()){
                 logger.info("current chunk:"+ entry.getKey() +" size: "+entry.getValue().size() +" all chunks:"+currentChunks.size());
-                Map<String,List<NodeStatistic>> nodeStatistics = new HashMap<>();
-                for(Map.Entry<String,List<NodeStatistic>> e : entry.getValue()){
+                Map<String,List<NodeData>> nodeStatistics = new HashMap<>();
+                for(Map.Entry<String,List<NodeData>> e : entry.getValue()){
                     nodeStatistics.put(e.getKey(),e.getValue());
                 }
                 try{

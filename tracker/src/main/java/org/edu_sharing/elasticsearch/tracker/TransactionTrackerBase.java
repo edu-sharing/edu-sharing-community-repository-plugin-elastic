@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
-import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
@@ -15,7 +15,6 @@ import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 
 import java.io.IOException;
-import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -41,7 +40,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
     @Getter
     @Setter(AccessLevel.PACKAGE)
-    protected EduSharingClient eduSharingClient;
+    protected EduSharingService eduSharingService;
 
     @Getter
     @Setter(AccessLevel.PACKAGE)
@@ -71,7 +70,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     @Override
     public boolean track() {
         try {
-            eduSharingClient.refreshValuespaceCache();
+            eduSharingService.refreshValuespaceCache();
             Tx txn = transactionStateService.getState();
             if (txn == null) {
                 log.info("no transaction processed");
@@ -122,7 +121,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             List<Node> nodes = alfClient.getNodes(getNodeParam);
             log.info("got " + nodes.size() + " nodes");
 
-            eduSharingClient.refreshValuespaceCache();
+            eduSharingService.refreshValuespaceCache();
 
             // index nodes
             trackNodes(nodes);
