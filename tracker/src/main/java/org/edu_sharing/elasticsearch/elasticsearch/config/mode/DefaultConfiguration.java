@@ -4,14 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.WaitForMigrationJob;
-import org.edu_sharing.elasticsearch.jobs.AclTrackerJob;
-import org.edu_sharing.elasticsearch.jobs.CascadeTrackerJob;
-import org.edu_sharing.elasticsearch.jobs.StatisticsTrackerJob;
-import org.edu_sharing.elasticsearch.jobs.TransactionTrackerJob;
-import org.edu_sharing.elasticsearch.tracker.AclTracker;
-import org.edu_sharing.elasticsearch.tracker.CascadeTracker;
-import org.edu_sharing.elasticsearch.tracker.StatisticsTracker;
-import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
+import org.edu_sharing.elasticsearch.jobs.*;
+import org.edu_sharing.elasticsearch.tracker.*;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +34,12 @@ public class DefaultConfiguration {
     @ConditionalOnProperty(prefix = "statistic", name = "enabled", havingValue = "true")
     public StatisticsTrackerJob statisticsTrackerJob(StatisticsTracker statisticsTracker, TrackerAvailabilityTickService tickService){
         return new StatisticsTrackerJob(statisticsTracker, tickService);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "userActivities", name = "enabled", havingValue = "true")
+    public UserActivityTrackerJob userActivitiesTrackerJob(UserActivityTracker userActivityTracker, TrackerAvailabilityTickService tickService){
+        return new UserActivityTrackerJob(userActivityTracker, tickService);
     }
 
     @Bean

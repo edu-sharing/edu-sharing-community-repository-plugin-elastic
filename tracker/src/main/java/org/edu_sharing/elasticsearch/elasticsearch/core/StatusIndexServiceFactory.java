@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.UserActivityTx;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
@@ -23,5 +24,9 @@ public class StatusIndexServiceFactory {
 
     public StatusIndexService<StatisticTimestamp> createStatisticTimestampStateService(String index){
         return new StatusIndexService<>(index, client, StatisticTimestamp::new, "3", StatisticTimestamp.class);
+    }
+
+    public StatusIndexService<UserActivityTx> createUserActivityStateService(String index){
+        return new StatusIndexService<>(index, client, UserActivityTx::new, "4", UserActivityTx.class);
     }
 }

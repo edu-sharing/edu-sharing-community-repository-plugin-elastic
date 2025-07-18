@@ -7,9 +7,7 @@ import java.util.Date;
 @Data
 public class MigrationState {
     private Date updateDate;
-
     private int progressStep;
     private String progressContent;
-
     private String statusMessage;
 }

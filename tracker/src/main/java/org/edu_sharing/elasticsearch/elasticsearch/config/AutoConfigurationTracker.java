@@ -14,10 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.edu_sharing.elasticsearch.elasticsearch.core.*;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.AppInfo;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.*;
 import org.edu_sharing.elasticsearch.tracker.TrackerServiceFactory;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
 import org.edu_sharing.repository.client.tools.CCConstants;
@@ -28,7 +25,6 @@ import org.springframework.context.annotation.Bean;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -397,7 +393,18 @@ public class AutoConfigurationTracker {
                                 .properties("mimetype", prop -> prop.keyword(v -> v))
                                 .properties("type", prop -> prop.keyword(v -> v))
                                 .properties("icon", prop -> prop.boolean_(v -> v))
-                                .properties("small", prop -> prop.binary(v -> v))));
+                                .properties("small", prop -> prop.binary(v -> v))))
+                .properties("userEvent", ueProp -> ueProp
+                        .object(ueObject -> ueObject
+                                .properties("nodeId", prop -> prop.keyword(v->v))
+                                .properties("initiator", prop -> prop.keyword(v->v))
+                                .properties("receiver", prop -> prop.keyword(v->v))
+                                .properties("type", prop -> prop.keyword(v->v))
+                                .properties("timestamp", prop -> prop.date(v->v))))
+                .properties("join_children", joinChildrenProp->joinChildrenProp
+                        .join(join -> join
+                                .relations("node", List.of("userEvent"))
+                        ));
     }
 
 
@@ -422,6 +429,12 @@ public class AutoConfigurationTracker {
     @ConditionalOnMissingBean(name = "statisticTimestampStateService")
     public StatusIndexService<StatisticTimestamp> statisticTimestampStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
         return trackerStateServiceFactory.createStatisticTimestampStateService(transactions.getIndex());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "userActivityStateService")
+    public StatusIndexService<UserActivityTx> userActivityStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
+        return trackerStateServiceFactory.createUserActivityStateService(transactions.getIndex());
     }
 
     @Bean

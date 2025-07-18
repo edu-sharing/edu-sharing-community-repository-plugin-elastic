@@ -11,16 +11,20 @@ public class MigrationInfo {
      */
     String version;
 
-    /**
-     * Indicates whether the tracker should reindex all data from edu-sharing or not
-     * This can be useful if new fields are added to the index
-     */
-    boolean requiresReindex;
 
     /**
-     * Indicates wether the tracker should reindex all authorities in a separate step before
-     * document reindex (that would also reindex authorities)
+     * Represents the migration information specific to the "workspace" index.
+     * This contains metadata and flags related to the reindexing process for the workspace index.
+     * It plays a role during migration processes by indicating if a reindexing step is required
+     * for the corresponding index.
      */
-    boolean requiresAuthoritiesReindex;
+    IndexMigrationInfo workspace;
 
+    /**
+     * Represents the migration information specific to the "authorities" index.
+     * This variable contains metadata and flags related to the reindexing process
+     * for the authorities index. It is used during migration processes to determine
+     * if a reindexing step is required for the corresponding index.
+     */
+    IndexMigrationInfo authorities;
 }

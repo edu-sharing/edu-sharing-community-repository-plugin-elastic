@@ -35,6 +35,7 @@ import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.CascadeTracker;
 import org.edu_sharing.elasticsearch.tracker.Partition;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.UserNodeActivity;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.BasicJsonParser;
@@ -155,17 +156,17 @@ public class WorkspaceService {
         for (NodeData nodeData : nodes) {
             NodeMetadata node = nodeData.getNodeMetadata();
             // check if a formally moved node was moved again
-            if(nodeData.getNodeMetadata().getAspects().contains("sys:cascadeUpdate")){
-                HitsMetadata<ElasticNode> hits =  search(QueryBuilders.ids(i -> i.values(Long.toString(nodeData.getNodeMetadata().getId()))),
+            if (nodeData.getNodeMetadata().getAspects().contains("sys:cascadeUpdate")) {
+                HitsMetadata<ElasticNode> hits = search(QueryBuilders.ids(i -> i.values(Long.toString(nodeData.getNodeMetadata().getId()))),
                         0,
                         1,
                         null,
                         ElasticNode.class);
-                if(hits != null && !hits.hits().isEmpty()){
-                    String cascadeTx = (String)hits.hits().get(0).source().getProperties().get(CascadeTracker.propCascadeTx);
-                    if(cascadeTx != null){
-                        if(Long.parseLong(cascadeTx) < Long.parseLong((String)nodeData.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName(CascadeTracker.propCascadeTx)))){
-                           nodeData.setRefreshPath(true);
+                if (hits != null && !hits.hits().isEmpty()) {
+                    String cascadeTx = (String) hits.hits().get(0).source().getProperties().get(CascadeTracker.propCascadeTx);
+                    if (cascadeTx != null) {
+                        if (Long.parseLong(cascadeTx) < Long.parseLong((String) nodeData.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName(CascadeTracker.propCascadeTx)))) {
+                            nodeData.setRefreshPath(true);
                         }
                     }
                 }
@@ -211,7 +212,7 @@ public class WorkspaceService {
                     Long dbId = item.id() != null ? Long.parseLong(item.id()) : null;
                     NodeData nodeData = collectionNodes.get(dbId);
                     if (nodeData != null) {
-                        onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(nodeData.getNodeMetadata()),item.operationType() == OperationType.Update || item.operationType() == OperationType.Index, true);
+                        onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(nodeData.getNodeMetadata()), item.operationType() == OperationType.Update || item.operationType() == OperationType.Index, true);
                     }
                 }
                 logger.info("finished RefreshCollectionReplicas");
@@ -243,7 +244,7 @@ public class WorkspaceService {
             builder.field("aclId", node.getAclId());
             builder.field("txnId", node.getTxnId());
             builder.field("dbid", node.getId());
-            if(nodeData.isRefreshPath()){
+            if (nodeData.isRefreshPath()) {
                 builder.field(CascadeTracker.flag, true);
             }
 
@@ -272,7 +273,7 @@ public class WorkspaceService {
 
             builder.field("owner", node.getOwner());
             builder.field("type", node.getType());
-            if(!Objects.equals(objectName, "relation")) {
+            if (!Objects.equals(objectName, "relation")) {
                 scriptExecutor.addCustomPropertiesByScript(builder, nodeData);
             }
             //valuespaces
@@ -300,7 +301,7 @@ public class WorkspaceService {
                 addNodePath(builder, node);
             }
 
-            if(nodeData.getReader() != null) {
+            if (nodeData.getReader() != null) {
                 builder.startObject("permissions");
                 builder.field("read", nodeData.getReader().getReaders());
                 for (Map.Entry<String, List<String>> entry : nodeData.getPermissions().entrySet()) {
@@ -587,7 +588,7 @@ public class WorkspaceService {
         } else if (value instanceof String) {
             protocol = Collections.singletonList((String) value);
         } else {
-            if(value != null ) {
+            if (value != null) {
                 logger.warn("Unable to convert worfklow protocol of type " + value.getClass().getName());
             } else {
                 logger.warn("Unable to convert worfklow protocol (null)");
@@ -641,11 +642,11 @@ public class WorkspaceService {
             String shortPath = List.of(node.getPaths().get(0).getPath().split("/\\{")).stream()
                     .skip(1)
                     // add previously removed "{"
-                    .map(s -> "{"+s)
+                    .map(s -> "{" + s)
                     // get local name
-                    .map(m ->CCConstants.getValidLocalName(m))
+                    .map(m -> CCConstants.getValidLocalName(m))
                     .collect(Collectors.joining("/"));
-            builder.field("fulldisplaypath",shortPath);
+            builder.field("fulldisplaypath", shortPath);
         }
     }
 
@@ -694,7 +695,7 @@ public class WorkspaceService {
                             colIsTheSame = false;
                         }
                     }
-                    if(!colIsTheSame) {
+                    if (!colIsTheSame) {
                         builder.startObject();
                         for (Map.Entry<String, Object> entry : collection.entrySet()) {
                             if (entry.getKey().equals("children")) continue;
@@ -777,6 +778,56 @@ public class WorkspaceService {
 
         return new UsageDetails(nodeIdCollection, nodeIdIO);
     }
+
+    /**
+     * Add user activities to the elastic index. The timestamp will be stored as unix timestamp.
+     *
+     * @param activities list of activities to store
+     * @throws IOException if elastic index is not accessible
+     */
+    public void addUserActivities(List<UserNodeActivity> activities) throws IOException {
+
+        if (activities == null || activities.isEmpty()) {
+            return;
+        }
+
+        //TODO when sharding: we have to put the userEvent into the same shard as the nodeId
+
+        List<BulkOperation> operations = new ArrayList<>();
+        for (UserNodeActivity activity : activities) {
+            DataBuilder builder = new DataBuilder();
+            {
+                builder.startObject();
+                {
+                    builder.startObject("userEvent");
+                    builder.field("nodeId", activity.getNodeId());
+                    builder.field("initiator", activity.getUsername());
+                    builder.field("type", activity.getType());
+                    builder.field("timestamp", activity.getTimestamp().toInstant().toEpochMilli());
+                    builder.endObject();
+                }
+                {
+                    builder.startObject("join_children");
+                    builder.field("name", "event");
+                    builder.field("parent", activity.getNodeId());
+                    builder.endObject();
+                }
+                builder.endObject();
+            }
+            Object data = builder.build();
+
+            operations.add(BulkOperation.of(op -> op.index(iop -> iop
+                    .index(index)
+                    .id("userEvents_" + activity.getId())
+                    .routing(activity.getNodeId())
+                    .document(data))));
+        }
+
+        logger.info("starting bulk create activities");
+        client.bulk(req -> req.index(index).operations(operations));
+        logger.info("finished bulk create activities");
+    }
+
 
     @Data
     @AllArgsConstructor
@@ -874,7 +925,7 @@ public class WorkspaceService {
         }
 
         Collection<List<BulkOperation>> partitions = Partition.getPartitions(updateRequests, bulkSizeElastic);
-        for(List<BulkOperation> p : partitions){
+        for (List<BulkOperation> p : partitions) {
             this.updateBulk(p);
         }
         logger.debug("returning");
@@ -890,7 +941,7 @@ public class WorkspaceService {
                     logger.warn("error refreshing collections " + node.getNodeRef(), e);
                 }
             });
-           return;
+            return;
         }
         final String query, queryProposal;
         // collect already written collections
@@ -935,20 +986,20 @@ public class WorkspaceService {
                 synchronized (collections) {
                     // we need to track all because for each relation there needs to be kept track regarding the usage for later deletion
                     //if(!collections.contains(result.nodeIdCollection)) {
-                        collections.add(result.nodeIdCollection);
-                        Hit<Map> collection = getCollectionForUsage(result);
-                        if(collection != null) {
-                            hasCollections.set(true);
-                            builder.startObject();
-                            for (Map.Entry<String, Object> entry : ((Map<String, Object>) collection.source()).entrySet()) {
-                                if (entry.getKey().equals("children") || entry.getKey().equals("collections")) {
-                                    continue;
-                                }
-                                builder.field(entry.getKey(), entry.getValue());
+                    collections.add(result.nodeIdCollection);
+                    Hit<Map> collection = getCollectionForUsage(result);
+                    if (collection != null) {
+                        hasCollections.set(true);
+                        builder.startObject();
+                        for (Map.Entry<String, Object> entry : ((Map<String, Object>) collection.source()).entrySet()) {
+                            if (entry.getKey().equals("children") || entry.getKey().equals("collections")) {
+                                continue;
                             }
-                            addUsageRelation(usage, builder);
-                            builder.endObject();
+                            builder.field(entry.getKey(), entry.getValue());
                         }
+                        addUsageRelation(usage, builder);
+                        builder.endObject();
+                    }
                     // }
                 }
             } catch (IOException e) {
@@ -957,17 +1008,17 @@ public class WorkspaceService {
         };
         // run queries and apply action above
 
-        searchHitsRunner.run(queryUsages, 25, update ? maxCollectionChildItemsUpdateSize : null, null,Map.class,action);
+        searchHitsRunner.run(queryUsages, 25, update ? maxCollectionChildItemsUpdateSize : null, null, Map.class, action);
         searchHitsRunner.run(queryProposals, 25, update ? maxCollectionChildItemsUpdateSize : null, null, Map.class, action);
         builder.endArray();
         builder.endObject();
         // since the node was indexed before an explicit write is not required and slows down the performance
-        if(!"ccm:io".equals(node.getType()) || hasCollections.get()){
+        if (!"ccm:io".equals(node.getType()) || hasCollections.get()) {
             this.update(node.getId(), builder.build());
-            if(resyncIndex) {
+            if (resyncIndex) {
                 this.refreshWorkspace();
             }
-            if(node.getNodeRef() != null) {
+            if (node.getNodeRef() != null) {
                 logger.info("Index Collections done " + Tools.getUUID(node.getNodeRef()) + " (" + ((System.currentTimeMillis() - startTimeMs)) + "ms)");
             }
         } else {
@@ -978,7 +1029,7 @@ public class WorkspaceService {
     }
 
     private void addUsageRelation(NodeMetadata usage, DataBuilder builder) throws IOException {
-        if(usage.getType().equals("ccm:collection_proposal")) {
+        if (usage.getType().equals("ccm:collection_proposal")) {
             fillData(alfrescoClient.getNodeData(Collections.singletonList(usage), FetchParameters.MINIMAL).get(0), builder, "relation");
         } else {
             fillData(NodeData.builder().nodeMetadata(usage).build(), builder, "relation");
@@ -1024,7 +1075,7 @@ public class WorkspaceService {
     }
 
     public void delete(List<Node> nodes) throws IOException {
-        delete(nodes,index);
+        delete(nodes, index);
     }
 
     public void delete(List<Node> nodes, String index) throws IOException {
@@ -1040,7 +1091,7 @@ public class WorkspaceService {
                                             b -> b.delete(d -> d.index(index).id(Long.toString(n.getId())))
                                     )
                             ).collect(Collectors.toList())));
-            if(response.items().size() != nodes.size()) {
+            if (response.items().size() != nodes.size()) {
                 logger.error("Errors occured while deleting nodes: Actual Deleted count " + response.items().size() + " does not match actual count: " + nodes.size());
             }
             for (BulkResponseItem item : response.items()) {
@@ -1085,7 +1136,7 @@ public class WorkspaceService {
             if (excludes != null) {
                 req.source(src -> src.filter(fetch -> fetch.excludes(excludes)));
             }
-            if(sortOptions != null) {
+            if (sortOptions != null) {
                 req.sort(sortOptions);
             }
 
@@ -1114,7 +1165,7 @@ public class WorkspaceService {
                 }
                 logger.debug("processed {} searchhits. query:{}", hitsProcessed, query);
             } while (!hits.hits().isEmpty());
-        }finally {
+        } finally {
             String fscrollId = scrollId;
             if (scrollId != null && !scrollId.isEmpty()) {
                 client.clearScroll(cs -> cs.scrollId(fscrollId));

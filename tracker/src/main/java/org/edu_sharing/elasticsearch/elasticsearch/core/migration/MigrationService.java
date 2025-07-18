@@ -2,9 +2,11 @@ package org.edu_sharing.elasticsearch.elasticsearch.core.migration;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Conflicts;
+import co.elastic.clients.elasticsearch._types.Script;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.tasks.GetTasksResponse;
 import co.elastic.clients.elasticsearch.tasks.TaskInfo;
+import co.elastic.clients.json.JsonData;
 import co.elastic.clients.transport.endpoints.BooleanResponse;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
@@ -27,9 +29,7 @@ import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.IntStream;
 
 @Slf4j
@@ -62,6 +62,20 @@ public class MigrationService {
             return;
         }
 
+        //Validate Scripts
+        migrationInfos.stream()
+                .map(MigrationInfo::getWorkspace)
+                .map(IndexMigrationInfo::migrationScript)
+                .filter(Objects::nonNull)
+                .reduce(this::mergeScripts);
+
+        migrationInfos.stream()
+                .map(MigrationInfo::getAuthorities)
+                .map(IndexMigrationInfo::migrationScript)
+                .filter(Objects::nonNull)
+                .reduce(this::mergeScripts);
+
+
         int startIndex = IntStream.range(0, migrationInfos.size())
                 .filter(i -> migrationInfos.get(i).getVersion().equals(currentVersion))
                 .findFirst()
@@ -69,11 +83,29 @@ public class MigrationService {
 
         boolean requiresDocMigration = IntStream.range(startIndex, migrationInfos.size())
                 .mapToObj(migrationInfos::get)
-                .anyMatch(MigrationInfo::isRequiresReindex);
+                .anyMatch(x -> x.getWorkspace().requiresReindex());
+
+        Script docMigrationScript = IntStream.range(startIndex, migrationInfos.size())
+                .mapToObj(migrationInfos::get)
+                .map(MigrationInfo::getWorkspace)
+                .map(IndexMigrationInfo::migrationScript)
+                .filter(Objects::nonNull)
+                .reduce(this::mergeScripts)
+                .orElse(null);
+
 
         boolean requiresAuthoritiesMigration = IntStream.range(startIndex, migrationInfos.size())
                 .mapToObj(migrationInfos::get)
-                .anyMatch(MigrationInfo::isRequiresAuthoritiesReindex);
+                .anyMatch(x -> x.getWorkspace().requiresReindex());
+
+        Script authorityMigrationScript = IntStream.range(startIndex, migrationInfos.size())
+                .mapToObj(migrationInfos::get)
+                .map(MigrationInfo::getAuthorities)
+                .map(IndexMigrationInfo::migrationScript)
+                .filter(Objects::nonNull)
+                .reduce(this::mergeScripts)
+                .orElse(null);
+
 
         String sourceWorkspaceIndex = currentVersion == null ? "workspace" : "workspace_" + currentVersion;
         String sourceTransactionIndex = currentVersion == null ? "transactions" : "transactions_" + currentVersion;
@@ -81,13 +113,13 @@ public class MigrationService {
 
         if (adminService.indicesExists(sourceWorkspaceIndex, sourceTransactionIndex)) {
 
-            while (!adminService.indecesConfiguredExist()){
+            while (!adminService.indecesConfiguredExist()) {
                 log.info("waiting for indeces...");
                 Thread.sleep(2000);
             }
 
             // we need to migrate
-            MigrationJob migrationJob = new MigrationJob(sourceWorkspaceIndex, sourceTransactionIndex, sourceAuthoritiesIndex, latestVersion, migrationIndex.getIndex(), requiresDocMigration, requiresAuthoritiesMigration);
+            MigrationJob migrationJob = new MigrationJob(sourceWorkspaceIndex, sourceTransactionIndex, sourceAuthoritiesIndex, latestVersion, migrationIndex.getIndex(), requiresDocMigration, requiresAuthoritiesMigration, docMigrationScript, authorityMigrationScript);
             migrationJob.run();
         }
 
@@ -95,6 +127,45 @@ public class MigrationService {
         appInfoStatusService.setState(appInfo);
         // nothing else to do so we can stop execution
 
+    }
+
+    @NotNull
+    private Script mergeScripts(Script lhs, Script rhs) {
+        if (lhs.params().keySet().stream().anyMatch(key -> rhs.params().containsKey(key))) {
+            throw new IllegalArgumentException("Script params must not overlap");
+        }
+
+        if (lhs.options().keySet().stream().anyMatch(key -> rhs.options().containsKey(key))) {
+            throw new IllegalArgumentException("Script options must not overlap");
+        }
+
+        if (lhs.lang() != null && !lhs.lang().equals(rhs.lang())) {
+            throw new IllegalArgumentException("Script lang must be the same");
+        }
+
+        if (lhs.id() != null || rhs.id() != null) {
+            throw new IllegalArgumentException("Script id not supported");
+        }
+
+        if (lhs.source() == null || rhs.source() == null) {
+            throw new IllegalArgumentException("Script source must be set");
+        }
+
+        Script.Builder builder = new Script.Builder();
+        builder.lang(lhs.lang());
+        String lhsSource = lhs.source().trim().endsWith(";") ? lhs.source() : lhs.source() + ";";
+        String rhsSource = rhs.source().trim().endsWith(";") ? lhs.source() : lhs.source() + ";";
+        builder.source(String.join("\n", lhsSource, rhsSource));
+
+        Map<String, JsonData> params = new HashMap<>(lhs.params());
+        params.putAll(rhs.params());
+        builder.params(params);
+
+        Map<String, String> options = new HashMap<>(lhs.options());
+        options.putAll(rhs.options());
+        builder.options(options);
+
+        return builder.build();
     }
 
 
@@ -189,11 +260,14 @@ public class MigrationService {
         private final boolean requiresDocumentMigration;
         private final boolean requiresAuthoritiesMigration;
 
+        private final Script workspaceMigrationScript;
+        private final Script authorityMigrationScript;
+
 
         private final String migrationTransactionIndex;
         private final String migrationTransactionAuthoritiesIndex;
 
-        MigrationJob(String sourceWorkspaceIndex, String sourceTransactionIndex, String sourceAuthoritiesIndex, String version, String index, boolean requiresDocumentMigration, boolean requiresAuthoritiesMigration) {
+        MigrationJob(String sourceWorkspaceIndex, String sourceTransactionIndex, String sourceAuthoritiesIndex, String version, String index, boolean requiresDocumentMigration, boolean requiresAuthoritiesMigration, Script workspaceMigrationScript, Script authorityMigrationScript) {
             this.sourceWorkspaceIndex = sourceWorkspaceIndex;
             this.sourceTransactionIndex = sourceTransactionIndex;
             this.sourceAuthoritiesIndex = sourceAuthoritiesIndex;
@@ -201,6 +275,8 @@ public class MigrationService {
             this.index = index;
             this.requiresDocumentMigration = requiresDocumentMigration;
             this.requiresAuthoritiesMigration = requiresAuthoritiesMigration;
+            this.workspaceMigrationScript = workspaceMigrationScript;
+            this.authorityMigrationScript = authorityMigrationScript;
             migrationTransactionIndex = "migration_" + version + "_tracker";
             migrationTransactionAuthoritiesIndex = "migration_authorities_" + version + "_tracker";
         }
@@ -216,7 +292,7 @@ public class MigrationService {
                     case INIT_PROGRESS_STEP: {
                         log.info("start migration");
                         log.info("start reindex workspace");
-                        String taskId = reindex(sourceWorkspaceIndex, "workspace_" + version);
+                        String taskId = reindex(sourceWorkspaceIndex, "workspace_" + version, workspaceMigrationScript);
                         curStep = MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP;
                         updateMigrationState(migrationState, curStep, taskId);
                         break;
@@ -236,7 +312,7 @@ public class MigrationService {
 
                         if (tasksResponse.completed()) {
                             log.info("reindexing workspace finished: {}", task);
-                            String taskId = reindex(sourceTransactionIndex, "transactions_" + version);
+                            String taskId = reindex(sourceTransactionIndex, "transactions_" + version, null);
                             curStep = MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP;
                             updateMigrationState(migrationState, curStep, taskId);
                             break;
@@ -275,7 +351,7 @@ public class MigrationService {
                             log.info("reindexing transactions finished: {}", task);
                             BooleanResponse exists = client.indices().exists(e -> e.index(sourceAuthoritiesIndex));
                             if (!exists.value()) client.indices().create(c -> c.index(sourceAuthoritiesIndex));
-                            String taskId = reindex(sourceTransactionIndex, "authorities_" + version);
+                            String taskId = reindex(sourceTransactionIndex, "authorities_" + version, authorityMigrationScript);
                             curStep = MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP;
                             updateMigrationState(migrationState, curStep, taskId);
                             break;
@@ -325,7 +401,7 @@ public class MigrationService {
                             } else if (requiresDocumentMigration) {
                                 curStep = setStateMigrateDocs(migrationState);
                             } else {
-                                curStep = setStateComplete( migrationState);
+                                curStep = setStateComplete(migrationState);
                                 log.info("migration completed");
                             }
                             break;
@@ -342,7 +418,7 @@ public class MigrationService {
                         long maxTxnId = Long.parseLong(migrationState.getProgressContent());
                         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
                         StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
-                        AuthoritiesMigrationTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesMigrationTracker::new,migrationTransactionStateService,new MaxTransactionIdStrategy(maxTxnId));
+                        AuthoritiesMigrationTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesMigrationTracker::new, migrationTransactionStateService, new MaxTransactionIdStrategy(maxTxnId));
                         migrationTracker.setNumberOfTransactions(authoritiesTrackerNumberOfTransactions);
                         while (true) {
                             trackerAvailabilityTickService.tick();
@@ -356,7 +432,7 @@ public class MigrationService {
 
                         if (requiresDocumentMigration) {
                             curStep = setStateMigrateDocs(migrationState);
-                        }else {
+                        } else {
                             curStep = setStateComplete(migrationState);
                             log.info("document migration finished");
                             log.info("migration completed");
@@ -418,12 +494,13 @@ public class MigrationService {
             return curStep;
         }
 
-        String reindex(String sourceIndex, String targetIndex) throws IOException {
+        String reindex(String sourceIndex, String targetIndex, Script script) throws IOException {
             String task = client.reindex(req -> req
                             .waitForCompletion(false)
                             .conflicts(Conflicts.Proceed)
                             .source(src -> src.index(sourceIndex))
-                            .dest(dest -> dest.index(targetIndex)))
+                            .dest(dest -> dest.index(targetIndex))
+                            .script(script))
                     .task();
 
             log.info("Reindex: from {} to {}, task {}", sourceIndex, targetIndex, task);

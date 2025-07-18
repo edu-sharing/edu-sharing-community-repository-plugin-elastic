@@ -101,4 +101,9 @@ public class EduSharingConfig {
     public NodeV1Api nodeV1Api(ApiClient apiClient) {
         return new NodeV1Api(apiClient);
     }
+
+    @Bean
+    public TrackingV1Api trackingV1Api(ApiClient apiClient){
+        return new TrackingV1Api(apiClient);
+    }
 }

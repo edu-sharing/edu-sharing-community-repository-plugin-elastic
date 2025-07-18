@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.Serializable;
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +32,7 @@ public class EduSharingService {
     private final AboutApi aboutApi;
     private final PreviewApi previewApi;
     private final NodeV1Api nodeV1Api;
+    private final TrackingV1Api trackingV1Api;
 
     @Value("${valuespace.languages}")
     private String[] valuespaceLanguages;
@@ -271,5 +273,10 @@ public class EduSharingService {
     public List<String> getStatisticsNodeIds(long timestamp) {
         return statisticV1Api.getNodesAlteredInRange1(timestamp)
                 .block();
+    }
+
+    public UserNodeActivityPageResult getUserActivitiesSince(OffsetDateTime since, int maxItems, int offset) {
+        return trackingV1Api.getAllUserNodeActivities("-home-", since, maxItems, offset).block();
+
     }
 }
