@@ -808,7 +808,7 @@ public class WorkspaceService {
                 }
                 {
                     builder.startObject("join_children");
-                    builder.field("name", "event");
+                    builder.field("name", "userEvent");
                     builder.field("parent", activity.getNodeId());
                     builder.endObject();
                 }
