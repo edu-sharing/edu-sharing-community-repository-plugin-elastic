@@ -164,7 +164,7 @@ public class FixMissingTrackerDefault extends DefaultTransactionTracker {
             if(isAllowedType(nodeMetadata)) {
                 //2-4ms
                 //GetResponse resp = elasticClient.get(ElasticsearchClient.INDEX_WORKSPACE, new Long(nodeMetadata.getId()).toString());
-                if (!workspaceService.exists(Long.toString(nodeMetadata.getId()))) {
+                if (!workspaceService.exists(Tools.getUUID(nodeMetadata.getNodeRef()))) {
                     logNodeProblem(nodeMetadata);
                     if(repair){
                         indexNodesMetadata(List.of(nodeMetadata));

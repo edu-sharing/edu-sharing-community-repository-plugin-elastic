@@ -113,10 +113,10 @@ public class WorkspaceService {
         }
     }
 
-    public UpdateResponse<Void> update(long dbId, Object data) throws IOException {
+    public UpdateResponse<Void> update(String nodeId, Object data) throws IOException {
         return this.update(req -> req
                 .index(index)
-                .id(Long.toString(dbId))
+                .id(nodeId)
                 .doc(data), Void.class);
     }
 
@@ -158,7 +158,7 @@ public class WorkspaceService {
             NodeMetadata node = nodeData.getNodeMetadata();
             // check if a formally moved node was moved again
             if (nodeData.getNodeMetadata().getAspects().contains("sys:cascadeUpdate")) {
-                HitsMetadata<ElasticNode> hits = search(QueryBuilders.ids(i -> i.values(Long.toString(nodeData.getNodeMetadata().getId()))),
+                HitsMetadata<ElasticNode> hits = search(QueryBuilders.ids(i -> i.values(Tools.getUUID(nodeData.getNodeMetadata().getNodeRef()))),
                         0,
                         1,
                         null,
@@ -177,7 +177,7 @@ public class WorkspaceService {
             Object data = builder.build();
             operations.add(BulkOperation.of(op -> op.index(iop -> iop
                     .index(index)
-                    .id(Long.toString(node.getId()))
+                    .id(Tools.getUUID(node.getNodeRef()))
                     .document(data))));
 
             if (nodeCounter.addAndGet(1) % 100 == 0) {
@@ -191,12 +191,12 @@ public class WorkspaceService {
             BulkResponse bulkResponse = client.bulk(req -> req.index(index).operations(operations));
             logger.info("finished bulk update:");
 
-            Map<Long, NodeData> collectionNodes = new HashMap<>();
+            Map<String, NodeData> collectionNodes = new HashMap<>();
             for (NodeData nodeData : nodes) {
                 NodeMetadata node = nodeData.getNodeMetadata();
                 if ((node.getType().equals("ccm:map") && node.getAspects().contains("ccm:collection"))
                         || (node.getType().equals("ccm:io") && !node.getAspects().contains("ccm:collection_io_reference"))) {
-                    collectionNodes.put(node.getId(), nodeData);
+                    collectionNodes.put(Tools.getUUID(node.getNodeRef()), nodeData);
                 }
             }
             logger.info("start refresh index");
@@ -210,8 +210,7 @@ public class WorkspaceService {
                         continue;
                     }
 
-                    Long dbId = item.id() != null ? Long.parseLong(item.id()) : null;
-                    NodeData nodeData = collectionNodes.get(dbId);
+                    NodeData nodeData = collectionNodes.get(item.id());
                     if (nodeData != null) {
                         onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(nodeData.getNodeMetadata()), item.operationType() == OperationType.Update || item.operationType() == OperationType.Index, true);
                     }
@@ -725,8 +724,7 @@ public class WorkspaceService {
             builder.endArray();
         }
         builder.endObject();
-        int dbid = Integer.parseInt(hitIO.id());
-        this.update(dbid, builder.build());
+        this.update(hitIO.id(), builder.build());
         this.refreshWorkspace();
         return builder;
     }
@@ -914,11 +912,10 @@ public class WorkspaceService {
                     builder.endArray();
                 }
                 builder.endObject();
-                int dbid = Integer.parseInt(hitIO.id());
 
                 updateRequests.add(BulkOperation.of(op -> op
                         .update(up -> up.index(index)
-                                .id(Long.toString(dbid))
+                                .id(hitIO.id())
                                 .action(a -> a.doc(builder.build())))));
             });
         }
@@ -1012,16 +1009,17 @@ public class WorkspaceService {
         builder.endArray();
         builder.endObject();
         // since the node was indexed before an explicit write is not required and slows down the performance
+        String nodeId = Tools.getUUID(node.getNodeRef());
         if (!"ccm:io".equals(node.getType()) || hasCollections.get()) {
-            this.update(node.getId(), builder.build());
+            this.update(nodeId, builder.build());
             if (resyncIndex) {
                 this.refreshWorkspace();
             }
             if (node.getNodeRef() != null) {
-                logger.info("Index Collections done {} - no collections to index ({}ms)", Tools.getUUID(node.getNodeRef()), System.currentTimeMillis() - startTimeMs);
+                logger.info("Index Collections done {} - no collections to index ({}ms)", nodeId, System.currentTimeMillis() - startTimeMs);
             }
         } else {
-            logger.info("Index Collections done {} - no collections to index ({}ms)", Tools.getUUID(node.getNodeRef()), System.currentTimeMillis() - startTimeMs);
+            logger.info("Index Collections done {} - no collections to index ({}ms)", nodeId, System.currentTimeMillis() - startTimeMs);
         }
 
 
@@ -1087,7 +1085,7 @@ public class WorkspaceService {
                     .index(index)
                     .operations(
                             nodes.stream().map(n -> BulkOperation.of(
-                                            b -> b.delete(d -> d.index(index).id(Long.toString(n.getId())))
+                                            b -> b.delete(d -> d.index(index).id(Tools.getUUID(n.getNodeRef())))
                                     )
                             ).collect(Collectors.toList())));
             if (response.items().size() != nodes.size()) {
@@ -1188,11 +1186,11 @@ public class WorkspaceService {
     public Map<String, Object> getSourceMap(String nodeRef, List<String> excludes) throws IOException {
 
         String uuid = Tools.getUUID(nodeRef);
-        String protocol = Tools.getProtocol(nodeRef);
-        String identifier = Tools.getIdentifier(nodeRef);
-        Query query = InternalQueries.queryByUUID(uuid, protocol, identifier);
+//        String protocol = Tools.getProtocol(nodeRef);
+//        String identifier = Tools.getIdentifier(nodeRef);
+//        Query query = InternalQueries.queryByUUID(uuid, protocol, identifier);
 
-        HitsMetadata<Map> sh = this.search(query, 0, 1, excludes, Map.class);
+        HitsMetadata<Map> sh = this.search(Query.of(q->q.ids(x->x.values(uuid))), 0, 1, excludes, Map.class);
         if (sh == null || sh.total().value() == 0) {
             return null;
         }
@@ -1222,26 +1220,29 @@ public class WorkspaceService {
                         List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData> statistics = entry.getValue();
                         if (statistics == null || statistics.isEmpty()) continue;
 
-                        String nodeRef = CCConstants.STORE_WORKSPACES_SPACES + "/" + uuid;
-                        Serializable value = this.getProperty(nodeRef, "dbid");
-                        if (value == null) {
-                            String nodeRefArchive = CCConstants.ARCHIVE_STOREREF + "/" + uuid;
-                            value = this.getProperty(nodeRefArchive, "dbid");
-
-                            if (value == null) {
-                                logger.info("uuid:{} is not in elastic in elastic index", uuid);
-                                allInIndex.set(false);
-                                continue;
-                            }
+                        if(!this.exists(uuid, index)){
+                            logger.info("uuid:{} is not in elastic in elastic index", uuid);
+                            allInIndex.set(false);
+                            continue;
                         }
-
-                        long dbid = ((Number) value).longValue();
+//                        String nodeRef = CCConstants.STORE_WORKSPACES_SPACES + "/" + uuid;
+//                        Serializable value = this.getProperty(nodeRef, "dbid");
+//                        if (value == null) {
+//                            String nodeRefArchive = CCConstants.ARCHIVE_STOREREF + "/" + uuid;
+//                            value = this.getProperty(nodeRefArchive, "dbid");
+//
+//                            if (value == null) {
+//                                logger.info("uuid:{} is not in elastic in elastic index", uuid);
+//                                allInIndex.set(false);
+//                                continue;
+//                            }
+//                        }
 
                         DataBuilder builder = new DataBuilder();
                         builder.startObject();
                         for (org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData nodeStatistic : statistics) {
                             if (nodeStatistic == null) {
-                                logger.debug("there is a null value in statistics list:{}", nodeRef);
+                                logger.debug("there is a null value in statistics list:{}", uuid);
                                 continue;
                             }
                             if (nodeStatistic.getCounts() == null || nodeStatistic.getCounts().isEmpty()) continue;
@@ -1264,7 +1265,7 @@ public class WorkspaceService {
                         bulk.add(BulkOperation.of(req -> req
                                 .update(i -> i
                                         .index(index)
-                                        .id(Long.toString(dbid))
+                                        .id(uuid)
                                         .action(a -> a.doc(builder.build())))));
                     }
                     this.updateBulk(bulk);
@@ -1300,8 +1301,8 @@ public class WorkspaceService {
             return;
         }
 
-        long dbid = ((Number) sourceMap.get("dbid")).longValue();
-        String id = Long.toString(dbid);
+//        long dbid = ((Number) sourceMap.get("dbid")).longValue();
+//        String id = Long.toString(dbid);
         String type = (String) sourceMap.get("type");
 
         if ("ccm:io".equals(type)) {
@@ -1335,11 +1336,11 @@ public class WorkspaceService {
                 return;
             }
 
-            logger.info("remove for {}: {}", id, String.join(",", propsToRemove));
+            logger.info("remove for {}: {}", nodeUuid, String.join(",", propsToRemove));
 
             this.update(req -> req
                             .index(index)
-                            .id(id)
+                            .id(nodeUuid)
                             .script(scr -> scr
                                     .lang("painless")
                                     .source("for(String prop : params.propsToRemove){ctx._source.remove(prop)}")

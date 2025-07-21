@@ -104,7 +104,7 @@ public class CascadeTracker implements MigrationCompletedAware {
 
     private void processCascade(ElasticNode movedNode) throws IOException {
         long cascadeTxId = Long.parseLong((String) movedNode.getProperties().get(propCascadeTx));
-        long dbid = Long.parseLong((String) movedNode.getProperties().get(propDbid));
+        String nodeId = movedNode.getNodeRef().getId();
 
         Query resolveChildrenQuery = QueryBuilders.term(t -> t
                 .field("path")
@@ -115,14 +115,14 @@ public class CascadeTracker implements MigrationCompletedAware {
         });
 
         // mark as done: update status flag to processed if cascadeTxId did not change again
-        new SearchHitsRunner(workspaceService).run(QueryBuilders.ids(i -> i.values(Long.toString(dbid))),1,1,null, ElasticNode.class, h ->{
+        new SearchHitsRunner(workspaceService).run(QueryBuilders.ids(i -> i.values(nodeId)),1,1,null, ElasticNode.class, h ->{
             long cascadeTxIdAfter = Long.parseLong((String)h.source().getProperties().get(CascadeTracker.propCascadeTx));
             if(cascadeTxIdAfter == cascadeTxId){
                 DataBuilder dataBuilder = new DataBuilder();
                 dataBuilder.startObject();
                 dataBuilder.field(flag,false);
                 dataBuilder.endObject();
-                workspaceService.update(dbid, dataBuilder.build());
+                workspaceService.update(nodeId, dataBuilder.build());
             }
         });
 
@@ -160,7 +160,7 @@ public class CascadeTracker implements MigrationCompletedAware {
                 builder.startObject();
                 workspaceService.addNodePath(builder, nodeMetadata);
                 builder.endObject();
-                workspaceService.update(nodeMetadata.getId(),builder.build());
+                workspaceService.update(Tools.getUUID(nodeMetadata.getNodeRef()),builder.build());
             }
         }
     }

@@ -46,6 +46,7 @@ public class WaitForMigrationJob implements ApplicationContextAware {
     }
 
     private void invokeMigrationCompleted() {
+        log.info("invoke migration completed");
         Map<String, MigrationCompletedAware> results = applicationContext.getBeansOfType(MigrationCompletedAware.class);
         for (MigrationCompletedAware invoker : results.values()) {
             invoker.MigrationCompleted();

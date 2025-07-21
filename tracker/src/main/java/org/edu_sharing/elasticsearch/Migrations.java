@@ -42,7 +42,10 @@ public class Migrations {
         return new MigrationInfo("11.0",
                 new IndexMigrationInfo(false, Script.of(s -> s
                         .lang("painless")
-                        .source("ctx._source.join_children=\"node\""))),
+                        .source("""
+                                ctx._source.join_children=\"node\";
+                                ctx._source._id=ctx._source.nodeRef.id;
+                            """))),
                 new IndexMigrationInfo(false, null));
     }
 }
