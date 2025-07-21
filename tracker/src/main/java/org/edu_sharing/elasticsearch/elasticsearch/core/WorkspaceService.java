@@ -241,6 +241,7 @@ public class WorkspaceService {
             builder.startObject();
         }
         {
+            builder.field("join_children", "node");
             builder.field("aclId", node.getAclId());
             builder.field("txnId", node.getTxnId());
             builder.field("dbid", node.getId());
