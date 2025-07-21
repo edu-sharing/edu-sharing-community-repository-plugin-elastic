@@ -351,7 +351,7 @@ public class MigrationService {
                             log.info("reindexing transactions finished: {}", task);
                             BooleanResponse exists = client.indices().exists(e -> e.index(sourceAuthoritiesIndex));
                             if (!exists.value()) client.indices().create(c -> c.index(sourceAuthoritiesIndex));
-                            String taskId = reindex(sourceTransactionIndex, "authorities_" + version, authorityMigrationScript);
+                            String taskId = reindex(sourceAuthoritiesIndex, "authorities_" + version, authorityMigrationScript);
                             curStep = MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP;
                             updateMigrationState(migrationState, curStep, taskId);
                             break;
@@ -375,7 +375,7 @@ public class MigrationService {
                             if (json.containsKey("failures")) {
                                 JsonArray array = json.getJsonArray("failures");
                                 if (!array.isEmpty()) {
-                                    throw new MigrationException(String.format("Task %s:%s failed with: %s", task.node(), task.id(), array.toString()));
+                                    throw new MigrationException(String.format("Task %s:%s failed with: %s", task.node(), task.id(), array));
                                 }
                             }
                         }
