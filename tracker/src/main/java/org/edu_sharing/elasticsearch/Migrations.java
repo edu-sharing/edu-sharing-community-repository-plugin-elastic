@@ -43,9 +43,16 @@ public class Migrations {
                 new IndexMigrationInfo(false, Script.of(s -> s
                         .lang("painless")
                         .source("""
-                                ctx._source.join_children=\"node\";
-                                ctx._source._id=ctx._source.nodeRef.id;
+                                  if (ctx._source.nodeRef != null && ctx._source.nodeRef.id != null) {
+                                    ctx._id = ctx._source.nodeRef.id;
+                                  }
+                                  if(ctx._source.join_children == null) {
+                                    ctx._source.join_children="node";
+                                  }
                             """))),
                 new IndexMigrationInfo(false, null));
     }
 }
+
+
+//
