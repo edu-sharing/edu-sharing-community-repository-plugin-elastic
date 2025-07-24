@@ -24,7 +24,7 @@ public class MetricConfig {
         MetricContextHolder.MetricContext txContext = MetricContextHolder.getTransactionContext();
         Gauge.builder(txContext.labelProgress, txContext.getProgress(),
                 (p) -> p.get() /((double) PROGRESS_FACTOR)).description(txContext.descriptionProgress).register(meterRegistry);
-        Gauge.builder(txContext.getLabelProgress(),  txContext.getTimestamp(),
+        Gauge.builder(txContext.labelDelay,  txContext.getTimestamp(),
                 p -> (System.currentTimeMillis() - p.get()) / 1000.
         ).description(txContext.descriptionDelay).register(meterRegistry);
 
