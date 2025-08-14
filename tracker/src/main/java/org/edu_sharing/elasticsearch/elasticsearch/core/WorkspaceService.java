@@ -35,6 +35,7 @@ import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.CascadeTracker;
 import org.edu_sharing.elasticsearch.tracker.Partition;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.ShareInfo;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.UserNodeActivity;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Value;
@@ -824,6 +825,62 @@ public class WorkspaceService {
         logger.info("starting bulk create activities");
         client.bulk(req -> req.index(index).operations(operations));
         logger.info("finished bulk create activities");
+    }
+
+    public void addShares(List<ShareInfo> shareInfos) throws IOException {
+        if (shareInfos == null || shareInfos.isEmpty()) {
+            return;
+        }
+
+        //TODO when sharding: we have to put the shares into the same shard as the nodeId
+
+        List<BulkOperation> operations = new ArrayList<>();
+        for (ShareInfo shareInfo : shareInfos) {
+            DataBuilder builder = new DataBuilder();
+            {
+                builder.startObject();
+                {
+                    builder.startObject("share");
+                    builder.field("id", shareInfo.getId());
+                    builder.field("nodeId", shareInfo.getNodeId());
+                    builder.field("sharedBy", shareInfo.getSharedBy());
+                    builder.field("sharedWith", shareInfo.getSharedWith());
+                    builder.field("shareStatus", shareInfo.getShareStatus());
+                    builder.field("shareType", shareInfo.getShareType());
+                    builder.field("timestamp", shareInfo.getTimestamp().toInstant().toEpochMilli());
+                    builder.endObject();
+                }
+                {
+                    builder.startObject("join_children");
+                    builder.field("name", "share");
+                    builder.field("parent", shareInfo.getNodeId());
+                    builder.endObject();
+                }
+                builder.endObject();
+            }
+            Object data = builder.build();
+
+            operations.add(BulkOperation.of(op -> op.index(iop -> iop
+                    .index(index)
+                    .id("shares_" + shareInfo.getId())
+                    .routing(shareInfo.getNodeId())
+                    .document(data))));
+        }
+
+        logger.info("starting bulk create shares");
+        client.bulk(req -> req.index(index).operations(operations));
+        logger.info("finished bulk create shares");
+    }
+
+    public void deleteShares(Collection<Long> deletedShares) throws IOException {
+        if(deletedShares == null || deletedShares.isEmpty()) {
+            return;
+        }
+
+        List<BulkOperation> operations = deletedShares.stream().map(id -> BulkOperation.of(op -> op.delete(d -> d.index(index).id("shares_" + id.toString())))).collect(Collectors.toList());
+        logger.info("starting bulk delete shares");
+        client.bulk(req -> req.index(index).operations(operations));
+        logger.info("finished bulk delete shares");
     }
 
 

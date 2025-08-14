@@ -2,10 +2,7 @@ package org.edu_sharing.elasticsearch.elasticsearch.core;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import lombok.RequiredArgsConstructor;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.UserActivityTx;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.*;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
@@ -14,19 +11,23 @@ public class StatusIndexServiceFactory {
 
     private final ElasticsearchClient client;
 
-    public StatusIndexService<Tx> createTransactionStateService(String index){
+    public StatusIndexService<Tx> createTransactionStateService(String index) {
         return new StatusIndexService<>(index, client, Tx::new, "1", Tx.class);
     }
 
-    public StatusIndexService<AclTx> createAclStateService(String index){
+    public StatusIndexService<AclTx> createAclStateService(String index) {
         return new StatusIndexService<>(index, client, AclTx::new, "2", AclTx.class);
     }
 
-    public StatusIndexService<StatisticTimestamp> createStatisticTimestampStateService(String index){
+    public StatusIndexService<StatisticTimestamp> createStatisticTimestampStateService(String index) {
         return new StatusIndexService<>(index, client, StatisticTimestamp::new, "3", StatisticTimestamp.class);
     }
 
-    public StatusIndexService<UserActivityTx> createUserActivityStateService(String index){
+    public StatusIndexService<UserActivityTx> createUserActivityStateService(String index) {
         return new StatusIndexService<>(index, client, UserActivityTx::new, "4", UserActivityTx.class);
+    }
+
+    public StatusIndexService<ShareInfoTx> createShareInfoStateService(String index) {
+        return new StatusIndexService<>(index, client, ShareInfoTx::new, "5", ShareInfoTx.class);
     }
 }

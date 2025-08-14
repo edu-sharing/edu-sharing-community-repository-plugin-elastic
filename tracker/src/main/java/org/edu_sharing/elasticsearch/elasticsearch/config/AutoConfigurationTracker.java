@@ -401,9 +401,18 @@ public class AutoConfigurationTracker {
                                 .properties("receiver", prop -> prop.keyword(v->v))
                                 .properties("type", prop -> prop.keyword(v->v))
                                 .properties("timestamp", prop -> prop.date(v->v))))
+                .properties("shares", shareProp -> shareProp
+                        .object(shareObj -> shareObj
+                                .properties("id", prop -> prop.long_(v -> v))
+                                .properties("nodeId", prop -> prop.long_(v -> v))
+                                .properties("sharedBy", prop -> prop.keyword(v->v))
+                                .properties("sharedWith", prop -> prop.keyword(v->v))
+                                .properties("shareStatus", prop -> prop.keyword(v->v))
+                                .properties("shareType", prop -> prop.keyword(v->v))
+                                .properties("timestamp", prop -> prop.date(v->v))))
                 .properties("join_children", joinChildrenProp->joinChildrenProp
                         .join(join -> join
-                                .relations("node", List.of("userEvent"))
+                                .relations("node", List.of("userEvent", "shares"))
                         ));
     }
 
@@ -436,6 +445,13 @@ public class AutoConfigurationTracker {
     public StatusIndexService<UserActivityTx> userActivityStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
         return trackerStateServiceFactory.createUserActivityStateService(transactions.getIndex());
     }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "shareInfoStateService")
+    public StatusIndexService<ShareInfoTx> shareInfoStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
+        return trackerStateServiceFactory.createShareInfoStateService(transactions.getIndex());
+    }
+
 
     @Bean
     @ConditionalOnMissingBean(name = "transactionTracker")

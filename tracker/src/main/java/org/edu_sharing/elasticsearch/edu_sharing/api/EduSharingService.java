@@ -33,6 +33,7 @@ public class EduSharingService {
     private final PreviewApi previewApi;
     private final NodeV1Api nodeV1Api;
     private final TrackingV1Api trackingV1Api;
+    private final SharingV1Api sharingV1Api;
 
     @Value("${valuespace.languages}")
     private String[] valuespaceLanguages;
@@ -128,7 +129,7 @@ public class EduSharingService {
                 Map<String, List<String>> valuespacesForLanguage = nodeData.getValueSpaces().computeIfAbsent(language, k -> new ConcurrentHashMap<>());
                 if (prop.getValue() instanceof List) {
                     ArrayList<String> translatedList = new ArrayList<>();
-                    for (Object value : (List<?>)prop.getValue()) {
+                    for (Object value : (List<?>) prop.getValue()) {
                         if (value instanceof String) {
                             String translatedVal = translate(mds, language, key, (String) value);
                             if (translatedVal != null && !StringUtils.isBlank(translatedVal)) {
@@ -279,4 +280,14 @@ public class EduSharingService {
         return trackingV1Api.getAllUserNodeActivities("-home-", since, maxItems, offset).block();
 
     }
+
+    public List<ShareInfoOplog> getShareInfoOplog(Long oplogId, int maxItems) {
+        return sharingV1Api.getOpLog("-home-", oplogId, null, maxItems).collectList().block();
+    }
+
+    public List<ShareInfo> getShareInfos(List<Long> shareIds) {
+        return sharingV1Api.getShares1("-home-", shareIds).collectList().block();
+    }
+
+
 }

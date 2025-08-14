@@ -43,6 +43,12 @@ public class DefaultConfiguration {
     }
 
     @Bean
+    @ConditionalOnProperty(prefix = "shares", name = "enabled", havingValue = "true")
+    public ShareTrackerJob shareTrackerJob(ShareInfoTracker shareInfoTracker, TrackerAvailabilityTickService tickService){
+        return new ShareTrackerJob(shareInfoTracker, tickService);
+    }
+
+    @Bean
     public CascadeTrackerJob cascadeTrackerJob(CascadeTracker cascadeTracker){
         return new CascadeTrackerJob(cascadeTracker);
     }
