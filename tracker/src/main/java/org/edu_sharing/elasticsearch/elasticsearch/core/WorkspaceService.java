@@ -823,7 +823,17 @@ public class WorkspaceService {
         }
 
         logger.info("starting bulk create activities");
-        client.bulk(req -> req.index(index).operations(operations));
+        BulkResponse bulk = client.bulk(req -> req.index(index).operations(operations));
+        if (bulk.errors()) {
+            String errors = bulk.items()
+                    .stream()
+                    .map(BulkResponseItem::error)
+                    .filter(Objects::nonNull)
+                    .map(ErrorCause::reason)
+                    .collect(Collectors.joining("\n"));
+            logger.error("bulk create activities failed with: {}", errors);
+            throw new IOException("bulk create activities failed");
+        }
         logger.info("finished bulk create activities");
     }
 
@@ -868,12 +878,22 @@ public class WorkspaceService {
         }
 
         logger.info("starting bulk create shares");
-        client.bulk(req -> req.index(index).operations(operations));
+        BulkResponse bulk = client.bulk(req -> req.index(index).operations(operations));
+        if (bulk.errors()) {
+            String errors = bulk.items()
+                    .stream()
+                    .map(BulkResponseItem::error)
+                    .filter(Objects::nonNull)
+                    .map(ErrorCause::reason)
+                    .collect(Collectors.joining("\n"));
+            logger.error("bulk create shares failed with: {}", errors);
+            throw new IOException("bulk create shares failed");
+        }
         logger.info("finished bulk create shares");
     }
 
     public void deleteShares(Collection<Long> deletedShares) throws IOException {
-        if(deletedShares == null || deletedShares.isEmpty()) {
+        if (deletedShares == null || deletedShares.isEmpty()) {
             return;
         }
 
@@ -950,7 +970,7 @@ public class WorkspaceService {
                             if (collectionDeleted) {
                                 collCeckAttValue = collection.get("dbid");
                             } else {
-                                collCeckAttValue = ((Map<?,?>) collection.get("relation")).get("dbid");
+                                collCeckAttValue = ((Map<?, ?>) collection.get("relation")).get("dbid");
                             }
 
                             if (collCeckAttValue == null) {
@@ -1248,7 +1268,7 @@ public class WorkspaceService {
 //        String identifier = Tools.getIdentifier(nodeRef);
 //        Query query = InternalQueries.queryByUUID(uuid, protocol, identifier);
 
-        HitsMetadata<Map> sh = this.search(Query.of(q->q.ids(x->x.values(uuid))), 0, 1, excludes, Map.class);
+        HitsMetadata<Map> sh = this.search(Query.of(q -> q.ids(x -> x.values(uuid))), 0, 1, excludes, Map.class);
         if (sh == null || sh.total().value() == 0) {
             return null;
         }
@@ -1278,7 +1298,7 @@ public class WorkspaceService {
                         List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData> statistics = entry.getValue();
                         if (statistics == null || statistics.isEmpty()) continue;
 
-                        if(!this.exists(uuid, index)){
+                        if (!this.exists(uuid, index)) {
                             logger.info("uuid:{} is not in elastic in elastic index", uuid);
                             allInIndex.set(false);
                             continue;

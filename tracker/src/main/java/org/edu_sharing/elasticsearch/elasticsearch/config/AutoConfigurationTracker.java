@@ -412,7 +412,7 @@ public class AutoConfigurationTracker {
                                 .properties("timestamp", prop -> prop.date(v->v))))
                 .properties("join_children", joinChildrenProp->joinChildrenProp
                         .join(join -> join
-                                .relations("node", List.of("userEvent", "shares"))
+                                .relations("node", List.of("userEvent", "share"))
                         ));
     }
 
