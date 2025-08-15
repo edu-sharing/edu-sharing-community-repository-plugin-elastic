@@ -14,7 +14,6 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoField;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,7 +29,7 @@ public class ShareInfoTracker {
     private final EduSharingService eduSharingService;
     private final StatusIndexService<ShareInfoTx> shareInfoStateService;
 
-    private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("dd.MM.yyyy'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC);
+    private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("dd.MM.yyyy'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
     int batchSize = 1000;
 
@@ -40,10 +39,12 @@ public class ShareInfoTracker {
 
             Long lastTimestamp = Optional.ofNullable(shareInfoTx).map(ShareInfoTx::getLastTimestamp).orElse(null);
             Long lastOplogId = Optional.ofNullable(shareInfoTx).map(ShareInfoTx::getShareInfoOplogId).orElse(null);
-            log.info("starting from: {}", lastOplogId);
+
+            OffsetDateTime lastTimestampDate = Objects.isNull(lastTimestamp) ? null : OffsetDateTime.ofInstant(Instant.ofEpochMilli(lastTimestamp), ZoneOffset.UTC);
+            log.info("starting from: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
 
             do {
-                List<ShareInfoOplog> shareInfoOplogs = eduSharingService.getShareInfoOplog(lastOplogId, batchSize);
+                List<ShareInfoOplog> shareInfoOplogs = eduSharingService.getShareInfoOplog(lastTimestampDate, batchSize);
                 if (shareInfoOplogs.isEmpty()) {
                     break;
                 }
@@ -51,6 +52,7 @@ public class ShareInfoTracker {
                 ShareInfoOplog lastOplog = shareInfoOplogs.get(shareInfoOplogs.size() - 1);
                 lastOplogId = lastOplog.getId();
                 lastTimestamp = lastOplog.getTimestamp().toInstant().toEpochMilli();
+                lastTimestampDate = lastOplog.getTimestamp();
 
                 Set<Long> deletedShares = shareInfoOplogs.stream()
                         .filter(x -> x.getAction() == ShareInfoOplog.ActionEnum.DELETE)
@@ -77,7 +79,7 @@ public class ShareInfoTracker {
                 // TODO skip by max iterations
             } while (true);
 
-            log.info("finished user activities until: {}", dateFormat.format(OffsetDateTime.ofInstant(Instant.ofEpochMilli(lastTimestamp), ZoneOffset.UTC)));
+            log.info("finished user activities until: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
             shareInfoStateService.setState(new ShareInfoTx(lastOplogId, lastTimestamp));
             elasticWorkspaceService.refreshWorkspace();
         } catch (IOException e) {

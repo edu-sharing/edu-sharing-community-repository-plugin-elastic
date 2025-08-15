@@ -278,11 +278,10 @@ public class EduSharingService {
 
     public UserNodeActivityPageResult getUserActivitiesSince(OffsetDateTime since, int maxItems, int offset) {
         return trackingV1Api.getAllUserNodeActivities("-home-", since, maxItems, offset).block();
-
     }
 
-    public List<ShareInfoOplog> getShareInfoOplog(Long oplogId, int maxItems) {
-        return sharingV1Api.getOpLog("-home-", oplogId, null, maxItems).collectList().block();
+    public List<ShareInfoOplog> getShareInfoOplog(OffsetDateTime since, int maxItems) {
+        return sharingV1Api.getOpLog("-home-", null, since, maxItems).collectList().block();
     }
 
     public List<ShareInfo> getShareInfos(List<Long> shareIds) {
