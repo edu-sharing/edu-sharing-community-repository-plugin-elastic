@@ -330,6 +330,8 @@ init:
 
       ## @param init.permission.securityContext.runAsUser Set user to run init permission container under
       runAsUser: 0
+      ## @param init.permission.securityContext.runAsNonRoot Running as Non-root
+      runAsNonRoot: false
 
   sysctl:
 
@@ -367,6 +369,8 @@ init:
       privileged: true
       ## @param init.sysctl.securityContext.runAsUser Set user to run init sysctl container under
       runAsUser: 0
+      ## @param init.sysctl.securityContext.runAsNonRoot Running as Non-root
+      runAsNonRoot: false
 
 ########################################################################################################################
 
