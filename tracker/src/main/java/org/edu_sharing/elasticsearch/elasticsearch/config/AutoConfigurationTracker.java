@@ -401,7 +401,7 @@ public class AutoConfigurationTracker {
                                 .properties("receiver", prop -> prop.keyword(v->v))
                                 .properties("type", prop -> prop.keyword(v->v))
                                 .properties("timestamp", prop -> prop.date(v->v))))
-                .properties("shares", shareProp -> shareProp
+                .properties("share", shareProp -> shareProp
                         .object(shareObj -> shareObj
                                 .properties("id", prop -> prop.long_(v -> v))
                                 .properties("nodeId", prop -> prop.long_(v -> v))
