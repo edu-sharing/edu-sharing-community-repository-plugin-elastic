@@ -79,11 +79,11 @@ public class ShareInfoTracker {
                 // TODO skip by max iterations
             } while (true);
 
-            log.info("finished user activities until: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
+            log.info("finished user shares until: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
             shareInfoStateService.setState(new ShareInfoTx(lastOplogId, lastTimestamp));
             elasticWorkspaceService.refreshWorkspace();
         } catch (IOException e) {
-            log.error("error while fetching user activities", e);
+            log.error("error while fetching shares", e);
         }
     }
 }
