@@ -404,7 +404,7 @@ public class AutoConfigurationTracker {
                 .properties("share", shareProp -> shareProp
                         .object(shareObj -> shareObj
                                 .properties("id", prop -> prop.long_(v -> v))
-                                .properties("nodeId", prop -> prop.long_(v -> v))
+                                .properties("nodeId", prop -> prop.keyword(v -> v))
                                 .properties("sharedBy", prop -> prop.keyword(v->v))
                                 .properties("sharedWith", prop -> prop.keyword(v->v))
                                 .properties("shareStatus", prop -> prop.keyword(v->v))
