@@ -8,5 +8,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserActivityTx {
-    private long lastTimestamp;
+    private Long lastTimestamp;
 }

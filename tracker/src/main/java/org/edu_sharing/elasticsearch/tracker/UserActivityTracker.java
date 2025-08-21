@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.ShareInfoTx;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.UserActivityTx;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.Pagination;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.UserNodeActivity;
@@ -17,6 +18,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -33,32 +36,32 @@ public class UserActivityTracker {
     public void track() {
         try {
             UserActivityTx userActivityTx = userActivityStateService.getState();
-            OffsetDateTime since = userActivityTx == null
-                    ? OffsetDateTime.MIN
-                    : OffsetDateTime.ofInstant(Instant.ofEpochMilli(userActivityTx.getLastTimestamp()), ZoneOffset.UTC);
 
-            log.info("starting from: {}", dateFormat.format(since));
 
-            long lastTimestamp;
-            int offset = 0;
-            int totalItems;
+            Long lastTimestamp = Optional.ofNullable(userActivityTx).map(UserActivityTx::getLastTimestamp).orElse(null);
+
+
+            OffsetDateTime lastTimestampDate = Objects.isNull(lastTimestamp) ? null : OffsetDateTime.ofInstant(Instant.ofEpochMilli(lastTimestamp), ZoneOffset.UTC);
+            log.info("starting from: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
+
             do {
-                lastTimestamp = System.currentTimeMillis();
-                UserNodeActivityPageResult userActivitiesSince = eduSharingService.getUserActivitiesSince(since, batchSize, offset);
-                List<UserNodeActivity> activities = userActivitiesSince.getActivities();
+                List<UserNodeActivity> activities = eduSharingService.getUserActivitiesSince(lastTimestampDate, batchSize);
+                if(activities.isEmpty()) {
+                    break;
+                }
+
+                UserNodeActivity lastUserActivity = activities.get(activities.size() - 1);
+                lastTimestamp = lastUserActivity.getTimestamp().toInstant().toEpochMilli();
+                lastTimestampDate = lastUserActivity.getTimestamp();
 
                 elasticWorkspaceService.addUserActivities(activities);
 
                 log.info("found {} activities", activities.size());
 
-                Pagination pagination = userActivitiesSince.getPagination();
-                totalItems = pagination.getTotal();
-                offset += pagination.getCount();
-
                 // TODO skip by max iterations
-            } while (totalItems > offset);
+            } while (true);
 
-            log.info("finished user activities until: {}", dateFormat.format(OffsetDateTime.ofInstant(Instant.ofEpochMilli(lastTimestamp), ZoneOffset.UTC)));
+            log.info("finished user activities until: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
             userActivityStateService.setState(new UserActivityTx(lastTimestamp));
             elasticWorkspaceService.refreshWorkspace();
         } catch (IOException e) {
