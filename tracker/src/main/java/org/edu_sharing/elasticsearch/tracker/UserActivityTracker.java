@@ -38,10 +38,7 @@ public class UserActivityTracker {
         try {
             UserActivityTx userActivityTx = userActivityStateService.getState();
 
-
             Long lastTimestamp = Optional.ofNullable(userActivityTx).map(UserActivityTx::getLastTimestamp).orElse(null);
-
-
             OffsetDateTime lastTimestampDate = Objects.isNull(lastTimestamp) ? null : OffsetDateTime.ofInstant(Instant.ofEpochMilli(lastTimestamp), ZoneOffset.UTC);
             log.info("starting from: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
 
