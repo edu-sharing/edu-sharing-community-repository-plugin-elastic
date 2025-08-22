@@ -33,6 +33,7 @@ public class UserActivityTracker {
     private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("dd.MM.yyyy'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC);
 
     int batchSize = 1000;
+    int maxIterations = 10;
     public void track() {
         try {
             UserActivityTx userActivityTx = userActivityStateService.getState();
@@ -44,6 +45,7 @@ public class UserActivityTracker {
             OffsetDateTime lastTimestampDate = Objects.isNull(lastTimestamp) ? null : OffsetDateTime.ofInstant(Instant.ofEpochMilli(lastTimestamp), ZoneOffset.UTC);
             log.info("starting from: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
 
+            int i = 0;
             do {
                 List<UserNodeActivity> activities = eduSharingService.getUserActivitiesSince(lastTimestampDate, batchSize);
                 if(activities.isEmpty()) {
@@ -57,12 +59,11 @@ public class UserActivityTracker {
                 elasticWorkspaceService.addUserActivities(activities);
 
                 log.info("found {} activities", activities.size());
-
-                // TODO skip by max iterations
-            } while (true);
+                userActivityStateService.setState(new UserActivityTx(lastTimestamp));
+            } while (i++ < maxIterations);
 
             log.info("finished user activities until: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
-            userActivityStateService.setState(new UserActivityTx(lastTimestamp));
+
             elasticWorkspaceService.refreshWorkspace();
         } catch (IOException e) {
             log.error("error while fetching user activities", e);

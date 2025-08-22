@@ -32,6 +32,7 @@ public class ShareInfoTracker {
     private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("dd.MM.yyyy'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
     int batchSize = 1000;
+    int maxIterations = 10;
 
     public void track() {
         try {
@@ -42,7 +43,7 @@ public class ShareInfoTracker {
 
             OffsetDateTime lastTimestampDate = Objects.isNull(lastTimestamp) ? null : OffsetDateTime.ofInstant(Instant.ofEpochMilli(lastTimestamp), ZoneOffset.UTC);
             log.info("starting from: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
-
+            int i = 0;
             do {
                 List<ShareInfoOplog> shareInfoOplogs = eduSharingService.getShareInfoOplog(lastTimestampDate, batchSize);
                 if (shareInfoOplogs.isEmpty()) {
@@ -75,12 +76,11 @@ public class ShareInfoTracker {
                     elasticWorkspaceService.deleteShares(deletedShares);
                     log.info("deleted {} share infos", deletedShares.size());
                 }
+                shareInfoStateService.setState(new ShareInfoTx(lastOplogId, lastTimestamp));
 
-                // TODO skip by max iterations
-            } while (true);
+            } while (i++ < maxIterations);
 
             log.info("finished user shares until: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
-            shareInfoStateService.setState(new ShareInfoTx(lastOplogId, lastTimestamp));
             elasticWorkspaceService.refreshWorkspace();
         } catch (IOException e) {
             log.error("error while fetching shares", e);
