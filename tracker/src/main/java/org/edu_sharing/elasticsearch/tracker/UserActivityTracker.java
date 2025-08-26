@@ -5,11 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.ShareInfoTx;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.UserActivityTx;
-import org.edu_sharing.generated.repository.backend.services.rest.client.model.Pagination;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.UserNodeActivity;
-import org.edu_sharing.generated.repository.backend.services.rest.client.model.UserNodeActivityPageResult;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
