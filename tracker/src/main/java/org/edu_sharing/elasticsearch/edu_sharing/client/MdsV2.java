@@ -4,9 +4,11 @@ package org.edu_sharing.elasticsearch.edu_sharing.client;
 import java.util.List;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class MdsV2 {
 		
 	public static class Create {
@@ -28,7 +30,6 @@ public class MdsV2 {
 	private List<WidgetV2> widgets = null;
 	private List<ViewV2> views;
 	private List<GroupV2> groups;
-	private List<ListV2> lists;
 	private List<SortV2> sorts;
 
 
@@ -72,13 +73,7 @@ public class MdsV2 {
 	public void setGroups(List<GroupV2> groups) {
 		this.groups = groups;
 	}
-	@JsonProperty
-	public List<ListV2> getLists() {
-		return lists;
-	}
-	public void setLists(List<ListV2> lists) {
-		this.lists = lists;
-	}
+
 	@JsonProperty
 	public List<SortV2> getSorts() {
 		return sorts;
