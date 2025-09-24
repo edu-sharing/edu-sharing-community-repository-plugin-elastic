@@ -34,7 +34,7 @@
     <alfresco.sdk.version>3.1.0</alfresco.sdk.version>
 
     <!-- release-2 -->
-    <bom.repository.version>10.0.0-RC14</bom.repository.version>
+    <bom.repository.version>10.0.0-RC15</bom.repository.version>
 
   </properties>
 
