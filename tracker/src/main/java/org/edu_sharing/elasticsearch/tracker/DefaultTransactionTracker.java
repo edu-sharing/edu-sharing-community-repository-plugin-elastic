@@ -40,6 +40,10 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     int fetchSizeAlfresco;
 
     @Setter
+    @Value("${statistic.enabled}")
+    boolean statisticEnabled;
+
+    @Setter
     @Value("${tracker.bulk.size.elastic}")
     int bulkSizeElastic;
 
@@ -102,8 +106,9 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         // io's, maps
         logger.info("index user nodes size:" + toIndexNodes.size());
         updateNodes(toIndexNodes);
-        updateNodeStatistics(toIndexNodes);
-
+        if(statisticEnabled) {
+            updateNodeStatistics(toIndexNodes);
+        }
         // refresh index so that collections will be found by cacheCollections process
         workspaceService.refreshWorkspace();
 
