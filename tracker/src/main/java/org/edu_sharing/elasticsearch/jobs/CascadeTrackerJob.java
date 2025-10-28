@@ -14,7 +14,7 @@ public class CascadeTrackerJob {
 
     private final CascadeTracker cascadeTracker;
 
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedDelay = 5000)
     public void runJob() {
         log.info("Starting Cascade Tracker Job");
         cascadeTracker.track();
