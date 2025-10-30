@@ -2,6 +2,7 @@ package org.edu_sharing.elasticsearch.jobs;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -18,6 +19,7 @@ public class SchedulerConfiguration {
         return scheduler;
     }
 
+    @Primary
     @Bean(name = "mainScheduler")
     public TaskScheduler mainScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();

@@ -21,7 +21,7 @@ public class AclTrackerJob implements MigrationCompletedAware {
     AtomicInteger counter = new AtomicInteger(0);
 
 
-    @Scheduled(fixedDelayString = "${tracker.delay}",scheduler = "mainScheduler")
+    @Scheduled(fixedDelayString = "${tracker.delay}")
     public void track() {
         tickService.tick();
         if (!migrated) {

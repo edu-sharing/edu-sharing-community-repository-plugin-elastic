@@ -25,7 +25,7 @@ public class StatisticsTrackerJob implements MigrationCompletedAware {
      * no race condition possibe with track() cause all scheduled tasks are executed by single thread
      * <a href="https://stackoverflow.com/questions/24033208/how-to-prevent-overlapping-schedules-in-spring">...</a>
      */
-    @Scheduled(fixedDelayString = "${statistic.delay}",scheduler = "mainScheduler")
+    @Scheduled(fixedDelayString = "${statistic.delay}")
     public void track() {
         tickService.tick();
         if (!migrated) {
