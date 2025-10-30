@@ -7,6 +7,7 @@ import org.edu_sharing.elasticsearch.tracker.CascadeTracker;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -14,11 +15,15 @@ public class CascadeTrackerJob {
 
     private final CascadeTracker cascadeTracker;
 
-    @Scheduled(fixedDelay = 5000)
+    AtomicInteger counter = new AtomicInteger(0);
+
+    @Scheduled(fixedDelayString="5000",scheduler = "cascadeScheduler")
     public void runJob() {
-        log.info("Starting Cascade Tracker Job");
+        int i = counter.incrementAndGet();
+        log.info("Starting Job {}",i);
         cascadeTracker.track();
-        log.info("Finished Cascade Tracker Job");
+        log.info("Finished Job {}",i);
+        counter.decrementAndGet();
 
     }
 

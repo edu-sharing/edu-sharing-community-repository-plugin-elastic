@@ -14,6 +14,8 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 @Slf4j
 @RequiredArgsConstructor
 public class TransactionTrackerJob implements MigrationCompletedAware, ApplicationContextAware {
@@ -29,12 +31,17 @@ public class TransactionTrackerJob implements MigrationCompletedAware, Applicati
     @Setter
     private ApplicationContext applicationContext;
 
-    @Scheduled(fixedDelayString = "${tracker.delay}")
+    AtomicInteger counter = new AtomicInteger(0);
+
+    @Scheduled(fixedDelayString = "${tracker.delay}",scheduler = "mainScheduler")
     public void track() {
         tickService.tick();
         if (!migrated) {
             return;
         }
+
+        int i = counter.incrementAndGet();
+        log.info("Starting Job {}",i);
 
         boolean transactionChanges;
         do {
@@ -55,6 +62,9 @@ public class TransactionTrackerJob implements MigrationCompletedAware, Applicati
                 }
             }
         } while (transactionChanges);
+
+        log.info("Finished Job {}",i);
+        counter.decrementAndGet();
     }
 
     @Override

@@ -8,12 +8,21 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Configuration
 @EnableScheduling
-public class CascadeTrackerScheduler {
-    @Bean
+public class SchedulerConfiguration {
+    @Bean(name = "cascadeScheduler")
     public TaskScheduler taskScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(5); // adjust as needed
-        scheduler.setThreadNamePrefix("scheduler-");
+        scheduler.setPoolSize(1); // adjust as needed
+        scheduler.setThreadNamePrefix("cascadeScheduler-");
+        scheduler.initialize();
+        return scheduler;
+    }
+
+    @Bean(name = "mainScheduler")
+    public TaskScheduler mainScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1); // adjust as needed
+        scheduler.setThreadNamePrefix("mainScheduler-");
         scheduler.initialize();
         return scheduler;
     }
