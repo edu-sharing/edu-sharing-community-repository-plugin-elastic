@@ -339,6 +339,7 @@ public class EduSharingClient {
 
         if(previewSmall!=null && !preview.isIcon()) {
             if(previewSmall.getData() != null && (previewSmall.getData().length /1024) > previewMaxKiloBytes){
+                logger.info("Skipping preview for {} cause size {}kb exceeds limit {}kb", node.getNodeMetadata().getNodeRef(), previewSmall.getData().length/1024, previewMaxKiloBytes);
                 return;
             }
             preview.setMimetype(previewSmall.getMimetype());
