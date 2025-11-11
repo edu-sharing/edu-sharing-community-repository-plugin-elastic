@@ -7,6 +7,8 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompl
 import org.edu_sharing.elasticsearch.tracker.AclTracker;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 @Slf4j
 @RequiredArgsConstructor
 public class AclTrackerJob implements MigrationCompletedAware {
@@ -16,6 +18,8 @@ public class AclTrackerJob implements MigrationCompletedAware {
 
     private boolean migrated = false;
 
+    AtomicInteger counter = new AtomicInteger(0);
+
 
     @Scheduled(fixedDelayString = "${tracker.delay}")
     public void track() {
@@ -23,12 +27,15 @@ public class AclTrackerJob implements MigrationCompletedAware {
         if (!migrated) {
             return;
         }
-
+        int i = counter.incrementAndGet();
+        log.info("Starting Job {}",i);
         boolean aclChanges;
         do {
             aclChanges = aclTracker.track();
             log.info("recursive aclChanges: {}", aclChanges);
         } while (aclChanges);
+        log.info("Finished Job {}",i);
+        counter.decrementAndGet();
     }
 
     @Override
