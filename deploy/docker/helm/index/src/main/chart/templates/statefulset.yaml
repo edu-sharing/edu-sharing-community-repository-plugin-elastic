@@ -41,12 +41,6 @@ spec:
         {{- if .Values.global.backup.velero.enabled }}
         checksum/configmap-backup: {{ include (print .Template.BasePath "/configmap-backup.yaml") . | sha256sum | trunc 63 }}
         backup.velero.io/backup-volumes: share-data
-        pre.hook.backup.velero.io/command: '["/bin/bash", "-c", "/scripts/backup-pre.sh"]'
-        pre.hook.backup.velero.io/timeout: {{ .Values.global.backup.velero.hook.timeout }}
-        post.hook.backup.velero.io/command: '["/bin/bash", "-c", "/scripts/backup-post.sh"]'
-        post.hook.backup.velero.io/timeout: {{ .Values.global.backup.velero.hook.timeout }}
-        post.hook.restore.velero.io/command: '["/bin/bash", "-c", "/scripts/restore-post.sh"]'
-        post.hook.restore.velero.io/exec-timeout: {{ .Values.global.backup.velero.hook.timeout }}
         {{- end }}
     spec:
       {{- if (or (default .Values.global.cluster.storage.data.permission .Values.persistence.data.permission) .Values.global.cluster.sysctl.enabled) }}
@@ -418,12 +412,6 @@ spec:
         {{- if $.Values.global.backup.velero.enabled }}
         checksum/configmap-backup: {{ include (print .Template.BasePath "/configmap-backup.yaml") $ | sha256sum | trunc 63 }}
         backup.velero.io/backup-volumes: share-data
-        pre.hook.backup.velero.io/command: '["/bin/bash", "-c", "/scripts/backup-pre.sh"]'
-        pre.hook.backup.velero.io/timeout: {{ $.Values.global.backup.velero.hook.timeout }}
-        post.hook.backup.velero.io/command: '["/bin/bash", "-c", "/scripts/backup-post.sh"]'
-        post.hook.backup.velero.io/timeout: {{ $.Values.global.backup.velero.hook.timeout }}
-        post.hook.restore.velero.io/command: '["/bin/bash", "-c", "/scripts/restore-post.sh"]'
-        post.hook.restore.velero.io/exec-timeout: {{ $.Values.global.backup.velero.hook.timeout }}
         {{- end }}
     spec:
       {{- if (or (default $.Values.global.cluster.storage.data.permission $.Values.persistence.data.permission) $.Values.global.cluster.sysctl.enabled) }}

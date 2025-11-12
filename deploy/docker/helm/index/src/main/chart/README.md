@@ -6,7 +6,6 @@
 | ----------------------------------------- | ---------------------------------------------- | ---------------------- |
 | `global.annotations`                      | Define global annotations                      | `{}`                   |
 | `global.backup.velero.enabled`            | Enable velero backup                           | `false`                |
-| `global.backup.velero.hook.timeout`       | Set velero hook timeout                        | `300s`                 |
 | `global.cluster.istio.enabled`            | Enable Istio Service mesh                      | `false`                |
 | `global.cluster.pdb.enabled`              | Enable PDB                                     | `false`                |
 | `global.cluster.storage.data.permission`  | Enable global custom data storage permissions  | `false`                |
