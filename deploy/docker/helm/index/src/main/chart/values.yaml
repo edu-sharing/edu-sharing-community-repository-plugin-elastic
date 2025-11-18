@@ -8,6 +8,12 @@ global:
   ## @param global.annotations Define global annotations
   annotations: {}
 
+  backup:
+
+    velero:
+      ## @param global.backup.velero.enabled Enable velero backup
+      enabled: false
+
   cluster:
 
     istio:
@@ -247,7 +253,7 @@ startupProbe:
   ## @param startupProbe.failureThreshold Failure threshold for startupProbe
   failureThreshold: 30
   ## @param startupProbe.initialDelaySeconds Initial delay seconds for startupProbe
-  initialDelaySeconds: 0
+  initialDelaySeconds: 20
   ## @param startupProbe.periodSeconds Period seconds for startupProbe
   periodSeconds: 20
   ## @param startupProbe.successThreshold Success threshold for startupProbe

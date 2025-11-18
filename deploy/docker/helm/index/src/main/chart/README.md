@@ -5,6 +5,7 @@
 | Name                                      | Description                                    | Value                  |
 | ----------------------------------------- | ---------------------------------------------- | ---------------------- |
 | `global.annotations`                      | Define global annotations                      | `{}`                   |
+| `global.backup.velero.enabled`            | Enable velero backup                           | `false`                |
 | `global.cluster.istio.enabled`            | Enable Istio Service mesh                      | `false`                |
 | `global.cluster.pdb.enabled`              | Enable PDB                                     | `false`                |
 | `global.cluster.storage.data.permission`  | Enable global custom data storage permissions  | `false`                |
@@ -75,7 +76,7 @@
 | `securityContext.runAsUser`                                | Define user to run under                                       | `1000`                                                                                                             |
 | `terminationGracePeriod`                                   | Define grace period for termination                            | `120`                                                                                                              |
 | `startupProbe.failureThreshold`                            | Failure threshold for startupProbe                             | `30`                                                                                                               |
-| `startupProbe.initialDelaySeconds`                         | Initial delay seconds for startupProbe                         | `0`                                                                                                                |
+| `startupProbe.initialDelaySeconds`                         | Initial delay seconds for startupProbe                         | `20`                                                                                                               |
 | `startupProbe.periodSeconds`                               | Period seconds for startupProbe                                | `20`                                                                                                               |
 | `startupProbe.successThreshold`                            | Success threshold for startupProbe                             | `1`                                                                                                                |
 | `startupProbe.timeoutSeconds`                              | Timeout seconds for startupProbe                               | `10`                                                                                                               |
