@@ -8,6 +8,8 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompl
 import org.edu_sharing.elasticsearch.tracker.StatisticsTracker;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 @Slf4j
 @RequiredArgsConstructor
 public class StatisticsTrackerJob implements MigrationCompletedAware {
@@ -16,6 +18,8 @@ public class StatisticsTrackerJob implements MigrationCompletedAware {
     private final TrackerAvailabilityTickService tickService;
 
     private boolean migrated = false;
+
+    AtomicInteger counter = new AtomicInteger(0);
 
     /**
      * no race condition possibe with track() cause all scheduled tasks are executed by single thread
@@ -28,7 +32,13 @@ public class StatisticsTrackerJob implements MigrationCompletedAware {
             return;
         }
 
+        int i = counter.incrementAndGet();
+        log.info("Starting Job {}",i);
+
         statisticsTracker.track();
+        log.info("Finished Job {}",i);
+        counter.decrementAndGet();
+
     }
 
     @Override
