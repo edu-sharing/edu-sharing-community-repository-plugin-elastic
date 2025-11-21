@@ -38,7 +38,7 @@ public class ShareInfoTracker {
         try {
             ShareInfoTx shareInfoTx = shareInfoStateService.getState();
 
-            Long lastTimestamp = Optional.ofNullable(shareInfoTx).map(ShareInfoTx::getLastTimestamp).orElse(null);
+            Long lastTimestamp = Optional.ofNullable(shareInfoTx).map(ShareInfoTx::getLastTimestamp).orElse(0L);
             OffsetDateTime lastTimestampDate = Objects.isNull(lastTimestamp) ? null : OffsetDateTime.ofInstant(Instant.ofEpochMilli(lastTimestamp), ZoneOffset.UTC);
             log.info("starting from: {}", Optional.ofNullable(lastTimestampDate).map(dateFormat::format).orElse(null));
             int i = 0;
