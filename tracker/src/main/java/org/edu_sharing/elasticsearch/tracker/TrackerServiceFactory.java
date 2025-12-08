@@ -36,6 +36,12 @@ public class TrackerServiceFactory {
     @Value("${index.storerefs}")
     private List<String> indexStoreRefs;
 
+    @Value("#{'${include.nodeTypes:}'.isEmpty() ? {} : '${include.nodeTypes}'.split(',')}")
+    private List<String> includeNodeTypes;
+
+    @Value("#{'${exclude.nodeTypes:}'.isEmpty() ? {} : '${exclude.nodeTypes}'.split(',')}")
+    private List<String> excludeNodeTypes;
+
     @Value("${allowed.types}")
     private String allowedTypes;
 
@@ -68,6 +74,8 @@ public class TrackerServiceFactory {
         defaultTransactionTracker.setHistoryInDays(historyInDays);
         defaultTransactionTracker.setFetchSizeAlfresco(fetchSizeAlfresco);
         defaultTransactionTracker.setBulkSizeElastic(bulkSizeElastic);
+        defaultTransactionTracker.setExcludeNodeTypes(excludeNodeTypes);
+        defaultTransactionTracker.setIncludeNodeTypes(includeNodeTypes);
         defaultTransactionTracker.init();
         return defaultTransactionTracker;
     }

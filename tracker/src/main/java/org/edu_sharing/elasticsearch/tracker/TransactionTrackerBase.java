@@ -13,11 +13,13 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
+import org.edu_sharing.repository.client.tools.CCConstants;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
@@ -58,6 +60,9 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
     @Setter(AccessLevel.PROTECTED)
     protected List<String> includeNodeTypes = null;
+
+    @Setter(AccessLevel.PROTECTED)
+    protected List<String> excludeNodeTypes = null;
 
     protected ForkJoinPool threadPool;
 
@@ -111,13 +116,21 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
                     .collect(Collectors.toList());
             log.info("got " + transactionIds.size() + " transactions last:" + transactionIds.get(transactionIds.size() - 1));
 
-            GetNodeParam getNodeParam;
+            GetNodeParamExtension getNodeParam = new GetNodeParamExtension();
+
             if(this.includeNodeTypes != null && !this.includeNodeTypes.isEmpty()) {
-                getNodeParam = new GetNodeParamExtension();
-                ((GetNodeParamExtension)getNodeParam).setIncludeNodeTypes(this.includeNodeTypes);
-            }else{
-                getNodeParam = new GetNodeParam();
+                List<String> list = this.includeNodeTypes.stream()
+                        .map(CCConstants::getValidGlobalName)
+                        .filter(Objects::nonNull).toList();
+                if(!list.isEmpty()) getNodeParam.setIncludeNodeTypes(list);
             }
+            if(this.excludeNodeTypes != null && !this.excludeNodeTypes.isEmpty()) {
+                List<String> list = this.excludeNodeTypes.stream()
+                        .map(CCConstants::getValidGlobalName)
+                        .filter(Objects::nonNull).toList();
+                if(!list.isEmpty()) getNodeParam.setExcludeNodeTypes(list);
+            }
+
             getNodeParam.setTxnIds(transactionIds);
             List<Node> nodes = alfClient.getNodes(getNodeParam);
             log.info("got " + nodes.size() + " nodes");
