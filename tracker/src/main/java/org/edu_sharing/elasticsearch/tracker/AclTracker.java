@@ -1,14 +1,12 @@
 package org.edu_sharing.elasticsearch.tracker;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -19,6 +17,7 @@ import java.util.stream.Collectors;
 import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
 
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class AclTracker {
@@ -26,15 +25,9 @@ public class AclTracker {
     private final AlfrescoWebscriptClient alfClient;
     private final WorkspaceService workspaceService;
 
-    @Value("${allowed.types}")
-    String allowedTypes;
 
     final static int maxResults = 100;
 
-    @Value("${tracker.timestep:36000000}")
-    int nextTimeStep;
-
-    Logger logger = LoggerFactory.getLogger(AclTracker.class);
     private final StatusIndexService<AclTx> aclStateService;
 
 
@@ -58,7 +51,7 @@ public class AclTracker {
         try {
             AclTx aclTx = aclStateService.getState();
             if (aclTx != null) {
-                logger.info("got last aclTxn from index aclCommitTime:" + aclTx.getAclChangeSetCommitTime() + " aclId" + aclTx.getAclChangeSetId());
+                log.info("got last aclTxn from index aclCommitTime:{} aclId{}", aclTx.getAclChangeSetCommitTime(), aclTx.getAclChangeSetId());
             }
 
             long lastACLChangeSetId = Optional.ofNullable(aclTx).map(AclTx::getAclChangeSetId).orElse(0L);
@@ -66,25 +59,25 @@ public class AclTracker {
 
             long nextACLChangeSetId = lastACLChangeSetId + 1;
 
-            logger.info("starting lastACLChangeSetId:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime + " " + new Date(lastFromCommitTime));
+            log.info("starting lastACLChangeSetId:{} lastFromCommitTime:{} {}", nextACLChangeSetId, lastFromCommitTime, new Date(lastFromCommitTime));
 
             AclChangeSets aclChangeSets;
             if(lastFromCommitTime > 0){
                 aclChangeSets = alfClient.getAclChangeSets(null,lastFromCommitTime + 1, AclTracker.maxResults);
             }else {
-                logger.warn("no last lastFromCommitTime timestamp, need to fallback to id mode, aCLChangeSetId {}", nextACLChangeSetId);
+                log.warn("no last lastFromCommitTime timestamp, need to fallback to id mode, aCLChangeSetId {}", nextACLChangeSetId);
                 aclChangeSets = alfClient.getAclChangeSets(nextACLChangeSetId,null, AclTracker.maxResults);
             }
 
 
             if (aclChangeSets.getAclChangeSets().isEmpty()) {
-                MetricContextHolder.getAclContext().getProgress().set((long) (100 * PROGRESS_FACTOR));
+                MetricContextHolder.getAclContext().getProgress().set(100 * PROGRESS_FACTOR);
                 MetricContextHolder.getAclContext().getTimestamp().set(System.currentTimeMillis());
-                logger.info("index is up to date:" + nextACLChangeSetId + " lastFromCommitTime:" + lastFromCommitTime);
+                log.info("index is up to date:{} lastFromCommitTime:{}", nextACLChangeSetId, lastFromCommitTime);
                 return false;
             }
 
-            logger.info("aclChangeSets:" + aclChangeSets.getAclChangeSets().stream().map(s -> s.getId()).collect(Collectors.toList()));
+            log.info("aclChangeSets:{}", aclChangeSets.getAclChangeSets().stream().map(AclChangeSet::getId).collect(Collectors.toList()));
 
 
             GetAclsParam param = new GetAclsParam();
@@ -104,7 +97,7 @@ public class AclTracker {
             Map<Long, Reader> readersMap = readers.getAclsReaders().stream()
                     .collect(Collectors.toMap(Reader::getAclId, readersList -> readersList));
 
-            logger.debug("aclIds:" + grp.getAclIds().toString());
+            log.debug("aclIds:{}", grp.getAclIds().toString());
             AccessControlLists accessControlLists = alfClient.getAccessControlLists(grp);
             Map<Long, AccessControlList> accessControlListMap = accessControlLists.getAccessControlLists().stream()
                     .collect(Collectors.toMap(AccessControlList::getAclId, accessControlList -> accessControlList));
@@ -113,13 +106,13 @@ public class AclTracker {
 
                 Reader reader = readersMap.get(acl.getId());
                 if (reader.getAclId() != acl.getId()) {
-                    logger.warn("reader aclid:" + reader.getAclId() + " does not match " + acl.getId());
+                    log.warn("reader aclid:{} does not match {}", reader.getAclId(), acl.getId());
                     continue;
                 }
 
                 List<String> alfReader = reader.getReaders();
                 Collections.sort(alfReader);
-                /**
+                /*
                  *  alfresco permissions
                  */
                 Map<String, List<String>> permissionsAlf = new HashMap<>();
@@ -142,9 +135,7 @@ public class AclTracker {
                 workspaceService.updateNodesWithAcl(acl.getId(), permissionsAlf);
             }
 
-            AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().stream().max((a, b) -> Long.compare(
-                    a.getCommitTimeMs(), b.getCommitTimeMs()
-            )).get();
+            AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().stream().max(Comparator.comparingLong(AclChangeSet::getCommitTimeMs)).get();
 
             aclStateService.setState(new AclTx(lastAclChangeSet.getId(), lastAclChangeSet.getCommitTimeMs()));
 
@@ -153,11 +144,11 @@ public class AclTracker {
             MetricContextHolder.getAclContext().getProgress().set((long) (percentage * PROGRESS_FACTOR));
             MetricContextHolder.getAclContext().getTimestamp().set(lastFromCommitTime);
             DecimalFormat df = new DecimalFormat("0.00");
-            logger.info("finished " + df.format(percentage) + "% lastACLChangeSetId:" + lastAclChangeSet.getId() +" maxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
+            log.info("finished {}% lastACLChangeSetId:{} maxChangeSetId:{}", df.format(percentage), lastAclChangeSet.getId(), aclChangeSets.getMaxChangeSetId());
             return false;
 
         }catch (IOException e) {
-            logger.error(e.getMessage(), e);
+            log.error(e.getMessage(), e);
             return false;
         }
     }

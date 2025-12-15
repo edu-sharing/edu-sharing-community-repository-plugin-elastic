@@ -25,99 +25,31 @@
  */
 package org.edu_sharing.elasticsearch.alfresco.client;
 
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.jackson.Jacksonized;
+
+@Data
+@Builder
+@Jacksonized
 public class Node
 {
-    public static enum SolrApiNodeStatus
-    {
-        UPDATED, DELETED, UNKNOWN, NON_SHARD_DELETED, NON_SHARD_UPDATED;
-    };
-
     private long id;
     private String nodeRef;
     private long txnId;
     private String status;
     private String tenant;
     private long aclId;
-    private String shardPropertyValue;
-    
-    public long getId()
-    {
-        return id;
-    }
-    public void setId(long id)
-    {
-        this.id = id;
-    }
-    public String getNodeRef()
-    {
-        return nodeRef;
-    }
-    public void setNodeRef(String nodeRef)
-    {
-        this.nodeRef = nodeRef;
-    }
-    public long getTxnId()
-    {
-        return txnId;
-    }
-    public void setTxnId(long txnId)
-    {
-        this.txnId = txnId;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
     /**
-     * @return the tenant
-     */
-    public String getTenant()
-    {
-        return tenant;
-    }
-    /**
-     * @param tenant the tenant to set
-     */
-    public void setTenant(String tenant)
-    {
-        this.tenant = tenant;
-    }
-    /**
-     * @return the aclId
-     */
-    public long getAclId()
-    {
-        return aclId;
-    }
-    /**
-     * @param aclId the aclId to set
-     */
-    public void setAclId(long aclId)
-    {
-        this.aclId = aclId;
-    }
-    
-   
-    /**
-     * The property value to use for sharding - as requested
-     *
-     * @return null - if the node does not have the property, the standard "String" value of the property if it is present on the node.
+     * -- GETTER --
+     *  The property value to use for sharding - as requested
+     * <p>
+     * null - if the node does not have the property, the standard "String" value of the property if it is present on the node.
      * For dates and datetime properties this will be the ISO formatted datetime.
      */
-    public String getShardPropertyValue()
-    {
-        return this.shardPropertyValue;
-    }
-    
-    public void setShardPropertyValue(String shardPropertyValue)
-    {
-        this.shardPropertyValue = shardPropertyValue;
-    }
+    private String shardPropertyValue;
+
+
     @Override
     public String toString()
     {

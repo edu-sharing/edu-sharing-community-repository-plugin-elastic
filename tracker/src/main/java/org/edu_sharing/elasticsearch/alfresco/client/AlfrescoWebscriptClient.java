@@ -2,10 +2,12 @@ package org.edu_sharing.elasticsearch.alfresco.client;
 
 import com.fasterxml.jackson.jakarta.rs.json.JacksonJsonProvider;
 import jakarta.ws.rs.client.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.edu_sharing.elasticsearch.elasticsearch.core.types.TypesConfig;
+import org.edu_sharing.elasticsearch.elasticsearch.core.types.TypesConfigItem;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -14,12 +16,15 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
+
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class AlfrescoWebscriptClient {
 
     @Value("${alfresco.host}")
@@ -40,25 +45,18 @@ public class AlfrescoWebscriptClient {
     @Value("${trackContent}")
     boolean trackContent;
 
-    String URL_TRANSACTIONS = "/alfresco/service/api/solr/transactions";
+    private final TypesConfig typesConfig;
 
-    String URL_NODES_TRANSACTION = "/alfresco/s/api/solr/nodes";
+    private static final String URL_TRANSACTIONS = "/alfresco/service/api/solr/transactions";
+    private static final String URL_NODES_TRANSACTION = "/alfresco/s/api/solr/nodes";
+    private static final String URL_NODE_METADATA = "/alfresco/s/api/solr/metadata";
+    private static final String URL_NODE_METADATA_UUID = "/alfresco/s/api/solr/metadata/uuid?uuid={{uuid}}";
+    private static final String URL_ACL_READERS = "/alfresco/s/api/solr/aclsReaders";
+    private static final String URL_ACL_CHANGESETS = "/alfresco/s/api/solr/aclchangesets";
+    private static final String URL_ACLS = "/alfresco/s/api/solr/acls";
+    private static final String URL_CONTENT = "/alfresco/s/api/solr/textContent";
+    private static final String URL_PERMISSIONS = "/alfresco/service/api/solr/permissions";
 
-    String URL_NODE_METADATA = "/alfresco/s/api/solr/metadata";
-
-    String URL_NODE_METADATA_UUID = "/alfresco/s/api/solr/metadata/uuid?uuid={{uuid}}";
-
-    String URL_ACL_READERS = "/alfresco/s/api/solr/aclsReaders";
-
-    String URL_ACL_CHANGESETS = "/alfresco/s/api/solr/aclchangesets";
-
-    String URL_ACLS = "/alfresco/s/api/solr/acls";
-
-    String URL_CONTENT = "/alfresco/s/api/solr/textContent";
-
-    String URL_PERMISSIONS = "/alfresco/service/api/solr/permissions";
-
-    private static final Logger logger = LoggerFactory.getLogger(AlfrescoWebscriptClient.class);
 
     private Client client;
 
@@ -89,10 +87,11 @@ public class AlfrescoWebscriptClient {
         try {
             Nodes node = client.target(url)
                     .request(MediaType.APPLICATION_JSON)
-                    .post(Entity.json(p)).readEntity(Nodes.class);
+                    .post(Entity.json(p))
+                    .readEntity(Nodes.class);
             return node.getNodes();
         } catch (ResponseProcessingException e) {
-            logger.warn("Could not parse nodes for all transaction ids, will fetch individually...", e);
+            log.warn("Could not parse nodes for all transaction ids, will fetch individually...", e);
             List<Node> result = new ArrayList<>();
             for (Long transactionId : p.getTxnIds()) {
 
@@ -103,7 +102,7 @@ public class AlfrescoWebscriptClient {
                             .post(Entity.json(p)).readEntity(Nodes.class);
                     result.addAll(node.getNodes());
                 } catch (ResponseProcessingException e2) {
-                    logger.warn("Error reading node for transaction id " + transactionId, e2);
+                    log.warn("Error reading node for transaction id {}", transactionId, e2);
                 }
             }
             return result;
@@ -130,7 +129,7 @@ public class AlfrescoWebscriptClient {
 
         if (debug) {
             String valueAsString = resp.readEntity(String.class);
-            logger.error("problems with node(s):" + valueAsString);
+            log.error("problems with node(s):{}", valueAsString);
             return null;
         } else {
             //throws ResponseProcessingException when jaxrs data mapping fails
@@ -154,11 +153,11 @@ public class AlfrescoWebscriptClient {
 
         List<Long> dbnodeids = new ArrayList<>();
         for (Node node : nodes) {
-            if(node == null) {
-                logger.warn("getNodeMetadata received an null node, total list size: " + nodes.size());
+            if (node == null) {
+                log.warn("getNodeMetadata received an null node, total list size: {}", nodes.size());
                 continue;
             }
-            logger.debug("fetching node: " + node.getId() + "/" + node.getNodeRef());
+            log.debug("fetching node: {}/{}", node.getId(), node.getNodeRef());
 
             dbnodeids.add(node.getId());
         }
@@ -179,22 +178,22 @@ public class AlfrescoWebscriptClient {
         NodeMetadatas nmds;
         try {
             nmds = getNodeMetadata(getNodeMetadataParam);
-            return (nmds == null) ?  new ArrayList<>() : nmds.getNodes();
-        }catch (ResponseProcessingException e){
+            return (nmds == null) ? new ArrayList<>() : nmds.getNodes();
+        } catch (ResponseProcessingException e) {
             List<NodeMetadata> fallbackResult = new ArrayList<>();
-            for(Long dbid : dbNodeIds){
+            for (Long dbid : dbNodeIds) {
                 getNodeMetadataParam.setNodeIds(Collections.singletonList(dbid));
                 try {
                     NodeMetadatas nmdsSingle = getNodeMetadata(getNodeMetadataParam);
-                    if(nmdsSingle != null) fallbackResult.addAll(nmdsSingle.getNodes());
+                    if (nmdsSingle != null) fallbackResult.addAll(nmdsSingle.getNodes());
                     //finally log the broken node
-                }catch (ResponseProcessingException e2){
+                } catch (ResponseProcessingException e2) {
                     String url = getUrl(URL_NODE_METADATA);
                     Response resp = client.target(url)
                             .request(MediaType.APPLICATION_JSON)
                             .post(Entity.json(getNodeMetadataParam));
                     String valueAsString = resp.readEntity(String.class);
-                    logger.warn("problems with node:" + valueAsString, e);
+                    log.warn("problems with node:{}", valueAsString, e);
                 }
             }
             return fallbackResult;
@@ -238,6 +237,7 @@ public class AlfrescoWebscriptClient {
     public List<NodeData> getNodeData(List<NodeMetadata> nodes) {
         return getNodeData(nodes, FetchParameters.ALL);
     }
+
     public List<NodeData> getNodeData(List<NodeMetadata> nodes, FetchParameters parameters) {
         if (nodes == null || nodes.isEmpty()) {
             return new ArrayList<>();
@@ -282,22 +282,22 @@ public class AlfrescoWebscriptClient {
                                             getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID((String) original)))
                                     );
                                 } catch (Throwable t) {
-                                    logger.info("Could not track original node for proposal " + nodeMetadata.getNodeRef() + ", original: " + original + ": " + t.getMessage());
-                                    logger.debug(t.getMessage(), t);
+                                    log.info("Could not track original node for proposal {}, original: {}: {}", nodeMetadata.getNodeRef(), original, t.getMessage());
+                                    log.debug(t.getMessage(), t);
                                 }
                                 try {
                                     nodeDataProposal.setCollection(
                                             getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID(parent)))
                                     );
                                 } catch (Throwable t) {
-                                    logger.info("Could not track parent collection for proposal " + nodeMetadata.getNodeRef() + ", parent " + parent + ": " + t.getMessage());
-                                    logger.debug(t.getMessage(), t);
+                                    log.info("Could not track parent collection for proposal {}, parent {}: {}", nodeMetadata.getNodeRef(), parent, t.getMessage());
+                                    log.debug(t.getMessage(), t);
                                 }
                             } else {
-                                logger.warn("Collection proposal has no parent or target: " + nodeMetadata.getNodeRef());
+                                log.warn("Collection proposal has no parent or target: {}", nodeMetadata.getNodeRef());
                             }
-                        }catch(Throwable t) {
-                            logger.info("Could not track parent collection for proposal " + nodeMetadata.getNodeRef(), t);
+                        } catch (Throwable t) {
+                            log.info("Could not track parent collection for proposal {}", nodeMetadata.getNodeRef(), t);
                         }
                         nodeData = nodeDataProposal;
                     } else {
@@ -318,30 +318,20 @@ public class AlfrescoWebscriptClient {
                 String fullText = null;
                 try {
                     fullText = getTextContent(nodeData.getNodeMetadata().getId());
-                }catch(Throwable t) {
-                    logger.warn("Error while fetching text content for " + nodeData.getNodeMetadata().getNodeRef(), t);
+                } catch (Throwable t) {
+                    log.warn("Error while fetching text content for {}", nodeData.getNodeMetadata().getNodeRef(), t);
                 }
                 if (fullText != null) nodeData.setFullText(fullText);
             }
 
-            if(parameters.children) {
-                List<String> allowedChildTypes = new ArrayList<>();
-                if ("ccm:io".equals(nodeData.getNodeMetadata().getType())) {
-                    // io/file -> we allow everything
-                    allowedChildTypes.add("ALL");
-                } else if ("ccm:map".equals(nodeData.getNodeMetadata().getType())
-                        && nodeData.getNodeMetadata().getAspects().contains("ccm:collection")) {
-                    // map/folder -> we only allow specific elements relevant for maps
-                    // this is to expensive here! Proposals will be individually tracked anyway
-                    // allowedChildTypes.add("ccm:collection_proposal");
-                }
+            if (parameters.children) {
 
+                TypesConfigItem typeConfig = typesConfig.getTypeConfig(nodeData.getNodeMetadata().getType());
+                List<String> allowedChildTypes = typeConfig.fetchChildren();
                 List<Node> children = new ArrayList<>();
                 if (nodeData.getNodeMetadata().getChildIds() != null) {
                     for (Long dbid : nodeData.getNodeMetadata().getChildIds()) {
-                        Node childNode = new Node();
-                        childNode.setId(dbid);
-                        children.add(childNode);
+                        children.add(Node.builder().id(dbid).build());
                     }
 
                     if (!children.isEmpty() && !allowedChildTypes.isEmpty()) {
@@ -430,13 +420,13 @@ public class AlfrescoWebscriptClient {
     public AclChangeSets getAclChangeSets(Long fromId, Long fromTime, Integer maxResults) {
         String url = getUrl(URL_ACL_CHANGESETS);
         WebTarget webTarget = client.target(url);
-        if(fromId != null) {
+        if (fromId != null) {
             webTarget = webTarget.queryParam("fromId", fromId);
         }
-        if(maxResults != null) {
+        if (maxResults != null) {
             webTarget = webTarget.queryParam("maxResults", maxResults);
         }
-        if(fromTime != null) {
+        if (fromTime != null) {
             webTarget = webTarget.queryParam("fromTime", fromTime);
         }
         return webTarget
@@ -449,7 +439,8 @@ public class AlfrescoWebscriptClient {
 
         return client.target(url)
                 .request(MediaType.APPLICATION_JSON)
-                .post(Entity.json(param)).readEntity(Acls.class);
+                .post(Entity.json(param))
+                .readEntity(Acls.class);
     }
 
 
@@ -457,7 +448,8 @@ public class AlfrescoWebscriptClient {
         String url = getUrl(URL_PERMISSIONS);
         return client.target(url)
                 .request(MediaType.APPLICATION_JSON)
-                .post(Entity.json(param)).readEntity(AccessControlLists.class);
+                .post(Entity.json(param))
+                .readEntity(AccessControlLists.class);
     }
 
 

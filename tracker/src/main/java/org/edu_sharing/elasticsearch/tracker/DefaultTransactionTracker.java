@@ -1,12 +1,14 @@
 package org.edu_sharing.elasticsearch.tracker;
 
-import io.micrometer.core.instrument.util.StringUtils;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
+import org.edu_sharing.elasticsearch.elasticsearch.core.types.ReindexParentConfig;
+import org.edu_sharing.elasticsearch.elasticsearch.core.types.TypesConfig;
+import org.edu_sharing.elasticsearch.elasticsearch.core.types.TypesConfigItem;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
@@ -15,22 +17,12 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-//@Primary
-//@ConditionalOnProperty(prefix = "transaction", name = "tracker", havingValue = "default", matchIfMissing = true)
+@Slf4j
 public class DefaultTransactionTracker extends TransactionTrackerBase {
 
     @Setter
-    private List<String> globalTypeFilter;
-
-    @Setter
-    private String workspaceTypes;
-
-    @Setter
     protected List<String> indexStoreRefs;
-    private final List<String> workspaceSubTypes = Arrays.asList("ccm:io", "ccm:rating", "ccm:comment", "ccm:usage", "ccm:collection_proposal");
 
-
-    private final Logger logger = LoggerFactory.getLogger(DefaultTransactionTracker.class);
 
     @Setter
     private long historyInDays;
@@ -47,10 +39,13 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     @Value("${tracker.bulk.size.elastic}")
     int bulkSizeElastic;
 
-    public DefaultTransactionTracker(){
+    @Setter(onMethod_ = @Autowired)
+    private TypesConfig typesConfig;
+
+
+    public DefaultTransactionTracker() {
         super();
     }
-
 
 
     @Override
@@ -86,16 +81,16 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
         int pIdx = 0;
         for (List<Node> partition : partitions) {
-            logger.info("indexNodes partition " + pIdx);
+            log.info("indexNodes partition " + pIdx);
             indexNodes(partition);
             pIdx++;
         }
     }
 
     public void indexNodes(List<Node> nodes) throws IOException {
-        logger.info("getNodeMetadata start " + nodes.size());
+        log.info("getNodeMetadata start " + nodes.size());
         List<NodeMetadata> nodeData = alfClient.getNodeMetadata(nodes);
-        logger.info("getNodeMetadata done " + nodeData.size());
+        log.info("getNodeMetadata done " + nodeData.size());
         indexNodesMetadata(nodeData);
     }
 
@@ -104,9 +99,9 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         List<NodeData> toIndexNodes = prepareNodes(nodeData);
 
         // io's, maps
-        logger.info("index user nodes size:" + toIndexNodes.size());
+        log.info("index user nodes size:" + toIndexNodes.size());
         updateNodes(toIndexNodes);
-        if(statisticEnabled) {
+        if (statisticEnabled) {
             updateNodeStatistics(toIndexNodes);
         }
         // refresh index so that collections will be found by cacheCollections process
@@ -114,8 +109,8 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
 
         // usages, proposals
-        List<NodeMetadata> toIndexUsagesProposalsMd = filterByNodeTypes(nodeData,"ccm:usage", "ccm:collection_proposal");
-        logger.info("index usages/proposal size:" + toIndexUsagesProposalsMd.size());
+        List<NodeMetadata> toIndexUsagesProposalsMd = filterByNodeTypes(nodeData, "ccm:usage", "ccm:collection_proposal");
+        log.info("index usages/proposal size:" + toIndexUsagesProposalsMd.size());
         updateUsageProposals(toIndexUsagesProposalsMd);
 
         // authorities
@@ -155,10 +150,9 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         }
     }
 
-    protected List<NodeData> prepareAuthorities(List<NodeMetadata> nodeMetadata){
-        List<NodeMetadata> toIndexAuthorities = filterByNodeTypes(nodeMetadata,"cm:person","cm:authorityContainer");
-        List<NodeData> toIndex = alfClient.getNodeData(toIndexAuthorities);
-        return toIndex;
+    protected List<NodeData> prepareAuthorities(List<NodeMetadata> nodeMetadata) {
+        List<NodeMetadata> toIndexAuthorities = filterByNodeTypes(nodeMetadata, "cm:person", "cm:authorityContainer");
+        return alfClient.getNodeData(toIndexAuthorities);
     }
 
     private List<NodeData> prepareNodes(List<NodeMetadata> nodeData) throws IOException {
@@ -167,30 +161,28 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
         for (NodeMetadata data : nodeData) {
 
+            TypesConfigItem typeConfig = typesConfig.getTypeConfig(data.getType());
+            ReindexParentConfig reindexParentConfig = typeConfig.reindexParent();
+
             //force reindex of parent io to get subobjects
-            if (workspaceSubTypes.contains(data.getType())
-                    && (!data.getType().equals("ccm:io") || data.getAspects().contains("ccm:io_childobject"))
-                    && CCConstants.STORE_WORKSPACES_SPACES.equals(Tools.getStoreRef(data.getNodeRef()))) {
+            if (reindexParentConfig.enabled()
+                    && CCConstants.STORE_WORKSPACES_SPACES.equals(Tools.getStoreRef(data.getNodeRef()))
+                    && reindexParentConfig.filter().match(data)) {
 
-                String[] splitted = data.getPaths().get(0).getApath().split("/");
-                String parentId = splitted[splitted.length - 1];
-                Serializable value = workspaceService.getProperty(CCConstants.STORE_WORKSPACES_SPACES + "/" + parentId, "dbid");
+                List<String> paths = Arrays.stream(data.getPaths().get(0).getApath().split("/")).collect(Collectors.toList());
+                Collections.reverse(paths);
+                List<String> parentIds = paths.stream().limit(reindexParentConfig.maxLookAHead()).map(x -> CCConstants.STORE_WORKSPACES_SPACES + "/" + x).toList();
+                Map<String, Serializable> values = workspaceService.getProperty(parentIds, "dbid");
 
-                if (value != null) {
-                    long parentDbid = ((Number) value).longValue();
-                    logger.info("FOUND PARENT IO WITH " + parentDbid);
-                    //check if exists in list
-                    if (nodeData.stream().noneMatch(n -> n.getId() == parentDbid)) {
-                        Node n = new Node();
-                        n.setId(parentDbid);
-                        ioSubobjectChange.add(n);
-                    }
-                }//else io does not exist in index
+                ioSubobjectChange.addAll(values.values().stream()
+                        .map(serializable -> (Number) serializable)
+                        .map(Number::longValue)
+                        .map(x->Node.builder().id(x).build())
+                        .toList());
             }
 
-
-            if(!isAllowedType(data)){
-                logger.debug("ignoring type:" + data.getType());
+            if (!typeConfig.index()) {
+                log.debug("ignoring type: {}", data.getType());
                 continue;
             }
 
@@ -198,6 +190,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         }
 
         if (!ioSubobjectChange.isEmpty()) {
+            // we need to recursively go up to get the root parent
             toIndexMd.addAll(alfClient.getNodeMetadata(ioSubobjectChange));
         }
 
@@ -214,22 +207,19 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         }
 
         if (!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)) {
-            logger.error("Fatal error while processing nodes: timeout of preview and transform processing");
-            logger.error(nodeData.stream().map(NodeMetadata::getNodeRef).collect(Collectors.joining(", ")));
+            log.error("Fatal error while processing nodes: timeout of preview and transform processing");
+            log.error(nodeData.stream().map(NodeMetadata::getNodeRef).collect(Collectors.joining(", ")));
         }
         return toIndex;
     }
-    public List<NodeMetadata> filterByNodeTypes(List<NodeMetadata> nodeData, String... types ) {
+
+    public List<NodeMetadata> filterByNodeTypes(List<NodeMetadata> nodeData, String... types) {
         return nodeData.stream().filter(n -> Arrays.asList(types).contains(n.getType())).collect(Collectors.toList());
     }
 
     public boolean isAllowedType(NodeMetadata nodeMetadata) {
-        if (StringUtils.isNotBlank(workspaceTypes)) {
-            String[] allowedTypesArray = workspaceTypes.split(",");
-            String type = nodeMetadata.getType();
-
-            return Arrays.asList(allowedTypesArray).contains(type);
-        }
-        return true;
+        TypesConfigItem typeConfig = typesConfig.getTypeConfig(nodeMetadata.getType());
+        return typeConfig.index();
     }
 }
+

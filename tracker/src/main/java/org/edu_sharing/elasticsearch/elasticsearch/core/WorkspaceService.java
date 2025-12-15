@@ -1249,33 +1249,66 @@ public class WorkspaceService {
 
     }
 
-    public Serializable getProperty(String nodeRef, String property) throws IOException {
+    /**
+     * Retrieves a mapping of node reference IDs to their associated property values for a specified property.
+     *
+     * @param nodeRefs a list of node reference strings representing the nodes whose property values are to be retrieved.
+     * @param property the name of the property whose value should be extracted from the source data.
+     * @return a map where the key is the node reference ID and the value is the Serializable value of the specified property
+     *         for that node. The map will not include entries for nodes where the specified property is null or absent.
+     * @throws IOException if an error occurs during the retrieval process.
+     */
+    public Map<String, Serializable> getProperty(List<String> nodeRefs, String property) throws IOException {
         List<String> excludes = new ArrayList<>();
         excludes.add("preview");
         excludes.add("content");
-        Map<String, Object> sourceMap = getSourceMap(nodeRef, excludes);
-        return (sourceMap == null) ? null : (Serializable) sourceMap.get(property);
+        Map<String, Map<String, Object>> sourceMap = getSourceMap(nodeRefs, excludes);
+
+        return sourceMap.entrySet()
+                .stream()
+                .map(x -> new AbstractMap.SimpleImmutableEntry<>(x.getKey(), (Serializable) x.getValue().get(property)))
+                .filter(x -> Objects.nonNull(x.getValue()))
+                .collect(Collectors.toMap(Map.Entry::getKey, AbstractMap.SimpleImmutableEntry::getValue));
     }
 
-    public Map<String, Object> getSourceMap(String nodeRef) throws IOException {
-        return this.getSourceMap(nodeRef, null);
+    /**
+     * Retrieves a mapping of node reference IDs to their associated source data.
+     *
+     * @param nodeRefs a list of node reference strings representing the nodes whose source data is to be retrieved.
+     * @return a map where the key is the node reference ID and the value is a map representing the source data for that node.
+     *         The returned map may not contain all nodeRefs provided in the input.
+     * @throws IOException if an error occurs during the retrieval process.
+     */
+    public Map<String, Map<String, Object>> getSourceMap(List<String> nodeRefs) throws IOException {
+        return this.getSourceMap(nodeRefs, null);
     }
 
-    public Map<String, Object> getSourceMap(String nodeRef, List<String> excludes) throws IOException {
+    /**
+     * Retrieves a mapping of node reference IDs to their associated source data,
+     * filtered based on the provided excludes list.
+     *
+     * @param nodeRefs a list of node reference strings representing the nodes whose source data is to be retrieved.
+     * @param excludes a list of fields to exclude from the source data in the search results.
+     * @return a map where the key is the node reference ID and the value is a map representing the source data for that node. The returned may not contain all nodeRefs provided by the input args.
+     * @throws IOException if an error occurs during the search operation.
+     */
+    public Map<String, Map<String, Object>> getSourceMap(List<String> nodeRefs, List<String> excludes) throws IOException {
 
-        String uuid = Tools.getUUID(nodeRef);
+        List<String> uuids = nodeRefs.stream().map(Tools::getUUID).toList();
 //        String protocol = Tools.getProtocol(nodeRef);
 //        String identifier = Tools.getIdentifier(nodeRef);
 //        Query query = InternalQueries.queryByUUID(uuid, protocol, identifier);
 
-        HitsMetadata<Map> sh = this.search(Query.of(q -> q.ids(x -> x.values(uuid))), 0, 1, excludes, Map.class);
-        if (sh == null || sh.total().value() == 0) {
-            return null;
+        HitsMetadata<Map> sh = this.search(Query.of(q -> q.ids(x -> x.values(uuids))), 0, nodeRefs.size(), excludes, Map.class);
+        if (sh == null || sh.hits().isEmpty()) {
+            return Collections.emptyMap();
         }
 
-        Hit<Map> searchHit = sh.hits().get(0);
         //noinspection unchecked
-        return (Map<String, Object>) searchHit.source();
+        return sh.hits()
+                .stream()
+                .filter(x -> Objects.nonNull(x.source()))
+                .collect(Collectors.toMap(Hit::id, Hit::source));
     }
 
     /**
@@ -1362,68 +1395,61 @@ public class WorkspaceService {
 
     public void cleanUpNodeStatistics(List<String> nodeUuids) throws IOException {
         logger.info("starting cleanUpNodeStatistics");
-        for (String uuid : nodeUuids) {
-            cleanUpNodeStatistics(uuid);
-        }
-        logger.info("returning cleanUpNodeStatistics");
-    }
-
-
-    public void cleanUpNodeStatistics(String nodeUuid) throws IOException {
 
         List<String> excludes = new ArrayList<>();
         excludes.add("preview");
         excludes.add("content");
-        Map<String, Object> sourceMap = getSourceMap("workspace://SpacesStore/" + nodeUuid, excludes);
-        if (sourceMap == null) {
-            return;
-        }
+        Map<String, Map<String, Object>> sourcesMap = getSourceMap(nodeUuids.stream().map(x -> "workspace://SpacesStore/" + x).toList(), excludes);
 
-//        long dbid = ((Number) sourceMap.get("dbid")).longValue();
-//        String id = Long.toString(dbid);
-        String type = (String) sourceMap.get("type");
+        for (Map.Entry<String, Map<String, Object>> entry : sourcesMap.entrySet()) {
+            String nodeUuid = entry.getKey();
+            Map<String, Object> sourceMap = entry.getValue();
 
-        if ("ccm:io".equals(type)) {
-            List<String> propsToRemove = new ArrayList<>();
+            String type = (String) sourceMap.get("type");
+            if ("ccm:io".equals(type)) {
+                List<String> propsToRemove = new ArrayList<>();
 
-            Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.DAY_OF_YEAR, -statisticHistoryInDays);
-            for (Map.Entry<String, Object> entry : sourceMap.entrySet()) {
-                if (!entry.getKey().startsWith("statistic_") || entry.getKey().startsWith("statistic_RATING")) {
-                    continue;
-                }
-
-                String prefixPattern = "statistic_[a-zA-Z_]*";
-                String datePattern = "[0-9]{4}-[0-9]{2}-[0-9]{2}";
-                if (!entry.getKey().matches(prefixPattern + datePattern)) {
-                    continue;
-                }
-
-                String[] split = Pattern.compile(prefixPattern).split(entry.getKey());
-                try {
-                    Date date = statisticDateFormatter.parse(split[1]);
-                    if (cal.getTime().getTime() > date.getTime()) {
-                        propsToRemove.add(entry.getKey());
+                Calendar cal = Calendar.getInstance();
+                cal.add(Calendar.DAY_OF_YEAR, -statisticHistoryInDays);
+                for (Map.Entry<String, Object> propEntry : sourceMap.entrySet()) {
+                    if (!propEntry.getKey().startsWith("statistic_") || propEntry.getKey().startsWith("statistic_RATING")) {
+                        continue;
                     }
-                } catch (ParseException e) {
-                    logger.warn("can not get date in: {}", entry.getKey());
+
+                    String prefixPattern = "statistic_[a-zA-Z_]*";
+                    String datePattern = "[0-9]{4}-[0-9]{2}-[0-9]{2}";
+                    if (!propEntry.getKey().matches(prefixPattern + datePattern)) {
+                        continue;
+                    }
+
+                    String[] split = Pattern.compile(prefixPattern).split(propEntry.getKey());
+                    try {
+                        Date date = statisticDateFormatter.parse(split[1]);
+                        if (cal.getTime().getTime() > date.getTime()) {
+                            propsToRemove.add(propEntry.getKey());
+                        }
+                    } catch (ParseException e) {
+                        logger.warn("can not get date in: {}", propEntry.getKey());
+                    }
                 }
+
+                if (propsToRemove.isEmpty()) {
+                    return;
+                }
+
+                logger.info("remove for {}: {}", nodeUuid, String.join(",", propsToRemove));
+
+                this.update(req -> req
+                                .index(index)
+                                .id(nodeUuid)
+                                .script(scr -> scr
+                                        .lang("painless")
+                                        .source("for(String prop : params.propsToRemove){ctx._source.remove(prop)}")
+                                        .params("propsToRemove", JsonData.of(propsToRemove))),
+                        Map.class);
             }
 
-            if (propsToRemove.isEmpty()) {
-                return;
-            }
-
-            logger.info("remove for {}: {}", nodeUuid, String.join(",", propsToRemove));
-
-            this.update(req -> req
-                            .index(index)
-                            .id(nodeUuid)
-                            .script(scr -> scr
-                                    .lang("painless")
-                                    .source("for(String prop : params.propsToRemove){ctx._source.remove(prop)}")
-                                    .params("propsToRemove", JsonData.of(propsToRemove))),
-                    Map.class);
+            logger.info("returning cleanUpNodeStatistics");
         }
     }
 }
