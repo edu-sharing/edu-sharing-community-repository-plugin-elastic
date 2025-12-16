@@ -74,7 +74,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     }
 
     @Override
-    public boolean track() {
+    public State track() {
         try {
             eduSharingClient.refreshValuespaceCache();
             Tx txn = transactionStateService.getState();
@@ -103,10 +103,10 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
                 MetricContextHolder.getTransactionContext().getTimestamp().set(System.currentTimeMillis());
                 if (trackerStrategy.getLimit() != null) {
                     log.info("max transaction limit by strategy reached: {} / {}", maxTrackerTxnId, trackerStrategy.getLimit());
-                    return false;
+                    return State.FINISHED;
                 } else {
                     log.info("index is up to date getMaxTxnId(): {} lastTransactionId: {}", maxTrackerTxnId, lastTransactionId);
-                    return false;
+                    return State.FINISHED;
                 }
             }
 
@@ -157,10 +157,10 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
                     nodes.size(),
                     Thread.currentThread().getStackTrace().length);
 
-            return true;
+            return State.INPROGRESS;
         } catch (IOException e) {
             log.error(e.getMessage(), e);
-            return false;
+            return State.EXCEPTION;
         }
     }
 
