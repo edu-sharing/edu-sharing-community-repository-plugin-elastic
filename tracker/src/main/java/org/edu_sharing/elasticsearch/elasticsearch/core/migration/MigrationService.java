@@ -20,6 +20,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.tracker.AuthoritiesMigrationTracker;
 import org.edu_sharing.elasticsearch.tracker.DefaultTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.TrackerServiceFactory;
+import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.strategy.MaxTransactionIdStrategy;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
@@ -346,7 +347,7 @@ public class MigrationService {
                         migrationTracker.setNumberOfTransactions(authoritiesTrackerNumberOfTransactions);
                         while (true) {
                             trackerAvailabilityTickService.tick();
-                            if (!migrationTracker.track()) {
+                            if (migrationTracker.track() == TransactionTracker.State.FINISHED) {
                                 break;
                             }
                         }
@@ -372,7 +373,7 @@ public class MigrationService {
 
                         while (true) {
                             trackerAvailabilityTickService.tick();
-                            if (!migrationTracker.track()) {
+                            if (migrationTracker.track() == TransactionTracker.State.FINISHED) {
                                 break;
                             }
                         }
