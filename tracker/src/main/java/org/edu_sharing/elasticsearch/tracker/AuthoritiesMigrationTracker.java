@@ -24,6 +24,8 @@ public class AuthoritiesMigrationTracker extends DefaultTransactionTracker{
     @Override
     public void init() {
         super.init();
+        // cleanup exclude filter, it seems that combination of include/exclude does not work
+        this.excludeNodeTypes.clear();
         this.setIncludeNodeTypes(List.of(CCConstants.CM_TYPE_PERSON,CCConstants.CM_TYPE_AUTHORITY_CONTAINER));
     }
 
