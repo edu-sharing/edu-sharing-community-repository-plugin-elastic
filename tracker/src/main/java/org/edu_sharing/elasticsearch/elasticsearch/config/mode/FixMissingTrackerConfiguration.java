@@ -8,7 +8,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactor
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.tracker.TrackerServiceFactory;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
-import org.edu_sharing.elasticsearch.tracker.strategy.MaxTransactionIdStrategy;
+import org.edu_sharing.elasticsearch.tracker.strategy.MaxCommitTimeStrategy;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,7 +33,7 @@ public class FixMissingTrackerConfiguration {
     @Bean
     public TransactionTracker transactionTracker(TrackerServiceFactory trackerServiceFactory, StatusIndexService<Tx> transactionStateService, StatusIndexService<Tx> fixMissingStateService) {
         try {
-            return trackerServiceFactory.createDefaultTrackerService(fixMissingStateService, new MaxTransactionIdStrategy(transactionStateService.getState().getTxnId()));
+            return trackerServiceFactory.createDefaultTrackerService(fixMissingStateService, new MaxCommitTimeStrategy(transactionStateService.getState().getTxnCommitTime()));
         } catch (IOException e) {
             log.error(e.getMessage(), e);
             throw new RuntimeException(e);

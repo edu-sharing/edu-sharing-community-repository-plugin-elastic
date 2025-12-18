@@ -5,12 +5,12 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequiredArgsConstructor
-public class MaxTransactionIdStrategy implements TrackerStrategy {
+public class MaxCommitTimeStrategy implements TrackerStrategy {
 
-    private final long maxTransactionId;
+    private final long maxCommitTime;
 
     @Override
     public Long getLimit() {
-        return maxTransactionId;
+        return maxCommitTime;
     }
 }
