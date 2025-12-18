@@ -1,12 +1,10 @@
 package org.edu_sharing.elasticsearch.tracker;
 
 import lombok.extern.slf4j.Slf4j;
-import org.edu_sharing.elasticsearch.alfresco.client.GetNodeMetadataParam;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.tools.Tools;
-import org.edu_sharing.repository.client.tools.CCConstants;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -24,8 +22,6 @@ public class AuthoritiesMigrationTracker extends DefaultTransactionTracker{
     @Override
     public void init() {
         super.init();
-        // cleanup exclude filter, it seems that combination of include/exclude does not work
-        this.excludeNodeTypes.clear();
         this.setIncludeNodeTypes(List.of("cm:person","cm:authorityContainer"));
     }
 
