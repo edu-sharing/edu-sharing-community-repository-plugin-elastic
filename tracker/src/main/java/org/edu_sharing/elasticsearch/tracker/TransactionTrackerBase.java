@@ -58,9 +58,17 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     @Setter
     int numberOfTransactions = 200;
 
+    /**
+     * include node types
+     * make sure to use short names like ccm:io!
+     */
     @Setter(AccessLevel.PROTECTED)
     protected List<String> includeNodeTypes = null;
 
+    /**
+     * exclude node types
+     * make sure to use short names like ccm:io!
+     */
     @Setter(AccessLevel.PROTECTED)
     protected List<String> excludeNodeTypes = null;
 
