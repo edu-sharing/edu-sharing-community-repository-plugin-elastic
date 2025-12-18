@@ -11,6 +11,7 @@ import org.edu_sharing.repository.client.tools.CCConstants;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -54,8 +55,18 @@ public class AuthoritiesMigrationTracker extends DefaultTransactionTracker{
     }
 
     public void indexNodesMetadata(List<NodeMetadata> nodeData) throws IOException {
-        if(nodeData.stream().anyMatch(n -> !List.of("cm:person","cm:authorityContainer").contains(n.getType()))) {
-            throw new RuntimeException("no person or authority!!!");
+        Map<Boolean, List<NodeMetadata>> partitioned = nodeData.stream()
+                .collect(Collectors.partitioningBy(
+                        n -> List.of("cm:person", "cm:authorityContainer").contains(n.getType())
+                ));
+
+        nodeData = partitioned.get(true);
+        List<NodeMetadata> otherNodes = partitioned.get(false);
+        if(!otherNodes.isEmpty()){
+            String otherNodesString = otherNodes.stream()
+                    .map(n -> n.getNodeRef() + ":" + n.getType())
+                    .collect(Collectors.joining(","));
+            log.warn("no person or authority nodes:" + otherNodesString);
         }
         // authorities
         log.info("start index Authorities/Persons:"+nodeData.size());
