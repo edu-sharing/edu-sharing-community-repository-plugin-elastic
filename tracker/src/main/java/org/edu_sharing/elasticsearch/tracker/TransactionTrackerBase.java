@@ -58,9 +58,17 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     @Setter
     int numberOfTransactions = 200;
 
+    /**
+     * include node types
+     * make sure to use short names like ccm:io!
+     */
     @Setter(AccessLevel.PROTECTED)
     protected List<String> includeNodeTypes = null;
 
+    /**
+     * exclude node types
+     * make sure to use short names like ccm:io!
+     */
     @Setter(AccessLevel.PROTECTED)
     protected List<String> excludeNodeTypes = null;
 
@@ -90,10 +98,10 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             long nextTransactionId = lastTransactionId + 1;
             Transactions transactions;
             if(lastTransactionTimestamp > 0) {
-                transactions = alfClient.getTransactions(null, null, lastTransactionTimestamp + 1, null, numberOfTransactions);
+                transactions = alfClient.getTransactions(null, null, lastTransactionTimestamp + 1, trackerStrategy.getLimit(), numberOfTransactions);
             } else {
                 log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
-                transactions = alfClient.getTransactions(nextTransactionId, null, null, null, numberOfTransactions);
+                transactions = alfClient.getTransactions(nextTransactionId, null, null, trackerStrategy.getLimit(), numberOfTransactions);
             }
 
             long maxTrackerTxnId = transactions.getMaxTxnId();

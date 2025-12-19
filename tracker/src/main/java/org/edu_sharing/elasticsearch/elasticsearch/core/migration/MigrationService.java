@@ -21,7 +21,7 @@ import org.edu_sharing.elasticsearch.tracker.AuthoritiesMigrationTracker;
 import org.edu_sharing.elasticsearch.tracker.DefaultTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.TrackerServiceFactory;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
-import org.edu_sharing.elasticsearch.tracker.strategy.MaxTransactionIdStrategy;
+import org.edu_sharing.elasticsearch.tracker.strategy.MaxCommitTimeStrategy;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.DependsOn;
@@ -316,12 +316,12 @@ public class MigrationService {
                                 IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
                                 adminService.createIndex(indexConfiguration);
 
-                                long txnId = transactionStateService.getState().getTxnId();
+                                long txnCommitTime = transactionStateService.getState().getTxnCommitTime();
 
                                 curStep = MigrationStep.MIGRATE_AUTHORITIES_INDEX_PROGRESS_STEP;
                                 migrationState.setProgressStep(curStep.value);
                                 migrationState.setStatusMessage(curStep.message);
-                                updateMigrationState(migrationState, curStep, Long.toString(txnId));
+                                updateMigrationState(migrationState, curStep, Long.toString(txnCommitTime));
                                 log.info("start migration of authorities");
                             } else if (requiresDocumentMigration) {
                                 curStep = setStateMigrateDocs(migrationState);
@@ -340,10 +340,10 @@ public class MigrationService {
                     }
 
                     case MIGRATE_AUTHORITIES_INDEX_PROGRESS_STEP: {
-                        long maxTxnId = Long.parseLong(migrationState.getProgressContent());
+                        long maxCommitTime = Long.parseLong(migrationState.getProgressContent());
                         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
                         StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
-                        AuthoritiesMigrationTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesMigrationTracker::new,migrationTransactionStateService,new MaxTransactionIdStrategy(maxTxnId));
+                        AuthoritiesMigrationTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesMigrationTracker::new,migrationTransactionStateService,new MaxCommitTimeStrategy(maxCommitTime));
                         migrationTracker.setNumberOfTransactions(authoritiesTrackerNumberOfTransactions);
                         while (true) {
                             trackerAvailabilityTickService.tick();
@@ -366,10 +366,10 @@ public class MigrationService {
                     }
 
                     case MIGRATE_DOCUMENTS_PROGRESS_STEP:
-                        long maxTxnId = Long.parseLong(migrationState.getProgressContent());
+                        long maxCommitTime = Long.parseLong(migrationState.getProgressContent());
                         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionIndex));
                         StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
-                        DefaultTransactionTracker migrationTracker = trackerServiceFactory.createDefaultTrackerService(migrationTransactionStateService, new MaxTransactionIdStrategy(maxTxnId));
+                        DefaultTransactionTracker migrationTracker = trackerServiceFactory.createDefaultTrackerService(migrationTransactionStateService, new MaxCommitTimeStrategy(maxCommitTime));
 
                         while (true) {
                             trackerAvailabilityTickService.tick();
@@ -399,12 +399,12 @@ public class MigrationService {
             log.info("create document migration transactions index");
             IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionIndex));
             adminService.createIndex(indexConfiguration);
-            long txnId = transactionStateService.getState().getTxnId();
+            long txnCommitTime = transactionStateService.getState().getTxnCommitTime();
 
             curStep = MigrationStep.MIGRATE_DOCUMENTS_PROGRESS_STEP;
             migrationState.setProgressStep(curStep.value);
             migrationState.setStatusMessage(curStep.message);
-            updateMigrationState(migrationState, curStep, Long.toString(txnId));
+            updateMigrationState(migrationState, curStep, Long.toString(txnCommitTime));
             log.info("start migration of documents");
             return curStep;
         }
