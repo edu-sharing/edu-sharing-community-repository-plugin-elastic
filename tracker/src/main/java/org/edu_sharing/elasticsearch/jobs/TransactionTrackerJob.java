@@ -47,7 +47,7 @@ public class TransactionTrackerJob implements MigrationCompletedAware, Applicati
         do {
             transactionChanges = false;
             try {
-                transactionChanges = transactionTracker.track();
+                transactionChanges = (transactionTracker.track() == TransactionTracker.State.INPROGRESS);
                 log.info("recursive transactionChanges: {}", transactionChanges);
             }catch (Throwable e){
                 log.error(e.getMessage(),e);

@@ -1,16 +1,15 @@
 package org.edu_sharing.elasticsearch.tracker;
 
 import lombok.extern.slf4j.Slf4j;
-import org.edu_sharing.elasticsearch.alfresco.client.GetNodeMetadataParam;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.tools.Tools;
-import org.edu_sharing.repository.client.tools.CCConstants;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -23,7 +22,7 @@ public class AuthoritiesMigrationTracker extends DefaultTransactionTracker{
     @Override
     public void init() {
         super.init();
-        this.setIncludeNodeTypes(List.of(CCConstants.CM_TYPE_PERSON,CCConstants.CM_TYPE_AUTHORITY_CONTAINER));
+        this.setIncludeNodeTypes(List.of("cm:person","cm:authorityContainer"));
     }
 
     @Override
@@ -54,8 +53,18 @@ public class AuthoritiesMigrationTracker extends DefaultTransactionTracker{
     }
 
     public void indexNodesMetadata(List<NodeMetadata> nodeData) throws IOException {
-        if(nodeData.stream().anyMatch(n -> !List.of("cm:person","cm:authorityContainer").contains(n.getType()))) {
-            throw new RuntimeException("no person or authority!!!");
+        Map<Boolean, List<NodeMetadata>> partitioned = nodeData.stream()
+                .collect(Collectors.partitioningBy(
+                        n -> List.of("cm:person", "cm:authorityContainer").contains(n.getType())
+                ));
+
+        nodeData = partitioned.get(true);
+        List<NodeMetadata> otherNodes = partitioned.get(false);
+        if(!otherNodes.isEmpty()){
+            String otherNodesString = otherNodes.stream()
+                    .map(n -> n.getNodeRef() + ":" + n.getType())
+                    .collect(Collectors.joining(","));
+            log.warn("no person or authority nodes:" + otherNodesString);
         }
         // authorities
         log.info("start index Authorities/Persons:"+nodeData.size());

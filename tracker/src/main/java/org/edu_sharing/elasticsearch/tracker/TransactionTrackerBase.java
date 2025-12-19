@@ -13,10 +13,12 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
+import org.edu_sharing.repository.client.tools.CCConstants;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
@@ -55,8 +57,19 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     @Setter
     int numberOfTransactions = 200;
 
+    /**
+     * include node types
+     * make sure to use short names like ccm:io!
+     */
     @Setter(AccessLevel.PROTECTED)
     protected List<String> includeNodeTypes = null;
+
+    /**
+     * exclude node types
+     * make sure to use short names like ccm:io!
+     */
+    @Setter(AccessLevel.PROTECTED)
+    protected List<String> excludeNodeTypes = null;
 
     protected ForkJoinPool threadPool;
 
@@ -68,7 +81,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     }
 
     @Override
-    public boolean track() {
+    public State track() {
         try {
             eduSharingService.refreshValuespaceCache();
             Tx txn = transactionStateService.getState();
@@ -84,10 +97,10 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             long nextTransactionId = lastTransactionId + 1;
             Transactions transactions;
             if(lastTransactionTimestamp > 0) {
-                transactions = alfClient.getTransactions(null, null, lastTransactionTimestamp + 1, null, numberOfTransactions);
+                transactions = alfClient.getTransactions(null, null, lastTransactionTimestamp + 1, trackerStrategy.getLimit(), numberOfTransactions);
             } else {
                 log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
-                transactions = alfClient.getTransactions(nextTransactionId, null, null, null, numberOfTransactions);
+                transactions = alfClient.getTransactions(nextTransactionId, null, null, trackerStrategy.getLimit(), numberOfTransactions);
             }
 
             long maxTrackerTxnId = transactions.getMaxTxnId();
@@ -97,10 +110,10 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
                 MetricContextHolder.getTransactionContext().getTimestamp().set(System.currentTimeMillis());
                 if (trackerStrategy.getLimit() != null) {
                     log.info("max transaction limit by strategy reached: {} / {}", maxTrackerTxnId, trackerStrategy.getLimit());
-                    return false;
+                    return State.FINISHED;
                 } else {
                     log.info("index is up to date getMaxTxnId(): {} lastTransactionId: {}", maxTrackerTxnId, lastTransactionId);
-                    return false;
+                    return State.FINISHED;
                 }
             }
 
@@ -110,13 +123,21 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
                     .collect(Collectors.toList());
             log.info("got " + transactionIds.size() + " transactions last:" + transactionIds.get(transactionIds.size() - 1));
 
-            GetNodeParam getNodeParam;
+            GetNodeParamExtension getNodeParam = new GetNodeParamExtension();
+
             if(this.includeNodeTypes != null && !this.includeNodeTypes.isEmpty()) {
-                getNodeParam = new GetNodeParamExtension();
-                ((GetNodeParamExtension)getNodeParam).setIncludeNodeTypes(this.includeNodeTypes);
-            }else{
-                getNodeParam = new GetNodeParam();
+                List<String> list = this.includeNodeTypes.stream()
+                        .map(CCConstants::getValidGlobalName)
+                        .filter(Objects::nonNull).toList();
+                if(!list.isEmpty()) getNodeParam.setIncludeNodeTypes(list);
             }
+            if(this.excludeNodeTypes != null && !this.excludeNodeTypes.isEmpty()) {
+                List<String> list = this.excludeNodeTypes.stream()
+                        .map(CCConstants::getValidGlobalName)
+                        .filter(Objects::nonNull).toList();
+                if(!list.isEmpty()) getNodeParam.setExcludeNodeTypes(list);
+            }
+
             getNodeParam.setTxnIds(transactionIds);
             List<Node> nodes = alfClient.getNodes(getNodeParam);
             log.info("got " + nodes.size() + " nodes");
@@ -143,10 +164,10 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
                     nodes.size(),
                     Thread.currentThread().getStackTrace().length);
 
-            return true;
+            return State.INPROGRESS;
         } catch (IOException e) {
             log.error(e.getMessage(), e);
-            return false;
+            return State.EXCEPTION;
         }
     }
 
