@@ -234,7 +234,7 @@ public class EduSharingService {
         preview.setIsIcon(false);
         PreviewData previewSmall = previewApi.getPreviewData(storeProtocol, storeId, nodeId, 400, 400, 60);
 
-        NodeEntry nodeEntry = nodeV1Api.getMetadata("-home-", nodeId, null).block();
+        NodeEntry nodeEntry = nodeV1Api.getMetadata("-home-", nodeId, null, null).block();
         if (nodeEntry != null) {
             Node nodeData = nodeEntry.getNode();
             if (nodeData.getPreview() != null) {
