@@ -2,11 +2,13 @@ package org.edu_sharing.elasticsearch.metric;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.edu_sharing.elasticsearch.tracker.TransactionTrackerBase;
 import org.springframework.context.annotation.Configuration;
 
-import jakarta.annotation.PostConstruct;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
@@ -15,11 +17,13 @@ import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricCon
 @AllArgsConstructor
 public class MetricConfig {
     private final MeterRegistry meterRegistry;
+    private final Map<String, TransactionTrackerBase> trackerRegistry;
 
     @Getter
     private final AtomicLong transactionProgress = new AtomicLong();
     @Getter
     private final AtomicLong transactionTimestamp = new AtomicLong();
+
     @PostConstruct public void init() {
         MetricContextHolder.MetricContext txContext = MetricContextHolder.getTransactionContext();
         Gauge.builder(txContext.labelProgress, txContext.getProgress(),
@@ -41,5 +45,14 @@ public class MetricConfig {
         Gauge.builder(cascadeContext.labelDelay,  cascadeContext.getTimestamp(),
                 p -> (System.currentTimeMillis() - p.get()) / 1000.
         ).description(cascadeContext.descriptionDelay).register(meterRegistry);
+
+        trackerRegistry.forEach((key, tracker) -> {
+            MetricContextHolder.MetricContext ctx = tracker.getMetricContext();
+            Gauge.builder(ctx.labelProgress, ctx.getProgress(),
+                    (p) -> p.get() /((double) PROGRESS_FACTOR)).description(ctx.descriptionProgress).register(meterRegistry);
+            Gauge.builder(ctx.labelDelay,  ctx.getTimestamp(),
+                    p -> (System.currentTimeMillis() - p.get()) / 1000.
+            ).description(ctx.descriptionDelay).register(meterRegistry);
+        });
     }
 }

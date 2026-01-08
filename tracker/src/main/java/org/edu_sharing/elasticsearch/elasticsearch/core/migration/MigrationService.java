@@ -343,7 +343,7 @@ public class MigrationService {
                         long maxCommitTime = Long.parseLong(migrationState.getProgressContent());
                         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
                         StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
-                        AuthoritiesMigrationTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesMigrationTracker::new,migrationTransactionStateService,new MaxCommitTimeStrategy(maxCommitTime));
+                        AuthoritiesMigrationTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesMigrationTracker::new,migrationTransactionStateService,new MaxCommitTimeStrategy(maxCommitTime), null);
                         migrationTracker.setNumberOfTransactions(authoritiesTrackerNumberOfTransactions);
                         while (true) {
                             trackerAvailabilityTickService.tick();

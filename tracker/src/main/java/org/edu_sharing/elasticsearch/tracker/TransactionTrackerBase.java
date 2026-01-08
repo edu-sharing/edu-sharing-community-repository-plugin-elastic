@@ -62,17 +62,21 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
      * include node types
      * make sure to use short names like ccm:io!
      */
-    @Setter(AccessLevel.PROTECTED)
+    @Setter
     protected List<String> includeNodeTypes = null;
 
     /**
      * exclude node types
      * make sure to use short names like ccm:io!
      */
-    @Setter(AccessLevel.PROTECTED)
+    @Setter
     protected List<String> excludeNodeTypes = null;
 
     protected ForkJoinPool threadPool;
+
+    @Getter
+    @Setter
+    protected MetricContextHolder.MetricContext metricContext = null;
 
     protected TransactionTrackerBase() {
     }
@@ -107,8 +111,10 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             long maxTrackerTxnId = transactions.getMaxTxnId();
 
             if (transactions.getTransactions().isEmpty()) {
-                MetricContextHolder.getTransactionContext().getProgress().set((long) (100 * PROGRESS_FACTOR));
-                MetricContextHolder.getTransactionContext().getTimestamp().set(System.currentTimeMillis());
+                if(metricContext != null){
+                    metricContext.getProgress().set((long) (100 * PROGRESS_FACTOR));
+                    metricContext.getTimestamp().set(System.currentTimeMillis());
+                }
                 if (trackerStrategy.getLimit() != null) {
                     log.info("max transaction limit by strategy reached: {} / {}", maxTrackerTxnId, trackerStrategy.getLimit());
                     return State.FINISHED;
