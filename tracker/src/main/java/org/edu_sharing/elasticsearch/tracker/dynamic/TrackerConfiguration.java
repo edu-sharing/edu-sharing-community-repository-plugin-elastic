@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RequiredArgsConstructor
 @Configuration
@@ -68,6 +69,9 @@ public class TrackerConfiguration {
             }
             if(cfg.getExcludeNodeTypes() != null && !cfg.getExcludeNodeTypes().isEmpty()){
                 trackerService.setExcludeNodeTypes(Arrays.asList(cfg.getExcludeNodeTypes().split(",")));
+            }
+            if(cfg.getTimeStep() != null){
+                trackerService.setTimeStep(cfg.getTimeStep().toMillis());
             }
 
             registry.put(key, trackerService);

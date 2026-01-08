@@ -58,6 +58,8 @@ public class AlfrescoWebscriptClient {
 
     String URL_PERMISSIONS = "/alfresco/service/api/solr/permissions";
 
+    String URL_NEXT_TX_COMMIT_TIME = "/alfresco/s/api/solr/nextTransaction";
+
     private static final Logger logger = LoggerFactory.getLogger(AlfrescoWebscriptClient.class);
 
     private Client client;
@@ -399,6 +401,16 @@ public class AlfrescoWebscriptClient {
         return client.target(url)
                 .request(MediaType.APPLICATION_JSON)
                 .post(Entity.json(param)).readEntity(ReadersACL.class);
+    }
+
+    public NextCommitTime getNextCommitTime(long fromCommitTime){
+        String url = getUrl(URL_NEXT_TX_COMMIT_TIME);
+        String fromParam = "fromCommitTime";
+        return client
+                .target(url)
+                .queryParam(fromParam, fromCommitTime)
+                .request(MediaType.APPLICATION_JSON)
+                .get(NextCommitTime.class);
     }
 
 

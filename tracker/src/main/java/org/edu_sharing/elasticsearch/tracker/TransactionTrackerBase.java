@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
@@ -57,6 +58,9 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
     @Setter
     int numberOfTransactions = 200;
+
+    @Setter
+    long timeStep = TimeUnit.HOURS.toMillis(1);
 
     /**
      * include node types
@@ -102,7 +106,22 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             long nextTransactionId = lastTransactionId + 1;
             Transactions transactions;
             if(lastTransactionTimestamp > 0) {
-                transactions = alfClient.getTransactions(null, null, lastTransactionTimestamp + 1, trackerStrategy.getLimit(), numberOfTransactions);
+                long fromCommitTimeMs = lastTransactionTimestamp + 1;
+                long toCommitTimeMs = fromCommitTimeMs + timeStep;
+                boolean limitReached = false;
+                if(trackerStrategy.getLimit() != null && toCommitTimeMs > trackerStrategy.getLimit()){
+                    toCommitTimeMs =  trackerStrategy.getLimit();
+                    limitReached =  true;
+                }
+                transactions = alfClient.getTransactions(null, null, fromCommitTimeMs, toCommitTimeMs, numberOfTransactions);
+                if(!limitReached && transactions.getTransactions().isEmpty()){
+                    long nextFromCommitTime = alfClient.getNextCommitTime(toCommitTimeMs).getNextTransactionCommitTimeMs();
+                    if (nextFromCommitTime != -1)
+                    {
+                        log.info("Advancing transactions from {} to {}",toCommitTimeMs,nextFromCommitTime);
+                        transactions = alfClient.getTransactions(null, null, nextFromCommitTime, nextFromCommitTime + timeStep, numberOfTransactions);
+                    }
+                }
             } else {
                 log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
                 transactions = alfClient.getTransactions(nextTransactionId, null, null, trackerStrategy.getLimit(), numberOfTransactions);
