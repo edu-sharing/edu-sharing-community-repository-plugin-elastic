@@ -107,21 +107,8 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             Transactions transactions;
             if(lastTransactionTimestamp > 0) {
                 long fromCommitTimeMs = lastTransactionTimestamp + 1;
-                long toCommitTimeMs = fromCommitTimeMs + timeStep;
-                boolean limitReached = false;
-                if(trackerStrategy.getLimit() != null && toCommitTimeMs > trackerStrategy.getLimit()){
-                    toCommitTimeMs =  trackerStrategy.getLimit();
-                    limitReached =  true;
-                }
-                transactions = alfClient.getTransactions(null, null, fromCommitTimeMs, toCommitTimeMs, numberOfTransactions);
-                if(!limitReached && transactions.getTransactions().isEmpty()){
-                    long nextFromCommitTime = alfClient.getNextCommitTime(toCommitTimeMs).getNextTransactionCommitTimeMs();
-                    if (nextFromCommitTime != -1)
-                    {
-                        log.info("Advancing transactions from {} to {}",toCommitTimeMs,nextFromCommitTime);
-                        transactions = alfClient.getTransactions(null, null, nextFromCommitTime, nextFromCommitTime + timeStep, numberOfTransactions);
-                    }
-                }
+                long endTime = trackerStrategy.getLimit() != null ? trackerStrategy.getLimit() : alfClient.getTransactions(0L,1L,null,null,1).getMaxTxnCommitTime();
+                transactions = getSomeTransactions(fromCommitTimeMs,timeStep,numberOfTransactions,endTime);
             } else {
                 log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
                 transactions = alfClient.getTransactions(nextTransactionId, null, null, trackerStrategy.getLimit(), numberOfTransactions);
@@ -195,6 +182,33 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             log.error(e.getMessage(), e);
             return State.EXCEPTION;
         }
+    }
+
+    /**
+     * inspired by alfresco MetadataTracker.getSomeTransactions
+     *
+     * @param fromCommitTime
+     * @param timeStep
+     * @param maxResults
+     * @param endTime
+     * @return
+     */
+    private Transactions getSomeTransactions(Long fromCommitTime, long timeStep, int maxResults, long endTime){
+        Transactions transactions;
+        long startTime = fromCommitTime;
+        do{
+            transactions = alfClient.getTransactions(null, null, startTime, startTime + timeStep, maxResults);
+            startTime += timeStep;
+            if (transactions.getTransactions().isEmpty()) {
+                long nextFromCommitTime = alfClient.getNextCommitTime(startTime).getNextTransactionCommitTimeMs();
+                if (nextFromCommitTime != -1)
+                {
+                    log.info("Advancing transactions from {} to {}",startTime,nextFromCommitTime);
+                    transactions = alfClient.getTransactions(null, null, nextFromCommitTime, nextFromCommitTime + timeStep, maxResults);
+                }
+            }
+        }while (transactions.getTransactions().isEmpty() && (startTime < endTime));
+        return transactions;
     }
 
     private void commit(StatusIndexService<Tx> transactionStateService, Tx tx) throws IOException {
