@@ -13,9 +13,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class AuthoritiesMigrationTracker extends DefaultTransactionTracker{
+public class AuthoritiesTracker extends DefaultTransactionTracker{
 
-    public AuthoritiesMigrationTracker(){
+    public AuthoritiesTracker(){
         super();
     }
 
@@ -37,6 +37,12 @@ public class AuthoritiesMigrationTracker extends DefaultTransactionTracker{
         nodes = nodes.stream()
                 .filter(n -> !n.getStatus().equals("d"))
                 .collect(Collectors.toList());
+
+        List<Node> toDelete = nodes.stream()
+                .filter(n -> n.getStatus().equals("d"))
+                .collect(Collectors.toList());
+
+        authorityService.delete(toDelete);
 
         if (nodes.isEmpty()) {
             return;
@@ -68,7 +74,7 @@ public class AuthoritiesMigrationTracker extends DefaultTransactionTracker{
         }
         // authorities
         log.info("start index Authorities/Persons:"+nodeData.size());
-        List<NodeData> toIndexAuthorities = prepareAuthorities(nodeData);
+        List<NodeData> toIndexAuthorities = alfClient.getNodeData(nodeData);
         authorityService.index(toIndexAuthorities);
         log.info("finished index Authorities/Persons:"+nodeData.size());
     }

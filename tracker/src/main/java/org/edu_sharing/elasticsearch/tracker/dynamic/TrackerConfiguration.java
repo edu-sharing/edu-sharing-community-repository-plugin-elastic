@@ -43,7 +43,7 @@ public class TrackerConfiguration {
         props.getTrackers().forEach((key, cfg) -> {
             TrackerProvider trackerProvider = trackerProviders.get(cfg.getProvider());
             if(trackerProvider == null){
-                throw new RuntimeException("No tracker provider for key: " + key);
+                throw new RuntimeException("No tracker provider for key: " + cfg.getProvider());
             }
 
             String indexName = "transactions_" + key + "_" + appVersion;

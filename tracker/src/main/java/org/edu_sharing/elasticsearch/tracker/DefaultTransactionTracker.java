@@ -2,15 +2,11 @@ package org.edu_sharing.elasticsearch.tracker;
 
 import io.micrometer.core.instrument.util.StringUtils;
 import lombok.Setter;
-import org.edu_sharing.elasticsearch.alfresco.client.*;
-import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.alfresco.client.Node;
+import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
+import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
-import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.tools.Tools;
-import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,8 +80,6 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
         workspaceService.beforeDeleteCleanupCollectionReplicas(toDelete);
         workspaceService.delete(toDelete);
-        authorityService.delete(toDelete);
-
 
         // index nodes
         //some transactions can have a lot of Nodes which can cause trouble on alfresco so use partitioning
@@ -124,11 +118,6 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         List<NodeMetadata> toIndexUsagesProposalsMd = filterByNodeTypes(nodeData,"ccm:usage", "ccm:collection_proposal");
         logger.info("index usages/proposal size:" + toIndexUsagesProposalsMd.size());
         updateUsageProposals(toIndexUsagesProposalsMd);
-
-        // authorities
-        List<NodeData> toIndexAuthorities = prepareAuthorities(nodeData);
-        authorityService.index(toIndexAuthorities);
-
     }
 
     private void updateUsageProposals(List<NodeMetadata> toIndexUsagesProposalsMd) throws IOException {
@@ -160,12 +149,6 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         for (List<NodeData> p : partitioned) {
             workspaceService.index(p);
         }
-    }
-
-    protected List<NodeData> prepareAuthorities(List<NodeMetadata> nodeMetadata){
-        List<NodeMetadata> toIndexAuthorities = filterByNodeTypes(nodeMetadata,"cm:person","cm:authorityContainer");
-        List<NodeData> toIndex = alfClient.getNodeData(toIndexAuthorities);
-        return toIndex;
     }
 
     private List<NodeData> prepareNodes(List<NodeMetadata> nodeData) throws IOException {
