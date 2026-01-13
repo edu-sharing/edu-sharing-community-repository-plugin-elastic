@@ -96,7 +96,7 @@ public class WorkspaceService {
     }
 
     public void updateNodesWithAcl(final long aclId, final Map<String, List<String>> permissions) throws IOException {
-        logger.debug("starting: {} ", aclId);
+        logger.info("starting: {} ", aclId);
 
         UpdateByQueryResponse bulkByScrollResponse = client.updateByQuery(req -> req
                 .index(index)
@@ -108,7 +108,7 @@ public class WorkspaceService {
                         .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x -> JsonData.of(x.getValue())))))
         );
 
-        logger.debug("updated: {}", bulkByScrollResponse.updated());
+        logger.info("updated: {}", bulkByScrollResponse.updated());
         List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
         for (BulkIndexByScrollFailure failure : bulkFailures) {
             logger.error(failure.cause().toString(), failure.cause());
@@ -177,10 +177,13 @@ public class WorkspaceService {
             DataBuilder builder = new DataBuilder();
             fillData(nodeData, builder);
             Object data = builder.build();
-            operations.add(BulkOperation.of(op -> op.index(iop -> iop
+            operations.add(BulkOperation.of(op -> op.update(iop -> iop
                     .index(index)
                     .id(Long.toString(node.getId()))
-                    .document(data))));
+                    .action(a -> a
+                            .doc(data)
+                            .docAsUpsert(true))
+            )));
 
             if (nodeCounter.addAndGet(1) % 100 == 0) {
                 logger.info("Processed " + nodeCounter.get() + " nodes (" + (System.currentTimeMillis() - lastNodeCount.get()) + "ms per last 100 nodes)");

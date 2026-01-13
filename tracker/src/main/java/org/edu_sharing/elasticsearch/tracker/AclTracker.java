@@ -5,6 +5,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
@@ -26,33 +28,19 @@ public class AclTracker {
     private final AlfrescoWebscriptClient alfClient;
     private final WorkspaceService workspaceService;
 
-    @Value("${allowed.types}")
-    String allowedTypes;
 
     final static int maxResults = 100;
 
     @Value("${tracker.timestep:36000000}")
-    int nextTimeStep;
+    int timeStep;
 
     Logger logger = LoggerFactory.getLogger(AclTracker.class);
     private final StatusIndexService<AclTx> aclStateService;
 
+    private static final long MAX_TIME_STEP = TimeUnit.DAYS.toMillis(32);
 
-//    @PostConstruct
-//    public void init() throws IOException {
-//        ACLChangeSet aclChangeSet;
-//        try {
-//            aclChangeSet = aclStateService.getState();
-//            if (aclChangeSet != null) {
-//                lastFromCommitTime = aclChangeSet.getAclChangeSetCommitTime();
-//                lastACLChangeSetId = aclChangeSet.getAclChangeSetId();
-//                logger.info("got last aclChangeSet from index aclCommitTime:" + aclChangeSet.getAclChangeSetCommitTime() + " aclId" + aclChangeSet.getAclChangeSetId());
-//            }
-//        } catch (IOException e) {
-//            logger.error("problems reaching elastic search server");
-//            throw e;
-//        }
-//    }
+    private final StatusIndexService<Tx> transactionStateService;
+
 
     public boolean track() {
         try {
@@ -70,10 +58,16 @@ public class AclTracker {
 
             AclChangeSets aclChangeSets;
             if(lastFromCommitTime > 0){
-                aclChangeSets = alfClient.getAclChangeSets(null,lastFromCommitTime + 1, AclTracker.maxResults);
+                //ToDo acl changes not synced when tx never changes a long time. only acl changes possible in edu-sharing context?
+                Long maxChangeSetCommitTime = alfClient.getAclChangeSets(0L, null, null, 1).getMaxChangeSetCommitTime();
+                Long maxTxnCommitTime = transactionStateService.getState().getTxnCommitTime();
+                long endTime = (maxChangeSetCommitTime > maxTxnCommitTime) ? maxTxnCommitTime : maxChangeSetCommitTime;
+                //alf sql template select_ChangeSets_Summary: toCommitTimeExclusive but we want endTime inclusive
+                endTime+=1;
+                aclChangeSets = getSomeAclChangeSets(lastFromCommitTime + 1,timeStep,AclTracker.maxResults, endTime);
             }else {
                 logger.warn("no last lastFromCommitTime timestamp, need to fallback to id mode, aCLChangeSetId {}", nextACLChangeSetId);
-                aclChangeSets = alfClient.getAclChangeSets(nextACLChangeSetId,null, AclTracker.maxResults);
+                aclChangeSets = alfClient.getAclChangeSets(nextACLChangeSetId,null, null, AclTracker.maxResults);
             }
 
 
@@ -160,5 +154,40 @@ public class AclTracker {
             logger.error(e.getMessage(), e);
             return false;
         }
+    }
+
+    /**
+     * inspired by alfresco seearch services AclTracker.getSomeAclChangeSets
+     * @param fromCommitTime
+     * @param timeStep
+     * @param maxResults
+     * @param endTime
+     * @return
+     */
+    AclChangeSets getSomeAclChangeSets(Long fromCommitTime, long timeStep, int maxResults, long endTime){
+        long actualTimeStep  = timeStep;
+        AclChangeSets aclChangeSets;
+        // step forward in time until we find something or hit the time bound
+        // max id unbounded
+        Long startTime = fromCommitTime == null ? Long.valueOf(0L) : fromCommitTime;
+        do
+        {
+            //timeStep fix: without it AclTracker could get aclChangeSets newer than transaction progress (potential missing nodes or old aclId's)
+            long toTime = startTime + actualTimeStep;
+            if(toTime > endTime){
+                toTime = endTime;
+            }
+
+            aclChangeSets = alfClient.getAclChangeSets(null,startTime,toTime, maxResults);
+            startTime += actualTimeStep;
+            actualTimeStep *= 2;
+            if(actualTimeStep > MAX_TIME_STEP)
+            {
+                actualTimeStep = MAX_TIME_STEP;
+            }
+        }
+        while(aclChangeSets.getAclChangeSets().isEmpty() && (startTime < endTime));
+
+        return aclChangeSets;
     }
 }

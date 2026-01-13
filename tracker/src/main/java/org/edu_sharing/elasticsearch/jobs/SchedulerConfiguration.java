@@ -19,6 +19,15 @@ public class SchedulerConfiguration {
         return scheduler;
     }
 
+    @Bean(name = "aclScheduler")
+    public TaskScheduler aclScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1); // adjust as needed
+        scheduler.setThreadNamePrefix("aclScheduler-");
+        scheduler.initialize();
+        return scheduler;
+    }
+
     @Primary
     @Bean(name = "mainScheduler")
     public TaskScheduler mainScheduler() {

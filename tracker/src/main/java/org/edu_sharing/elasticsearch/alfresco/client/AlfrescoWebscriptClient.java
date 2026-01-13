@@ -263,52 +263,52 @@ public class AlfrescoWebscriptClient {
 
             for (Reader reader : readersACL.getAclsReaders()) {
                 if (nodeMetadata.getAclId() == reader.aclId) {
-                    NodeData nodeData;
-                    if (nodeMetadata.getType().equals("ccm:collection_proposal")) {
-                        NodeDataProposal nodeDataProposal = new NodeDataProposal();
+            NodeData nodeData;
+            if (nodeMetadata.getType().equals("ccm:collection_proposal")) {
+                NodeDataProposal nodeDataProposal = new NodeDataProposal();
+                try {
+                    GetNodeMetadataParam param = new GetNodeMetadataParam();
+                    param.setNodeIds(Collections.singletonList(nodeMetadata.getId()));
+                    param.setIncludeParentAssociations(true);
+                    NodeMetadatas fullMetadata = getNodeMetadata(param);
+                    String parent = fullMetadata.getNodes().get(0).getParentAssocs().get(0);
+                    Serializable original = nodeMetadata.getProperties().
+                            get(CCConstants.getValidGlobalName(
+                                            "ccm:collection_proposal_target"
+                                    )
+                            );
+                    if (parent != null && original != null) {
+                        // no fulltext for the original will be indexed for the proposal to save on complexity
                         try {
-                            GetNodeMetadataParam param = new GetNodeMetadataParam();
-                            param.setNodeIds(Collections.singletonList(nodeMetadata.getId()));
-                            param.setIncludeParentAssociations(true);
-                            NodeMetadatas fullMetadata = getNodeMetadata(param);
-                            String parent = fullMetadata.getNodes().get(0).getParentAssocs().get(0);
-                            Serializable original = nodeMetadata.getProperties().
-                                    get(CCConstants.getValidGlobalName(
-                                                    "ccm:collection_proposal_target"
-                                            )
-                                    );
-                            if (parent != null && original != null) {
-                                // no fulltext for the original will be indexed for the proposal to save on complexity
-                                try {
-                                    nodeDataProposal.setOriginal(
-                                            getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID((String) original)))
-                                    );
-                                } catch (Throwable t) {
-                                    logger.info("Could not track original node for proposal " + nodeMetadata.getNodeRef() + ", original: " + original + ": " + t.getMessage());
-                                    logger.debug(t.getMessage(), t);
-                                }
-                                try {
-                                    nodeDataProposal.setCollection(
-                                            getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID(parent)))
-                                    );
-                                } catch (Throwable t) {
-                                    logger.info("Could not track parent collection for proposal " + nodeMetadata.getNodeRef() + ", parent " + parent + ": " + t.getMessage());
-                                    logger.debug(t.getMessage(), t);
-                                }
-                            } else {
-                                logger.warn("Collection proposal has no parent or target: " + nodeMetadata.getNodeRef());
-                            }
-                        }catch(Throwable t) {
-                            logger.info("Could not track parent collection for proposal " + nodeMetadata.getNodeRef(), t);
+                            nodeDataProposal.setOriginal(
+                                    getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID((String) original)))
+                            );
+                        } catch (Throwable t) {
+                            logger.info("Could not track original node for proposal " + nodeMetadata.getNodeRef() + ", original: " + original + ": " + t.getMessage());
+                            logger.debug(t.getMessage(), t);
                         }
-                        nodeData = nodeDataProposal;
+                        try {
+                            nodeDataProposal.setCollection(
+                                    getNodeDataMinimal(getNodeMetadataUUID(Tools.getUUID(parent)))
+                            );
+                        } catch (Throwable t) {
+                            logger.info("Could not track parent collection for proposal " + nodeMetadata.getNodeRef() + ", parent " + parent + ": " + t.getMessage());
+                            logger.debug(t.getMessage(), t);
+                        }
                     } else {
-                        nodeData = new NodeData();
+                        logger.warn("Collection proposal has no parent or target: " + nodeMetadata.getNodeRef());
                     }
-                    nodeData.setNodeMetadata(nodeMetadata);
+                }catch(Throwable t) {
+                    logger.info("Could not track parent collection for proposal " + nodeMetadata.getNodeRef(), t);
+                }
+                nodeData = nodeDataProposal;
+            } else {
+                nodeData = new NodeData();
+            }
+            nodeData.setNodeMetadata(nodeMetadata);
                     nodeData.setReader(reader);
                     nodeData.setAccessControlList(permissionsMap.get(nodeMetadata.getAclId()));
-                    result.add(nodeData);
+            result.add(nodeData);
                 }
             }
 
@@ -439,7 +439,7 @@ public class AlfrescoWebscriptClient {
                 .get(Transactions.class);
     }
 
-    public AclChangeSets getAclChangeSets(Long fromId, Long fromTime, Integer maxResults) {
+    public AclChangeSets getAclChangeSets(Long fromId, Long fromTime, Long toTime, Integer maxResults) {
         String url = getUrl(URL_ACL_CHANGESETS);
         WebTarget webTarget = client.target(url);
         if(fromId != null) {
@@ -450,6 +450,9 @@ public class AlfrescoWebscriptClient {
         }
         if(fromTime != null) {
             webTarget = webTarget.queryParam("fromTime", fromTime);
+        }
+        if(fromTime != null) {
+            webTarget = webTarget.queryParam("toTime", toTime);
         }
         return webTarget
                 .request(MediaType.APPLICATION_JSON)
