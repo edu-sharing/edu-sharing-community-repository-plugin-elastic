@@ -1,4 +1,4 @@
-package org.edu_sharing.elasticsearch.tracker.dynamic;
+package org.edu_sharing.elasticsearch.tracker.generic;
 
 import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @RequiredArgsConstructor
 @Configuration

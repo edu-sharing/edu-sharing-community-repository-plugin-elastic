@@ -1,4 +1,4 @@
-package org.edu_sharing.elasticsearch.tracker.dynamic;
+package org.edu_sharing.elasticsearch.tracker.generic;
 
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;

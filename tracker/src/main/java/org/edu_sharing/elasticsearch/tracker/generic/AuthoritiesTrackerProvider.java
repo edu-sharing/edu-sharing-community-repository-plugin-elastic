@@ -1,4 +1,4 @@
-package org.edu_sharing.elasticsearch.tracker.dynamic;
+package org.edu_sharing.elasticsearch.tracker.generic;
 
 import org.edu_sharing.elasticsearch.tracker.AuthoritiesTracker;
 import org.edu_sharing.elasticsearch.tracker.TransactionTrackerBase;
