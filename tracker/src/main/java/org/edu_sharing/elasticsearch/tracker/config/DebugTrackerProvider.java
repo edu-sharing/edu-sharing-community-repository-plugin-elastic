@@ -1,5 +1,6 @@
-package org.edu_sharing.elasticsearch.tracker.generic;
+package org.edu_sharing.elasticsearch.tracker.config;
 
+import org.edu_sharing.elasticsearch.tracker.DebugTracker;
 import org.edu_sharing.elasticsearch.tracker.TransactionTrackerBase;
 import org.springframework.stereotype.Component;
 

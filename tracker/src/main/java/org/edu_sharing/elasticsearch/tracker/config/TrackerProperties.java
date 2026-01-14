@@ -1,4 +1,4 @@
-package org.edu_sharing.elasticsearch.tracker.generic;
+package org.edu_sharing.elasticsearch.tracker.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -10,10 +10,10 @@ import java.util.Map;
 
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "generic")
+@ConfigurationProperties(prefix = "config")
 public class TrackerProperties {
 
-    private Map<String, TrackerConfig> trackers = new HashMap<>();
+    private Map<String, TrackerConfig> tracker = new HashMap<>();
 
     @Data
     public static class TrackerConfig {

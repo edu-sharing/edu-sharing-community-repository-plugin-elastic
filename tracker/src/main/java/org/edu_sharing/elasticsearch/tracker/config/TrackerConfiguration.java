@@ -1,4 +1,4 @@
-package org.edu_sharing.elasticsearch.tracker.generic;
+package org.edu_sharing.elasticsearch.tracker.config;
 
 import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
@@ -39,7 +39,7 @@ public class TrackerConfiguration {
     Map<String, TransactionTrackerBase> trackerRegistry() throws IOException {
         String appVersion = appInfoStatusService.getState().getTrackerVersion();
         Map<String, TransactionTrackerBase> registry = new HashMap<>();
-        props.getTrackers().forEach((key, cfg) -> {
+        props.getTracker().forEach((key, cfg) -> {
             TrackerProvider trackerProvider = trackerProviders.get(cfg.getProvider());
             if(trackerProvider == null){
                 throw new RuntimeException("No tracker provider for key: " + cfg.getProvider());

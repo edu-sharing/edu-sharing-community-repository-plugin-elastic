@@ -1,4 +1,4 @@
-package org.edu_sharing.elasticsearch.tracker.generic;
+package org.edu_sharing.elasticsearch.tracker.config;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -36,7 +36,7 @@ public class TrackerScheduler {
 
             executors.add(executor);
 
-            long intervall = props.getTrackers().get(key).getInterval();
+            long intervall = props.getTracker().get(key).getInterval();
             if(intervall == 0){
                 intervall = 5000;
             }

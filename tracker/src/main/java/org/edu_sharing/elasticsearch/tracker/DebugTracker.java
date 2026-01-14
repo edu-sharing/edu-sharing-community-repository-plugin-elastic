@@ -1,8 +1,7 @@
-package org.edu_sharing.elasticsearch.tracker.generic;
+package org.edu_sharing.elasticsearch.tracker;
 
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
-import org.edu_sharing.elasticsearch.tracker.TransactionTrackerBase;
 
 import java.io.IOException;
 import java.util.List;
