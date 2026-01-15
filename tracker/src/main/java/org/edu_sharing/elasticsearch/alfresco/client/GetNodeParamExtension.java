@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GetNodeParamExtension extends GetNodeParam {
@@ -18,10 +19,16 @@ public class GetNodeParamExtension extends GetNodeParam {
     @Setter
     List<String> excludeNodeTypes = null;
 
+    @Getter
+    @Setter
+    List<String> includeAspects = null;
+
+    @Getter
+    @Setter
+    List<String> excludeAspects = null;
 
 
     public GetNodeParamExtension(){
 
     }
-
 }

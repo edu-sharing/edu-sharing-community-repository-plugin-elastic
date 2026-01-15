@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Data
@@ -13,14 +14,16 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "config")
 public class TrackerProperties {
 
-    private Map<String, TrackerConfig> tracker = new HashMap<>();
+    private Map<String, TrackerConfig> tracker = new LinkedHashMap<>();
 
     @Data
     public static class TrackerConfig {
         private String provider;
         private String includeNodeTypes, excludeNodeTypes;
-        private int transactions;
-        private long interval;
+        private String includeAspects, excludeAspects;
+        private int transactions = 200;
+        private long interval = 5000;
         private Duration timeStep;
+        private String trackerDependency;
     }
 }

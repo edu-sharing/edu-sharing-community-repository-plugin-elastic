@@ -75,6 +75,18 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     @Setter
     protected List<String> excludeNodeTypes = null;
 
+    /**
+     *  make sure to use short names like ccm:collection!
+     */
+    @Setter
+    protected List<String> excludeAspects = null;
+
+    /**
+     * make sure to use short names like ccm:collection!
+     */
+    @Setter
+    protected List<String> includeAspects = null;
+
     protected ForkJoinPool threadPool;
 
     @Getter
@@ -107,6 +119,8 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             if(lastTransactionTimestamp > 0) {
                 long fromCommitTimeMs = lastTransactionTimestamp + 1;
                 long endTime = trackerStrategy.getLimit() != null ? trackerStrategy.getLimit() : alfClient.getTransactions(0L,1L,null,null,1).getMaxTxnCommitTime();
+                // select_Txns ibatis template does < #{toCommitTimeExclusive} but we want it to be included
+                endTime += 1;
                 transactions = getSomeTransactions(fromCommitTimeMs,timeStep,numberOfTransactions,endTime);
             } else {
                 log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
@@ -148,6 +162,18 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
                         .map(CCConstants::getValidGlobalName)
                         .filter(Objects::nonNull).toList();
                 if(!list.isEmpty()) getNodeParam.setExcludeNodeTypes(list);
+            }
+            if(this.includeAspects != null && !this.includeAspects.isEmpty()) {
+                List<String> list = this.includeAspects.stream()
+                        .map(CCConstants::getValidGlobalName)
+                        .filter(Objects::nonNull).toList();
+                if(!list.isEmpty()) getNodeParam.setIncludeAspects(list);
+            }
+            if(this.excludeAspects != null && !this.excludeAspects.isEmpty()) {
+                List<String> list = this.excludeAspects.stream()
+                        .map(CCConstants::getValidGlobalName)
+                        .filter(Objects::nonNull).toList();
+                if(!list.isEmpty()) getNodeParam.setExcludeAspects(list);
             }
 
             getNodeParam.setTxnIds(transactionIds);
@@ -198,14 +224,22 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
         Transactions transactions;
         long startTime = fromCommitTime;
         do{
-            transactions = alfClient.getTransactions(null, null, startTime, startTime + timeStep, maxResults);
-            startTime += timeStep;
+            long toCommitTime = startTime + timeStep;
+            if(toCommitTime > endTime){
+                toCommitTime = endTime;
+            }
+            transactions = alfClient.getTransactions(null, null, startTime, toCommitTime, maxResults);
+            startTime = toCommitTime;
             if (transactions.getTransactions().isEmpty()) {
                 long nextFromCommitTime = alfClient.getNextCommitTime(startTime).getNextTransactionCommitTimeMs();
-                if (nextFromCommitTime != -1)
+                if (nextFromCommitTime != -1 && nextFromCommitTime < endTime)
                 {
+                    long nextToCommitTime = nextFromCommitTime + timeStep;
+                    if (nextToCommitTime > endTime){
+                        nextToCommitTime = endTime;
+                    }
                     log.info("Advancing transactions from {} to {}",startTime,nextFromCommitTime);
-                    transactions = alfClient.getTransactions(null, null, nextFromCommitTime, nextFromCommitTime + timeStep, maxResults);
+                    transactions = alfClient.getTransactions(null, null, nextFromCommitTime, nextToCommitTime, maxResults);
                 }
             }
         }while (transactions.getTransactions().isEmpty() && (startTime < endTime));

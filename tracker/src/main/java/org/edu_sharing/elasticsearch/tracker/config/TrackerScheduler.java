@@ -37,9 +37,7 @@ public class TrackerScheduler {
             executors.add(executor);
 
             long intervall = props.getTracker().get(key).getInterval();
-            if(intervall == 0){
-                intervall = 5000;
-            }
+
             executor.scheduleWithFixedDelay(
                     tracker::track,
                     0,

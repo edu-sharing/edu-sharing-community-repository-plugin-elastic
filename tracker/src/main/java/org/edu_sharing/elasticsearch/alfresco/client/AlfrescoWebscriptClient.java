@@ -78,13 +78,6 @@ public class AlfrescoWebscriptClient {
         }
     }
 
-    public List<Node> getNodes(List<Long> transactionIds) {
-        GetNodeParam p = new GetNodeParam();
-        p.setTxnIds(transactionIds);
-        return getNodes(p);
-    }
-
-
     public List<Node> getNodes(GetNodeParam p) {
 
         String url = getUrl(URL_NODES_TRANSACTION);

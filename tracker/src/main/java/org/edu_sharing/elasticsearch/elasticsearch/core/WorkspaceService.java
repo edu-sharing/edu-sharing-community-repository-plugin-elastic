@@ -195,38 +195,15 @@ public class WorkspaceService {
             logger.info("starting bulk update:");
             BulkResponse bulkResponse = client.bulk(req -> req.index(index).operations(operations));
             logger.info("finished bulk update:");
-
-            Map<Long, NodeData> collectionNodes = new HashMap<>();
-            for (NodeData nodeData : nodes) {
-                NodeMetadata node = nodeData.getNodeMetadata();
-                if ((node.getType().equals("ccm:map") && node.getAspects().contains("ccm:collection"))
-                        || (node.getType().equals("ccm:io") && !node.getAspects().contains("ccm:collection_io_reference"))) {
-                    collectionNodes.put(node.getId(), nodeData);
-                }
-            }
-            logger.info("start refresh index");
             this.refreshWorkspace();
-            try {
-                logger.info("start RefreshCollectionReplicas (" + bulkResponse.items().size() + ")");
-                for (BulkResponseItem item : bulkResponse.items()) {
-                    if (item.error() != null) {
-                        logger.error("Failed indexing of " + item.id());
-                        logger.error("Failed indexing of " + item.error().causedBy());
-                        continue;
-                    }
+            logger.info("finished refresh index");
+            for (BulkResponseItem item : bulkResponse.items()) {
+                if (item.error() != null) {
+                    logger.error("Failed indexing of " + item.id());
+                    logger.error("Failed indexing of " + item.error().causedBy());
 
-                    Long dbId = item.id() != null ? Long.parseLong(item.id()) : null;
-                    NodeData nodeData = collectionNodes.get(dbId);
-                    if (nodeData != null) {
-                        onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(nodeData.getNodeMetadata()),item.operationType() == OperationType.Update || item.operationType() == OperationType.Index, true);
-                    }
                 }
-                logger.info("finished RefreshCollectionReplicas");
-            } catch (Throwable e) {
-                logger.error(e.getMessage(), e);
-                throw e;
             }
-
         }
         logger.debug("returning");
     }
@@ -887,18 +864,19 @@ public class WorkspaceService {
         logger.debug("returning");
     }
 
+    public void syncCollectionReplicas(NodeMetadataSimple collection) throws IOException {
+        logger.info("starting for collection: "+collection.getNodeRef());
+        searchHitsRunner.run(InternalQueries.queryCollectionNodes(collection.getId()), maxCollectionChildItemsUpdateSize, Map.class, (hit) -> {
+            try {
+                onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(hit.source()), true, false);
+            } catch (IOException e) {
+                logger.warn("error refreshing collections " + collection.getNodeRef(), e);
+            }
+        });
+        logger.info("finished for collection: "+collection.getNodeRef());
+    }
+
     private void onUpdateRefreshUsageCollectionReplicas(NodeMetadataSimple node, boolean update, boolean resyncIndex) throws IOException {
-        // a collection -> refresh replicas for each item inside this collection
-        if ("ccm:map".equals(node.getType())) {
-            searchHitsRunner.run(InternalQueries.queryCollectionNodes(node.getId()), maxCollectionChildItemsUpdateSize, Map.class, (hit) -> {
-                try {
-                    onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(hit.source()), true, false);
-                } catch (IOException e) {
-                    logger.warn("error refreshing collections " + node.getNodeRef(), e);
-                }
-            });
-           return;
-        }
         final String query, queryProposal;
         // collect already written collections
         Set<String> collections = new HashSet<>();

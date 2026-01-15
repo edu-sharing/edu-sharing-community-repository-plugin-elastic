@@ -112,18 +112,6 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         }
         // refresh index so that collections will be found by cacheCollections process
         workspaceService.refreshWorkspace();
-
-
-        // usages, proposals
-        List<NodeMetadata> toIndexUsagesProposalsMd = filterByNodeTypes(nodeData,"ccm:usage", "ccm:collection_proposal");
-        logger.info("index usages/proposal size:" + toIndexUsagesProposalsMd.size());
-        updateUsageProposals(toIndexUsagesProposalsMd);
-    }
-
-    private void updateUsageProposals(List<NodeMetadata> toIndexUsagesProposalsMd) throws IOException {
-        for (NodeMetadata usage : toIndexUsagesProposalsMd) {
-            workspaceService.indexCollections(usage);
-        }
     }
 
     private void updateNodeStatistics(List<NodeData> toIndex) throws IOException {
