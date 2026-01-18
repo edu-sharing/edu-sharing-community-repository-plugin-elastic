@@ -31,7 +31,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
     @Getter
     @Setter(AccessLevel.PACKAGE)
-    protected AlfrescoWebscriptClient alfClient;
+    protected AlfrescoApi alfClient;
 
     @Getter
     @Setter(AccessLevel.PACKAGE)
@@ -58,6 +58,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     @Setter
     int numberOfTransactions = 200;
 
+    @Getter
     @Setter
     long timeStep = TimeUnit.HOURS.toMillis(1);
 
@@ -220,7 +221,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
      * @param endTime
      * @return
      */
-    private Transactions getSomeTransactions(Long fromCommitTime, long timeStep, int maxResults, long endTime){
+    public Transactions getSomeTransactions(Long fromCommitTime, long timeStep, int maxResults, long endTime){
         Transactions transactions;
         long startTime = fromCommitTime;
         do{

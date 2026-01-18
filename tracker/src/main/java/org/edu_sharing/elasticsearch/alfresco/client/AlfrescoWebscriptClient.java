@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Component
-public class AlfrescoWebscriptClient {
+public class AlfrescoWebscriptClient implements AlfrescoApi{
 
     @Value("${alfresco.host}")
     String alfrescoHost;

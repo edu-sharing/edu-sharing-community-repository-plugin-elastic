@@ -212,7 +212,7 @@ public class WorkspaceService {
         fillData(nodeData, builder, null);
     }
 
-    void fillData(NodeData nodeData, @NonNull final DataBuilder builder, String objectName) throws IOException {
+    public void fillData(NodeData nodeData, @NonNull final DataBuilder builder, String objectName) throws IOException {
         NodeMetadata node = nodeData.getNodeMetadata();
         String storeRefProtocol = Tools.getProtocol(node.getNodeRef());
         String storeRefIdentifier = Tools.getIdentifier(node.getNodeRef());
@@ -564,7 +564,7 @@ public class WorkspaceService {
         builder.endObject();
     }
 
-    void mapWorkflowProtocol(Serializable value, @NonNull DataBuilder builder) {
+    public void mapWorkflowProtocol(Serializable value, @NonNull DataBuilder builder) {
         Collection<String> protocol;
         if (value instanceof Collection) {
             protocol = (Collection<String>) value;
