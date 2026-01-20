@@ -28,6 +28,15 @@ public class SchedulerConfiguration {
         return scheduler;
     }
 
+    @Bean(name = "statisticScheduler")
+    public TaskScheduler statisticScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1); // adjust as needed
+        scheduler.setThreadNamePrefix("statisticScheduler-");
+        scheduler.initialize();
+        return scheduler;
+    }
+
     @Primary
     @Bean(name = "mainScheduler")
     public TaskScheduler mainScheduler() {

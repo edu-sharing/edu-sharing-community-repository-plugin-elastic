@@ -31,9 +31,6 @@ public class TrackerServiceFactory {
     @Value("${transactions.max:500}")
     int numberOfTransactions;
 
-    @Value("${statistic.historyInDays}")
-    private long historyInDays;
-
     @Value("${index.storerefs}")
     private List<String> indexStoreRefs;
 
@@ -74,7 +71,6 @@ public class TrackerServiceFactory {
         if(defaultTransactionTracker instanceof  DefaultTransactionTracker dtt){
             dtt.setIndexStoreRefs(indexStoreRefs);
             dtt.setWorkspaceTypes(allowedTypes);
-            dtt.setHistoryInDays(historyInDays);
             dtt.setFetchSizeAlfresco(fetchSizeAlfresco);
             dtt.setBulkSizeElastic(bulkSizeElastic);
         }

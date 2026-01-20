@@ -5,6 +5,7 @@ import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,7 +26,7 @@ public class StatisticsTracker {
     private final WorkspaceService elasticService;
     private final EduSharingClient eduSharingClient;
     private final StatusIndexService<StatisticTimestamp> statisticTimestampStateService;
-
+    private final StatusIndexService<Tx> transactionStateService;
 
 
 
@@ -37,10 +38,11 @@ public class StatisticsTracker {
     long trackTsTo = -1;
     boolean allNodesInIndex = true;
 
-    public StatisticsTracker(WorkspaceService elasticService, EduSharingClient eduSharingClient, StatusIndexService<StatisticTimestamp> statisticTimestampStateService) {
+    public StatisticsTracker(WorkspaceService elasticService, EduSharingClient eduSharingClient, StatusIndexService<StatisticTimestamp> statisticTimestampStateService,StatusIndexService<Tx> transactionStateService) {
         this.elasticService = elasticService;
         this.eduSharingClient = eduSharingClient;
         this.statisticTimestampStateService = statisticTimestampStateService;
+        this.transactionStateService = transactionStateService;
     }
 
     public void track(){
@@ -59,9 +61,19 @@ public class StatisticsTracker {
                     logger.info("starting from history " + new Date(trackFromTime));
                 }
 
-                trackTsTo = System.currentTimeMillis();
+                Tx defaultTrackerState = transactionStateService.getState();
+                if(defaultTrackerState == null) {
+                    logger.info("No transaction state found");
+                    return;
+                }
+                if(defaultTrackerState.getTxnCommitTime() <= trackFromTime){
+                    logger.info("default tracker state is behind lower statistic window border");
+                    return;
+                }
+
+                trackTsTo = defaultTrackerState.getTxnCommitTime();
                 Map<String, List<NodeStatistic>> nodeStatistics = new HashMap<>();
-                List<String> statistics = eduSharingClient.getStatisticsNodeIds(trackFromTime);
+                List<String> statistics = eduSharingClient.getStatisticsNodeIds(trackFromTime,trackTsTo);
                 logger.info("found " + statistics.size() + " statistic changes");
 
                 for(String nodeId : statistics){

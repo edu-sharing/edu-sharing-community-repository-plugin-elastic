@@ -511,12 +511,13 @@ public class EduSharingClient {
     }
 
     @EduSharingAuthentication.ManageAuthentication
-    public List<String> getStatisticsNodeIds(long timestamp){
+    public List<String> getStatisticsNodeIds(long tsFrom,long tsTo){
         String url = new String(URL_STATISTICS_ALTERED);
         url = getUrl(url);
 
         return educlient.target(url).
-                queryParam("dateFrom",timestamp).
+                queryParam("dateFrom",tsFrom).
+                queryParam("dateTo",tsTo).
                 request(MediaType.APPLICATION_JSON).
                 cookie(jsessionId.getName(),jsessionId.getValue()).
                 get().readEntity(List.class);

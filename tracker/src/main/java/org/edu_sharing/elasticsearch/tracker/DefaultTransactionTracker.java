@@ -36,15 +36,8 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     private final Logger logger = LoggerFactory.getLogger(DefaultTransactionTracker.class);
 
     @Setter
-    private long historyInDays;
-
-    @Setter
     @Value("${tracker.fetch.size.alfresco}")
     int fetchSizeAlfresco;
-
-    @Setter
-    @Value("${statistic.enabled}")
-    boolean statisticEnabled;
 
     @Setter
     @Value("${tracker.bulk.size.elastic}")
@@ -107,30 +100,11 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         // io's, maps
         logger.info("index user nodes size:" + toIndexNodes.size());
         updateNodes(toIndexNodes);
-        if(statisticEnabled) {
-            updateNodeStatistics(toIndexNodes);
-        }
         // refresh index so that collections will be found by cacheCollections process
         workspaceService.refreshWorkspace();
     }
 
-    private void updateNodeStatistics(List<NodeData> toIndex) throws IOException {
-        Map<String, List<NodeStatistic>> updateNodeStatistics = new HashMap<>();
-        for (NodeData nodeDataStat : toIndex) {
-            if (!"ccm:io".equals(nodeDataStat.getNodeMetadata().getType()) || !Tools.getProtocol(nodeDataStat.getNodeMetadata().getNodeRef()).equals("workspace")) {
-                continue;
-            }
 
-            long trackTs = System.currentTimeMillis();
-            long trackFromTime = trackTs - (historyInDays * 24L * 60L * 60L * 1000L);
-            String nodeId = Tools.getUUID(nodeDataStat.getNodeMetadata().getNodeRef());
-            List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTime);
-            updateNodeStatistics.put(nodeId, statisticsForNode);
-            //we don't need cleanup cause former elasticClient.index(..) call removes all statistic data
-            //elasticClient.cleanUpNodeStatistics(nodeDataStat);
-        }
-        workspaceService.updateNodeStatistics(updateNodeStatistics);
-    }
 
     private void updateNodes(List<NodeData> toIndex) throws IOException {
         Collection<List<NodeData>> partitioned = Partition.getPartitions(toIndex, bulkSizeElastic);
