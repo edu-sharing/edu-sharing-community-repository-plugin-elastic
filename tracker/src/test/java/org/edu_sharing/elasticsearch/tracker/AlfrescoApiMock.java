@@ -2,6 +2,7 @@ package org.edu_sharing.elasticsearch.tracker;
 
 import org.edu_sharing.elasticsearch.alfresco.client.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class AlfrescoApiMock implements AlfrescoApi {
@@ -14,12 +15,22 @@ public class AlfrescoApiMock implements AlfrescoApi {
 
     @Override
     public Transactions getTransactions(Long minTxnId, Long maxTxnId, Long fromCommitTime, Long toCommitTime, int maxResults) {
-        List<Transaction> filtered = data.getTransactions().stream()
-                .filter(t -> t.getCommitTimeMs() >= fromCommitTime && t.getCommitTimeMs() < toCommitTime)
-                .limit(maxResults)
-                .toList();
         Transactions tx = new Transactions();
-        tx.setTransactions(filtered);
+        List<Transaction> transactions = new ArrayList<Transaction>();
+        if(fromCommitTime != null){
+            transactions = data.getTransactions().stream()
+                    .filter(t -> t.getCommitTimeMs() >= fromCommitTime && t.getCommitTimeMs() < toCommitTime)
+                    .limit(maxResults)
+                    .toList();
+        }else if(minTxnId != null){
+            transactions = data.getTransactions().stream()
+                    .filter(t -> t.getId() > minTxnId)
+                    .limit(maxResults)
+                    .toList();
+        }
+        tx.setTransactions(transactions);
+        tx.setMaxTxnCommitTime(data.getMaxTxnCommitTime());
+        tx.setMaxTxnId(data.getMaxTxnId());
         return tx;
     }
 

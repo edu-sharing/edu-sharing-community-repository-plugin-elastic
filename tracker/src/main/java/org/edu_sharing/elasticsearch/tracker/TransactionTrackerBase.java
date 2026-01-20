@@ -8,6 +8,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
+import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
@@ -47,7 +48,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
     @Getter
     @Setter(AccessLevel.PACKAGE)
-    protected StatusIndexService<Tx> transactionStateService;
+    protected StatusIndexServiceInterface<Tx> transactionStateService;
 
     @Setter(AccessLevel.PACKAGE)
     private TrackerStrategy trackerStrategy;
@@ -247,7 +248,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
         return transactions;
     }
 
-    private void commit(StatusIndexService<Tx> transactionStateService, Tx tx) throws IOException {
+    private void commit(StatusIndexServiceInterface<Tx> transactionStateService, Tx tx) throws IOException {
         log.info("safe transactionId {}", tx.getTxnId());
         transactionStateService.setState(tx);
     }

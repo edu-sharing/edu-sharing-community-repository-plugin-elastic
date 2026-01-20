@@ -2,10 +2,7 @@ package org.edu_sharing.elasticsearch.tracker.config;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.cxf.common.util.StringUtils;
-import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
-import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
+import org.edu_sharing.elasticsearch.elasticsearch.core.*;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AppInfo;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
@@ -68,7 +65,7 @@ public class TrackerConfiguration {
                     .descriptionDelay(key.toUpperCase()+" Delay in seconds").build();
             TrackerStrategy strategy = new FixNumberOfTransactionStrategy();
             if(!StringUtils.isEmpty(cfg.getTrackerDependency())){
-                StatusIndexService<Tx> transactionStateService;
+                StatusIndexServiceInterface<Tx> transactionStateService;
                 if(cfg.getTrackerDependency().equals("main")){
                     transactionStateService = ((DefaultTransactionTracker) transactionTracker).getTransactionStateService();
                 }else{

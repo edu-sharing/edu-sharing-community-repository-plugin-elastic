@@ -19,7 +19,7 @@ import java.util.function.Function;
  */
 @Slf4j
 @RequiredArgsConstructor
-public class StatusIndexService<TDATA> {
+public class StatusIndexService<TDATA> implements StatusIndexServiceInterface<TDATA> {
 
     private final String index;
     private final ElasticsearchClient client;

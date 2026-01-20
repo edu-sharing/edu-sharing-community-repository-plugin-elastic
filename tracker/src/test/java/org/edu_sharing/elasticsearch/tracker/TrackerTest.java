@@ -3,28 +3,51 @@ package org.edu_sharing.elasticsearch.tracker;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.Transaction;
 import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
+import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.tracker.strategy.MaxCommitTimeStrategy;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doNothing;
 
+@ExtendWith(MockitoExtension.class)
 @Slf4j
 public class TrackerTest {
-    DefaultTransactionTracker tracker;
 
     Transactions data;
 
-    public TrackerTest() throws Exception {
+    MaxCommitTimeStrategy strategy;
+
+    @Mock
+    private EduSharingClient eduSharingClient;
+
+    @InjectMocks
+    DefaultTransactionTracker tracker;
+
+
+    @BeforeEach
+    void setUp() throws Exception {
+        // Daten laden
         data = TestUtil.loadTransactions("transactionsTest.json");
-        tracker = new DefaultTransactionTracker();
+
+        // Tracker konfigurieren
         tracker.setAlfClient(new AlfrescoApiMock(data));
+        strategy = new MaxCommitTimeStrategy(1744362767224L);
+        tracker.setTrackerStrategy(strategy);
+        tracker.setTransactionStateService(new StatusIndexServiceMock());
     }
+
     @Test
     public void testGetSomeTransactions() {
-        long limit = 1744362767224L;
-        limit = limit + 1;
+        long limit = strategy.getLimit() + 1;
         long fromCommitTime = 0L;
         long timeStep = tracker.getTimeStep();
         int maxResult = 100;
@@ -51,5 +74,19 @@ public class TrackerTest {
                                 .map(Transaction::getId)
                                 .toList()
                 );
+    }
+
+    @Test
+    public void testTrack() {
+        doNothing().when(eduSharingClient).refreshValuespaceCache();
+        TransactionTracker.State state;
+        do{
+            state = tracker.track();
+        }while (state == TransactionTracker.State.INPROGRESS);
+        assertThat(state).isNotNull();
+        assertThat(state).isEqualTo(TransactionTracker.State.FINISHED);
+
+        long txnCommitTime = ((StatusIndexServiceMock)tracker.getTransactionStateService()).getState().getTxnCommitTime(); ;
+        assertThat(txnCommitTime).isEqualTo(strategy.getLimit());
     }
 }

@@ -2,12 +2,12 @@ package org.edu_sharing.elasticsearch.tracker.strategy;
 
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
+import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 
 @RequiredArgsConstructor
 public class StatusIndexServiceStrategie implements TrackerStrategy {
-    private final StatusIndexService<Tx> transactionStateService;
+    private final StatusIndexServiceInterface<Tx> transactionStateService;
 
     @SneakyThrows
     @Override
