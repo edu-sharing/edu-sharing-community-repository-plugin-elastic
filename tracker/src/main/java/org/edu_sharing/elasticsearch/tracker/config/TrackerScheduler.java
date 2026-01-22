@@ -1,9 +1,16 @@
 package org.edu_sharing.elasticsearch.tracker.config;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.TransactionTrackerBase;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -14,6 +21,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class TrackerScheduler {
@@ -22,6 +30,12 @@ public class TrackerScheduler {
     private final TrackerProperties props;
 
     private final List<ScheduledExecutorService> executors = new ArrayList<>();
+
+    @Value("${shutdown.on.exception}")
+    boolean shutDownOnException = true;
+
+    @Setter
+    private ApplicationContext applicationContext;
 
     @PostConstruct
     public void start() {
@@ -39,12 +53,33 @@ public class TrackerScheduler {
             long intervall = props.getTracker().get(key).getInterval();
 
             executor.scheduleWithFixedDelay(
-                    tracker::track,
+                    () -> TrackerScheduler.this.track(tracker),
                     0,
                     intervall,
                     TimeUnit.MILLISECONDS
             );
         });
+    }
+    private void track(TransactionTrackerBase transactionTracker) {
+        boolean transactionChanges;
+        do {
+            transactionChanges = false;
+            try {
+                transactionChanges = (transactionTracker.track() == TransactionTracker.State.INPROGRESS);
+                log.info("recursive transactionChanges: {}", transactionChanges);
+            }catch (Throwable e){
+                log.error(e.getMessage(),e);
+                if((e instanceof OutOfMemoryError) && shutDownOnException){
+                    log.info("will shutdown tracker cause of exception: {}", e.getMessage(), e);
+                    ((ConfigurableApplicationContext) applicationContext).close();
+                }
+                if((e instanceof ElasticsearchException)) {
+                    if(((ElasticsearchException)e).error() != null) {
+                        log.error(((ElasticsearchException)e).error().toString(),e);
+                    }
+                }
+            }
+        } while (transactionChanges);
     }
 
     @PreDestroy
