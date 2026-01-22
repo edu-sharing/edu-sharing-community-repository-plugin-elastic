@@ -506,15 +506,6 @@ public class WorkspaceService {
                 }
                 builder.endArray();
             }
-            if (nodeData.getNodePreview() != null) {
-                builder.startObject("preview").
-                        field("mimetype", nodeData.getNodePreview().getMimetype()).
-                        field("type", nodeData.getNodePreview().getType()).
-                        field("icon", nodeData.getNodePreview().isIcon()).
-                        field("small", nodeData.getNodePreview().getSmall()).
-                        //field("large", nodeData.getNodePreview().getLarge()).
-                                endObject();
-            }
 
             if (nodeData.getChildren() != null && !nodeData.getChildren().isEmpty()) {
                 builder.startArray("children");

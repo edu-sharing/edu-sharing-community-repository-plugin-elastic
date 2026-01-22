@@ -94,6 +94,12 @@ public class TrackerConfiguration {
             if(cfg.getTimeStep() != null){
                 trackerService.setTimeStep(cfg.getTimeStep().toMillis());
             }
+            if(cfg.getStoreIdentifier() != null && !cfg.getStoreIdentifier().isEmpty()){
+                trackerService.setStoreIdentifier(cfg.getStoreIdentifier());
+            }
+            if(cfg.getStoreProtocol() != null && !cfg.getStoreProtocol().isEmpty()){
+                trackerService.setStoreProtocol(cfg.getStoreProtocol());
+            }
 
             registry.put(key, trackerService);
         });

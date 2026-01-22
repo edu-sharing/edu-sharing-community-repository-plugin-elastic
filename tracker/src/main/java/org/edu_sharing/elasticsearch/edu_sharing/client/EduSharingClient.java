@@ -13,6 +13,7 @@ import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.Node;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeEntry;
 import org.edu_sharing.repository.client.tools.CCConstants;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -306,14 +307,14 @@ public class EduSharingClient {
     }
 
     @EduSharingAuthentication.ManageAuthentication
-    public void addPreview(NodeData node){
+    public NodePreview getPreviewDataByNodeRef(String nodeRef) {
         if(!fetchThumbnails){
-            return;
+            return null;
         }
         String url = getUrl(URL_PREVIEW).
-                replace("${nodeId}", Tools.getUUID(node.getNodeMetadata().getNodeRef())).
-                replace("${storeProtocol}", Tools.getProtocol(node.getNodeMetadata().getNodeRef())).
-                replace("${storeId}", Tools.getIdentifier(node.getNodeMetadata().getNodeRef()));
+                replace("${nodeId}", Tools.getUUID(nodeRef)).
+                replace("${storeProtocol}", Tools.getProtocol(nodeRef)).
+                replace("${storeId}", Tools.getIdentifier(nodeRef));
 
         url+="&allowRedirect=false";
 
@@ -327,7 +328,7 @@ public class EduSharingClient {
         NodePreview preview = new NodePreview();
         preview.setIsIcon(false);
         PreviewData previewSmall=getPreviewData(urlSmall);
-        NodeEntry nodeEntry = getNode(Tools.getUUID(node.getNodeMetadata().getNodeRef()));
+        NodeEntry nodeEntry = getNode(Tools.getUUID(nodeRef));
         if(nodeEntry != null) {
             Node nodeData = nodeEntry.getNode();
             if (nodeData != null && nodeData.getPreview() != null) {
@@ -339,21 +340,13 @@ public class EduSharingClient {
 
         if(previewSmall!=null && !preview.isIcon()) {
             if(previewSmall.getData() != null && (previewSmall.getData().length /1024) > previewMaxKiloBytes){
-                logger.info("Skipping preview for {} cause size {}kb exceeds limit {}kb", node.getNodeMetadata().getNodeRef(), previewSmall.getData().length/1024, previewMaxKiloBytes);
-                return;
+                logger.info("Skipping preview for {} cause size {}kb exceeds limit {}kb", nodeRef, previewSmall.getData().length/1024, previewMaxKiloBytes);
+                return null;
             }
             preview.setMimetype(previewSmall.getMimetype());
             preview.setSmall(previewSmall.getData());
         }
-
-        // both are individual, so also save the small one
-        /*
-        if(!Arrays.equals(previewSmall, previewLarge)){
-            preview.setLarge(preview);
-        }
-
-         */
-        node.setNodePreview(preview);
+        return preview;
     }
 
     private PreviewData getPreviewData(String url) {

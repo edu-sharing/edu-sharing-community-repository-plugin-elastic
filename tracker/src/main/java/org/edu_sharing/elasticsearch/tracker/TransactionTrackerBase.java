@@ -89,6 +89,12 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     @Setter
     protected List<String> includeAspects = null;
 
+    @Setter
+    protected String storeProtocol = null;
+
+    @Setter
+    protected String storeIdentifier = null;
+
     protected ForkJoinPool threadPool;
 
     @Getter
@@ -176,6 +182,11 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
                         .map(CCConstants::getValidGlobalName)
                         .filter(Objects::nonNull).toList();
                 if(!list.isEmpty()) getNodeParam.setExcludeAspects(list);
+            }
+
+            if(this.storeIdentifier != null && !this.storeIdentifier.isEmpty() && storeProtocol != null && !storeProtocol.isEmpty()) {
+                getNodeParam.setStoreProtocol(storeProtocol);
+                getNodeParam.setStoreIdentifier(storeIdentifier);
             }
 
             getNodeParam.setTxnIds(transactionIds);

@@ -25,5 +25,7 @@ public class TrackerProperties {
         private long interval = 5000;
         private Duration timeStep;
         private String trackerDependency;
+        private String storeProtocol;
+        private String storeIdentifier;
     }
 }

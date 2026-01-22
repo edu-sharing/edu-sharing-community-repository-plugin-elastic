@@ -160,7 +160,6 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
                 continue;
             }
             threadPool.execute(() -> {
-                eduSharingClient.addPreview(data);
                 eduSharingClient.translateValuespaceProps(data);
             });
         }

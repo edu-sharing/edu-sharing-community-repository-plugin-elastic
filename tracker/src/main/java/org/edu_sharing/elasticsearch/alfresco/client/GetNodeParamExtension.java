@@ -27,6 +27,14 @@ public class GetNodeParamExtension extends GetNodeParam {
     @Setter
     List<String> excludeAspects = null;
 
+    @Getter
+    @Setter
+    String storeProtocol = null;
+
+    @Getter
+    @Setter
+    String storeIdentifier = null;
+
 
     public GetNodeParamExtension(){
 
