@@ -77,7 +77,6 @@ class WorkspaceServiceTest {
         assertEquals(expected, actual);
     }
 
-    @Disabled("Temporarily disabled due to result is different than data")
     @Test
     void getProposalDataTest() throws Exception {
         NodeDataProposal data = getNodeDataDummy(NodeDataProposal.class);

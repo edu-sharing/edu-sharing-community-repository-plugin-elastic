@@ -1,0 +1,404 @@
+{
+  "aclId": 54321,
+  "statistic_RATING_2023-01-01": 5.0,
+  "original": {
+    "aclId": 54321,
+    "statistic_RATING_2023-01-01": 5.0,
+    "fulldisplaypath": "",
+    "statistic_RATING_null": 5.0,
+    "type": "ccm:io",
+    "fullpaths": [
+      ""
+    ],
+    "i18n": {
+      "de": {
+        "cclom:learningresourcetype": [
+          "LRT Test Translation DE"
+        ]
+      },
+      "en": {
+        "cclom:learningresourcetype": [
+          "LRT Test Translation EN"
+        ]
+      }
+    },
+    "content": {
+      "size": "1337",
+      "contentId": "contentId",
+      "mimetype": "mimetype",
+      "encoding": "encoding",
+      "locale": "locale"
+    },
+    "parentRef": {
+      "storeRef": {
+        "identifier": "SpacesStore",
+        "protocol": "workspace"
+      },
+      "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+    },
+    "path": [],
+    "contributor": [
+      {
+        "firstname": "Firstname",
+        "org": "CompanyName",
+        "displayname": "JobTitle Firstname Lastname",
+        "property": "ccm:lifecyclecontributer_author",
+        "vcard": "BEGIN:VCARD\nVERSION:3.0\nN:Lastname;Firstname\nFN:Firstname Lastname\nORG:CompanyName\nTITLE:JobTitle\nADR:;;123 Sesame St;SomeCity;CA;12345;USA\nTEL;WORK;VOICE:1234567890\nTEL;CELL:Mobile\nTEL;FAX:\nEMAIL;WORK;INTERNET:foo@email.com\nURL:http://website.com\nEND:VCARD",
+        "email": "foo@email.com",
+        "url": "http://website.com",
+        "lastname": "Lastname"
+      }
+    ],
+    "children": [
+      {
+        "aclId": 0,
+        "fulldisplaypath": "",
+        "type": "ccm:rating",
+        "fullpaths": [
+          ""
+        ],
+        "parentRef": {
+          "storeRef": {
+            "identifier": "SpacesStore",
+            "protocol": "workspace"
+          },
+          "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+        },
+        "path": [],
+        "nodeRef": {
+          "storeRef": {
+            "identifier": "SpacesStore",
+            "protocol": "workspace"
+          },
+          "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+        },
+        "fullpath": "",
+        "permissions": {
+          "read": [
+            "tester"
+          ],
+          "Coordinator": [
+            "tester"
+          ]
+        },
+        "dbid": 0,
+        "properties": {
+          "ccm:rating_value": "5.0",
+          "cm:modified": 1672527600000
+        },
+        "txnId": 0
+      }
+    ],
+    "nodeRef": {
+      "storeRef": {
+        "identifier": "SpacesStore",
+        "protocol": "workspace"
+      },
+      "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+    },
+    "fullpath": "",
+    "permissions": {
+      "read": [
+        "tester"
+      ],
+      "Coordinator": [
+        "tester"
+      ]
+    },
+    "dbid": 654321,
+    "properties": {
+      "ccm:mediacenter": [
+        {
+          "name": "GROUP_MEDIA_CENTER_001",
+          "activated": "true"
+        }
+      ],
+      "cm:name": "Test",
+      "ccm:lifecyclecontributer_author": [
+        "BEGIN:VCARD\nVERSION:3.0\nN:Lastname;Firstname\nFN:Firstname Lastname\nORG:CompanyName\nTITLE:JobTitle\nADR:;;123 Sesame St;SomeCity;CA;12345;USA\nTEL;WORK;VOICE:1234567890\nTEL;CELL:Mobile\nTEL;FAX:\nEMAIL;WORK;INTERNET:foo@email.com\nURL:http://website.com\nEND:VCARD"
+      ],
+      "ccm:mediacenter_sort": {
+        "GROUP_MEDIA_CENTER_001": {
+          "activated": "true"
+        }
+      },
+      "cclom:general_keyword": "",
+      "cm:content": {
+        "size": "1337",
+        "contentId": "contentId",
+        "mimetype": "mimetype",
+        "encoding": "encoding",
+        "locale": "locale"
+      },
+      "cclom:learningresourcetype": "LRT_TEST",
+      "sys:node-uuid": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+    },
+    "txnId": 4321
+  },
+  "fulldisplaypath": "",
+  "statistic_RATING_null": 5.0,
+  "type": "ccm:io",
+  "fullpaths": [
+    ""
+  ],
+  "i18n": {
+    "de": {
+      "cclom:learningresourcetype": [
+        "LRT Test Translation DE"
+      ]
+    },
+    "en": {
+      "cclom:learningresourcetype": [
+        "LRT Test Translation EN"
+      ]
+    }
+  },
+  "content": {
+    "size": "1337",
+    "contentId": "contentId",
+    "mimetype": "mimetype",
+    "encoding": "encoding",
+    "locale": "locale"
+  },
+  "parentRef": {
+    "storeRef": {
+      "identifier": "SpacesStore",
+      "protocol": "workspace"
+    },
+    "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+  },
+  "path": [],
+  "contributor": [
+    {
+      "firstname": "Firstname",
+      "org": "CompanyName",
+      "displayname": "JobTitle Firstname Lastname",
+      "property": "ccm:lifecyclecontributer_author",
+      "vcard": "BEGIN:VCARD\nVERSION:3.0\nN:Lastname;Firstname\nFN:Firstname Lastname\nORG:CompanyName\nTITLE:JobTitle\nADR:;;123 Sesame St;SomeCity;CA;12345;USA\nTEL;WORK;VOICE:1234567890\nTEL;CELL:Mobile\nTEL;FAX:\nEMAIL;WORK;INTERNET:foo@email.com\nURL:http://website.com\nEND:VCARD",
+      "email": "foo@email.com",
+      "url": "http://website.com",
+      "lastname": "Lastname"
+    }
+  ],
+  "children": [
+    {
+      "aclId": 0,
+      "fulldisplaypath": "",
+      "type": "ccm:rating",
+      "fullpaths": [
+        ""
+      ],
+      "parentRef": {
+        "storeRef": {
+          "identifier": "SpacesStore",
+          "protocol": "workspace"
+        },
+        "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+      },
+      "path": [],
+      "nodeRef": {
+        "storeRef": {
+          "identifier": "SpacesStore",
+          "protocol": "workspace"
+        },
+        "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+      },
+      "fullpath": "",
+      "permissions": {
+        "read": [
+          "tester"
+        ],
+        "Coordinator": [
+          "tester"
+        ]
+      },
+      "dbid": 0,
+      "properties": {
+        "ccm:rating_value": "5.0",
+        "cm:modified": 1672527600000
+      },
+      "txnId": 0
+    }
+  ],
+  "collections": [
+    {
+      "aclId": 54321,
+      "statistic_RATING_2023-01-01": 5.0,
+      "fulldisplaypath": "",
+      "statistic_RATING_null": 5.0,
+      "type": "ccm:io",
+      "fullpaths": [
+        ""
+      ],
+      "i18n": {
+        "de": {
+          "cclom:learningresourcetype": [
+            "LRT Test Translation DE"
+          ]
+        },
+        "en": {
+          "cclom:learningresourcetype": [
+            "LRT Test Translation EN"
+          ]
+        }
+      },
+      "content": {
+        "size": "1337",
+        "contentId": "contentId",
+        "mimetype": "mimetype",
+        "encoding": "encoding",
+        "locale": "locale"
+      },
+      "parentRef": {
+        "storeRef": {
+          "identifier": "SpacesStore",
+          "protocol": "workspace"
+        },
+        "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+      },
+      "path": [],
+      "contributor": [
+        {
+          "firstname": "Firstname",
+          "org": "CompanyName",
+          "displayname": "JobTitle Firstname Lastname",
+          "property": "ccm:lifecyclecontributer_author",
+          "vcard": "BEGIN:VCARD\nVERSION:3.0\nN:Lastname;Firstname\nFN:Firstname Lastname\nORG:CompanyName\nTITLE:JobTitle\nADR:;;123 Sesame St;SomeCity;CA;12345;USA\nTEL;WORK;VOICE:1234567890\nTEL;CELL:Mobile\nTEL;FAX:\nEMAIL;WORK;INTERNET:foo@email.com\nURL:http://website.com\nEND:VCARD",
+          "email": "foo@email.com",
+          "url": "http://website.com",
+          "lastname": "Lastname"
+        }
+      ],
+      "children": [
+        {
+          "aclId": 0,
+          "fulldisplaypath": "",
+          "type": "ccm:rating",
+          "fullpaths": [
+            ""
+          ],
+          "parentRef": {
+            "storeRef": {
+              "identifier": "SpacesStore",
+              "protocol": "workspace"
+            },
+            "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+          },
+          "path": [],
+          "nodeRef": {
+            "storeRef": {
+              "identifier": "SpacesStore",
+              "protocol": "workspace"
+            },
+            "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+          },
+          "fullpath": "",
+          "permissions": {
+            "read": [
+              "tester"
+            ],
+            "Coordinator": [
+              "tester"
+            ]
+          },
+          "dbid": 0,
+          "properties": {
+            "ccm:rating_value": "5.0",
+            "cm:modified": 1672527600000
+          },
+          "txnId": 0
+        }
+      ],
+      "nodeRef": {
+        "storeRef": {
+          "identifier": "SpacesStore",
+          "protocol": "workspace"
+        },
+        "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+      },
+      "fullpath": "",
+      "permissions": {
+        "read": [
+          "tester"
+        ],
+        "Coordinator": [
+          "tester"
+        ]
+      },
+      "dbid": 654321,
+      "properties": {
+        "ccm:mediacenter": [
+          {
+            "name": "GROUP_MEDIA_CENTER_001",
+            "activated": "true"
+          }
+        ],
+        "cm:name": "Test",
+        "ccm:lifecyclecontributer_author": [
+          "BEGIN:VCARD\nVERSION:3.0\nN:Lastname;Firstname\nFN:Firstname Lastname\nORG:CompanyName\nTITLE:JobTitle\nADR:;;123 Sesame St;SomeCity;CA;12345;USA\nTEL;WORK;VOICE:1234567890\nTEL;CELL:Mobile\nTEL;FAX:\nEMAIL;WORK;INTERNET:foo@email.com\nURL:http://website.com\nEND:VCARD"
+        ],
+        "ccm:mediacenter_sort": {
+          "GROUP_MEDIA_CENTER_001": {
+            "activated": "true"
+          }
+        },
+        "cclom:general_keyword": "",
+        "cm:content": {
+          "size": "1337",
+          "contentId": "contentId",
+          "mimetype": "mimetype",
+          "encoding": "encoding",
+          "locale": "locale"
+        },
+        "cclom:learningresourcetype": "LRT_TEST",
+        "sys:node-uuid": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+      },
+      "txnId": 4321
+    }
+  ],
+  "nodeRef": {
+    "storeRef": {
+      "identifier": "SpacesStore",
+      "protocol": "workspace"
+    },
+    "id": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+  },
+  "fullpath": "",
+  "permissions": {
+    "read": [
+      "tester"
+    ],
+    "Coordinator": [
+      "tester"
+    ]
+  },
+  "dbid": 654321,
+  "properties": {
+    "ccm:mediacenter": [
+      {
+        "name": "GROUP_MEDIA_CENTER_001",
+        "activated": "true"
+      }
+    ],
+    "cm:name": "Test",
+    "ccm:lifecyclecontributer_author": [
+      "BEGIN:VCARD\nVERSION:3.0\nN:Lastname;Firstname\nFN:Firstname Lastname\nORG:CompanyName\nTITLE:JobTitle\nADR:;;123 Sesame St;SomeCity;CA;12345;USA\nTEL;WORK;VOICE:1234567890\nTEL;CELL:Mobile\nTEL;FAX:\nEMAIL;WORK;INTERNET:foo@email.com\nURL:http://website.com\nEND:VCARD"
+    ],
+    "ccm:mediacenter_sort": {
+      "GROUP_MEDIA_CENTER_001": {
+        "activated": "true"
+      }
+    },
+    "cclom:general_keyword": "",
+    "cm:content": {
+      "size": "1337",
+      "contentId": "contentId",
+      "mimetype": "mimetype",
+      "encoding": "encoding",
+      "locale": "locale"
+    },
+    "cclom:learningresourcetype": "LRT_TEST",
+    "sys:node-uuid": "0192f8a9-374d-41f3-9025-83e8f75c8717"
+  },
+  "txnId": 4321
+}
