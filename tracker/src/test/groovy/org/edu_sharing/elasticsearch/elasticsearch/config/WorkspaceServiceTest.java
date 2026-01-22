@@ -107,7 +107,6 @@ class WorkspaceServiceTest {
         assertEquals(expected, actual);
     }
 
-    @Disabled("Temporarily disabled due to result is different than data")
     @Test
     void indexCollectionsTest() throws Exception {
         //assertThrows(IOException.class, () -> underTest.indexCollections(getNodeDataDummy(NodeData.class).getNodeMetadata()), "wrong type:ccm:io");
@@ -143,7 +142,7 @@ class WorkspaceServiceTest {
                 .when(hit)
                 .source();
 
-        when(alfrescoClient.getNodeData(ArgumentMatchers.anyList())).thenReturn(Collections.singletonList(getNodeDataDummy(NodeData.class)));
+      //  when(alfrescoClient.getNodeData(ArgumentMatchers.anyList())).thenReturn(Collections.singletonList(getNodeDataDummy(NodeData.class)));
         Mockito.doReturn(HitsMetadata.of((HitsMetadata.Builder<Map> b) -> b.total(t -> t.value(1).relation(TotalHitsRelation.Eq)).hits(hit))).when(underTest).search(ArgumentMatchers.any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
         UpdateResponse<?> response = Mockito.mock(UpdateResponse.class);
         Mockito.doReturn(response).when(underTest).update(ArgumentMatchers.anyLong(), ArgumentMatchers.any(Map.class));
