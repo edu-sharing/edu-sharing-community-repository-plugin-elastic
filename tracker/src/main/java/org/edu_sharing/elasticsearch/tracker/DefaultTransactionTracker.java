@@ -1,5 +1,6 @@
 package org.edu_sharing.elasticsearch.tracker;
 
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import io.micrometer.core.instrument.util.StringUtils;
 import lombok.Setter;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
@@ -110,8 +111,32 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
     private void updateNodes(List<NodeData> toIndex) throws IOException {
         Collection<List<NodeData>> partitioned = Partition.getPartitions(toIndex, bulkSizeElastic);
+        int pIdx = 0;
         for (List<NodeData> p : partitioned) {
-            workspaceService.index(p);
+            logger.info("starting partition " + pIdx);
+            List<IOException> ioExceptions = new ArrayList<>();
+            List<BulkOperation> operations = new ArrayList<>();
+            for (NodeData nodeData : p) {
+                threadPool.execute(() -> {
+                    try{
+                        workspaceService.addBulkOperation(nodeData, operations);
+                    }catch (IOException e){
+                        logger.error(e.getMessage(), e);
+                        ioExceptions.add(e);
+                    }
+
+                });
+            }
+            if (!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)) {
+                logger.error("Fatal error while processing nodes: timeout of prepare bulk operations for metadata index");
+                logger.error(p.stream().map(n -> n.getNodeMetadata().getNodeRef()).collect(Collectors.joining(", ")));
+            }
+            if(!ioExceptions.isEmpty()){
+                throw ioExceptions.get(0);
+            }
+            workspaceService.index(operations);
+            logger.info("finished partition " + pIdx);
+            pIdx++;
         }
     }
 

@@ -149,49 +149,8 @@ public class WorkspaceService {
     }
 
 
-    public void index(List<NodeData> nodes) throws IOException {
-        logger.info("starting bulk index for {}", nodes.size());
-
-        // TODO Missing required property 'BulkRequest.operations'
-        boolean useBulkUpdate = true;
-
-        List<BulkOperation> operations = new ArrayList<>();
-        for (NodeData nodeData : nodes) {
-            NodeMetadata node = nodeData.getNodeMetadata();
-            // check if a formally moved node was moved again
-            if(nodeData.getNodeMetadata().getAspects().contains("sys:cascadeUpdate")){
-                HitsMetadata<ElasticNode> hits =  search(QueryBuilders.ids(i -> i.values(Long.toString(nodeData.getNodeMetadata().getId()))),
-                        0,
-                        1,
-                        null,
-                        ElasticNode.class);
-                if(hits != null && !hits.hits().isEmpty()){
-                    String cascadeTx = (String)hits.hits().get(0).source().getProperties().get(CascadeTracker.propCascadeTx);
-                    if(cascadeTx != null){
-                        if(Long.parseLong(cascadeTx) < Long.parseLong((String)nodeData.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName(CascadeTracker.propCascadeTx)))){
-                           nodeData.setRefreshPath(true);
-                        }
-                    }
-                }
-            }
-            DataBuilder builder = new DataBuilder();
-            fillData(nodeData, builder);
-            Object data = builder.build();
-            operations.add(BulkOperation.of(op -> op.update(iop -> iop
-                    .index(index)
-                    .id(Long.toString(node.getId()))
-                    .action(a -> a
-                            .doc(data)
-                            .docAsUpsert(true))
-            )));
-
-            if (nodeCounter.addAndGet(1) % 100 == 0) {
-                logger.info("Processed " + nodeCounter.get() + " nodes (" + (System.currentTimeMillis() - lastNodeCount.get()) + "ms per last 100 nodes)");
-                lastNodeCount.set(System.currentTimeMillis());
-            }
-        }
-
-        if (useBulkUpdate && !operations.isEmpty()) {
+    public void index(List<BulkOperation> operations) throws IOException {
+        if (!operations.isEmpty()) {
             logger.info("starting bulk update:");
             BulkResponse bulkResponse = client.bulk(req -> req.index(index).operations(operations));
             logger.info("finished bulk update:");
@@ -199,11 +158,44 @@ public class WorkspaceService {
                 if (item.error() != null) {
                     logger.error("Failed indexing of " + item.id());
                     logger.error("Failed indexing of " + item.error().causedBy());
-
                 }
             }
         }
-        logger.debug("returning");
+    }
+
+    public void addBulkOperation(NodeData nodeData, List<BulkOperation> operations) throws IOException {
+        NodeMetadata node = nodeData.getNodeMetadata();
+        // check if a formally moved node was moved again
+        if(nodeData.getNodeMetadata().getAspects().contains("sys:cascadeUpdate")){
+            HitsMetadata<ElasticNode> hits =  search(QueryBuilders.ids(i -> i.values(Long.toString(nodeData.getNodeMetadata().getId()))),
+                    0,
+                    1,
+                    null,
+                    ElasticNode.class);
+            if(hits != null && !hits.hits().isEmpty()){
+                String cascadeTx = (String)hits.hits().get(0).source().getProperties().get(CascadeTracker.propCascadeTx);
+                if(cascadeTx != null){
+                    if(Long.parseLong(cascadeTx) < Long.parseLong((String) nodeData.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName(CascadeTracker.propCascadeTx)))){
+                       nodeData.setRefreshPath(true);
+                    }
+                }
+            }
+        }
+        DataBuilder builder = new DataBuilder();
+        fillData(nodeData, builder);
+        Object data = builder.build();
+        operations.add(BulkOperation.of(op -> op.update(iop -> iop
+                .index(index)
+                .id(Long.toString(node.getId()))
+                .action(a -> a
+                        .doc(data)
+                        .docAsUpsert(true))
+        )));
+
+        if (nodeCounter.addAndGet(1) % 100 == 0) {
+            logger.info("Processed " + nodeCounter.get() + " nodes (" + (System.currentTimeMillis() - lastNodeCount.get()) + "ms per last 100 nodes)");
+            lastNodeCount.set(System.currentTimeMillis());
+        }
     }
 
     public void fillData(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
