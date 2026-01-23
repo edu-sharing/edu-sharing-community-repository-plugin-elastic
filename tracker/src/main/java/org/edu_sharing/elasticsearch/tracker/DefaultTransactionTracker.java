@@ -101,7 +101,9 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         logger.info("index user nodes size:" + toIndexNodes.size());
         updateNodes(toIndexNodes);
         // refresh index so that collections will be found by cacheCollections process
+        logger.info("starting refresh index");
         workspaceService.refreshWorkspace();
+        logger.info("finished refresh index");
     }
 
 

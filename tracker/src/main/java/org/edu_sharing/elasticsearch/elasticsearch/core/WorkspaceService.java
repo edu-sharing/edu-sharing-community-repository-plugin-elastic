@@ -195,8 +195,6 @@ public class WorkspaceService {
             logger.info("starting bulk update:");
             BulkResponse bulkResponse = client.bulk(req -> req.index(index).operations(operations));
             logger.info("finished bulk update:");
-            this.refreshWorkspace();
-            logger.info("finished refresh index");
             for (BulkResponseItem item : bulkResponse.items()) {
                 if (item.error() != null) {
                     logger.error("Failed indexing of " + item.id());
