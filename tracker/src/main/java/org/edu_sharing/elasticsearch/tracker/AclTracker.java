@@ -148,7 +148,7 @@ public class AclTracker {
             MetricContextHolder.getAclContext().getTimestamp().set(lastFromCommitTime);
             DecimalFormat df = new DecimalFormat("0.00");
             logger.info("finished " + df.format(percentage) + "% lastACLChangeSetId:" + lastAclChangeSet.getId() +" maxChangeSetId:" + aclChangeSets.getMaxChangeSetId());
-            return false;
+            return true;
 
         }catch (IOException e) {
             logger.error(e.getMessage(), e);
