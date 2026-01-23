@@ -58,6 +58,13 @@ public class AuthoritiesTracker extends DefaultTransactionTracker{
         }
     }
 
+    public void indexNodes(List<Node> nodes) throws IOException {
+        log.info("getNodeMetadata start " + nodes.size());
+        List<NodeMetadata> nodeData = alfClient.getNodeMetadata(nodes);
+        log.info("getNodeMetadata done " + nodeData.size());
+        indexNodesMetadata(nodeData);
+    }
+
     public void indexNodesMetadata(List<NodeMetadata> nodeData) throws IOException {
         Map<Boolean, List<NodeMetadata>> partitioned = nodeData.stream()
                 .collect(Collectors.partitioningBy(

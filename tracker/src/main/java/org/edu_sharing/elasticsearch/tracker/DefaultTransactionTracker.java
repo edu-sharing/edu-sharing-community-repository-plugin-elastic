@@ -79,18 +79,18 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         //some transactions can have a lot of Nodes which can cause trouble on alfresco so use partitioning
         Collection<List<Node>> partitions = Partition.getPartitions(nodes, fetchSizeAlfresco);
 
-        int pIdx = 0;
+        logger.info("getNodeMetadata start. partitions: {}",partitions.size());
+        List<NodeMetadata> nodeData = new ArrayList<>();
         for (List<Node> partition : partitions) {
-            logger.info("indexNodes partition " + pIdx);
-            indexNodes(partition);
-            pIdx++;
+            threadPool.execute(() -> {
+                nodeData.addAll(alfClient.getNodeMetadata(partition));
+            });
         }
-    }
-
-    public void indexNodes(List<Node> nodes) throws IOException {
-        logger.info("getNodeMetadata start " + nodes.size());
-        List<NodeMetadata> nodeData = alfClient.getNodeMetadata(nodes);
-        logger.info("getNodeMetadata done " + nodeData.size());
+        if (!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)) {
+            logger.error("Fatal error while processing nodes: alfClient.getNodeMetadata");
+            throw new RuntimeException("Fatal error while processing nodes");
+        }
+        logger.info("getNodeMetadata done. partitions: {}",partitions.size());
         indexNodesMetadata(nodeData);
     }
 
