@@ -81,15 +81,11 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
         logger.info("getNodeMetadata start. partitions: {}",partitions.size());
         List<NodeMetadata> nodeData = new ArrayList<>();
-        for (List<Node> partition : partitions) {
-            threadPool.execute(() -> {
-                nodeData.addAll(alfClient.getNodeMetadata(partition));
-            });
-        }
-        if (!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)) {
-            logger.error("Fatal error while processing nodes: alfClient.getNodeMetadata");
-            throw new RuntimeException("Fatal error while processing nodes");
-        }
+        runThreaded(
+                partitions.stream().toList(),
+                p -> nodeData.addAll(alfClient.getNodeMetadata(p)),
+                true,
+                true);
         logger.info("getNodeMetadata done. partitions: {}",partitions.size());
         indexNodesMetadata(nodeData);
     }
@@ -112,28 +108,14 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     private void updateNodes(List<NodeData> toIndex) throws IOException {
         Collection<List<NodeData>> partitioned = Partition.getPartitions(toIndex, bulkSizeElastic);
         int pIdx = 0;
+
+        List<BulkOperation> operations = new ArrayList<>();
         for (List<NodeData> p : partitioned) {
             logger.info("starting partition " + pIdx);
-            List<IOException> ioExceptions = new ArrayList<>();
-            List<BulkOperation> operations = new ArrayList<>();
-            for (NodeData nodeData : p) {
-                threadPool.execute(() -> {
-                    try{
-                        workspaceService.addBulkOperation(nodeData, operations);
-                    }catch (IOException e){
-                        logger.error(e.getMessage(), e);
-                        ioExceptions.add(e);
-                    }
-
-                });
-            }
-            if (!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)) {
-                logger.error("Fatal error while processing nodes: timeout of prepare bulk operations for metadata index");
-                logger.error(p.stream().map(n -> n.getNodeMetadata().getNodeRef()).collect(Collectors.joining(", ")));
-            }
-            if(!ioExceptions.isEmpty()){
-                throw ioExceptions.get(0);
-            }
+            runThreaded(p,
+                    nodes -> workspaceService.addBulkOperation(nodes, operations),
+                    true,
+                    true);
             workspaceService.index(operations);
             logger.info("finished partition " + pIdx);
             pIdx++;
@@ -181,20 +163,12 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         }
 
         List<NodeData> toIndex = alfClient.getNodeData(toIndexMd);
-        for (NodeData data : toIndex) {
-            if (data.getNodeMetadata().getNodeRef().startsWith(CCConstants.ARCHIVE_STOREREF)) {
-                //skipping preview and valuespace translation for archived nodes
-                continue;
-            }
-            threadPool.execute(() -> {
-                eduSharingClient.translateValuespaceProps(data);
-            });
-        }
-
-        if (!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)) {
-            logger.error("Fatal error while processing nodes: timeout of preview and transform processing");
-            logger.error(nodeData.stream().map(NodeMetadata::getNodeRef).collect(Collectors.joining(", ")));
-        }
+        //skipping preview and valuespace translation for archived nodes
+        List<NodeData> toTranslate = toIndex.stream().filter(n -> !n.getNodeMetadata().getNodeRef().startsWith(CCConstants.ARCHIVE_STOREREF)).toList();
+        runThreaded(toTranslate,
+                n -> eduSharingClient.translateValuespaceProps(n),
+                false,
+                false);
         return toIndex;
     }
     public List<NodeMetadata> filterByNodeTypes(List<NodeMetadata> nodeData, String... types ) {
@@ -211,3 +185,4 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         return true;
     }
 }
+

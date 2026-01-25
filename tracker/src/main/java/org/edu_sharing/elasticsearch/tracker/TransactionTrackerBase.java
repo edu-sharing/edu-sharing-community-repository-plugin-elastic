@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
-import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
@@ -15,12 +14,10 @@ import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import org.edu_sharing.repository.client.tools.CCConstants;
+import org.springframework.util.function.ThrowingConsumer;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -270,4 +267,33 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     }
 
     public abstract void trackNodes(List<Node> nodes) throws IOException;
+
+
+    public <T> void runThreaded(List<T> data, ThrowingConsumer<T> worker, boolean throwOnTimeout, boolean reThrow) throws IOException {
+        List<Throwable> errors = new ArrayList<>();
+        for(T d : data){
+            threadPool.execute(() -> {
+                try{
+                    worker.acceptWithException(d);
+                }catch (Throwable e) {
+                    errors.add(e);
+                }
+            });
+        }
+        if (!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)) {
+            String msg = "Fatal error while processing data: timeout";
+            log.error(msg);
+            if(throwOnTimeout) throw new RuntimeException(msg);
+        }
+        if(!errors.isEmpty()){
+            log.error("Fatal error while processing data: {}", errors);
+            if(reThrow){
+                if(errors.get(0) instanceof IOException){
+                    throw (IOException) errors.get(0);
+                }else{
+                    throw new RuntimeException(errors.get(0));
+                }
+            }
+        }
+    }
 }
