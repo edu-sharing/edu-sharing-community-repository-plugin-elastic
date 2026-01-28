@@ -14,10 +14,7 @@ import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 //@Primary
@@ -81,7 +78,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         Collection<List<Node>> partitions = Partition.getPartitions(nodes, fetchSizeAlfresco);
 
         logger.info("getNodeMetadata start. partitions: {}",partitions.size());
-        List<NodeMetadata> nodeData = new ArrayList<>();
+        List<NodeMetadata> nodeData = Collections.synchronizedList(new ArrayList<>());
         runThreaded(
                 partitions.stream().toList(),
                 p -> nodeData.addAll(alfClient.getNodeMetadata(p)),
@@ -110,8 +107,9 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         Collection<List<NodeData>> partitioned = Partition.getPartitions(toIndex, bulkSizeElastic);
         int pIdx = 0;
 
-        List<BulkOperation> operations = new ArrayList<>();
+
         for (List<NodeData> p : partitioned) {
+            List<BulkOperation> operations = Collections.synchronizedList(new ArrayList<>());
             logger.info("starting partition: {}, partitionSize: {}",pIdx, p.size());
             runThreaded(p,
                     nodes -> workspaceService.addBulkOperation(nodes, operations),
@@ -166,7 +164,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
         List<NodeData> toIndex = alfClient.getNodeData(toIndexMd);
         //skipping preview and valuespace translation for archived nodes
-        List<NodeData> toTranslate = toIndex.stream().filter(n -> !n.getNodeMetadata().getNodeRef().startsWith(CCConstants.ARCHIVE_STOREREF)).toList();
+        List<NodeData> toTranslate = Collections.synchronizedList(toIndex.stream().filter(n -> !n.getNodeMetadata().getNodeRef().startsWith(CCConstants.ARCHIVE_STOREREF)).toList());
         runThreaded(toTranslate,
                 n -> eduSharingClient.translateValuespaceProps(n),
                 false,
