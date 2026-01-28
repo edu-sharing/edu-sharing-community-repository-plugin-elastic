@@ -7,7 +7,6 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
-import co.elastic.clients.elasticsearch.core.bulk.OperationType;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.elasticsearch.core.search.ResponseBody;
@@ -32,7 +31,6 @@ import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.elasticsearch.core.model.ElasticNode;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.utils.NodeMetadataSimple;
-import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.CascadeTracker;
@@ -56,8 +54,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
 
 @Component
 public class WorkspaceService {
@@ -153,7 +149,7 @@ public class WorkspaceService {
         if (!operations.isEmpty()) {
             logger.info("starting bulk update:");
             BulkResponse bulkResponse = client.bulk(req -> req.index(index).operations(operations));
-            logger.info("finished bulk update:");
+            logger.info("finished bulkBulkOperations:{}",bulkResponse.items().size());
             for (BulkResponseItem item : bulkResponse.items()) {
                 if (item.error() != null) {
                     logger.error("Failed indexing of " + item.id());

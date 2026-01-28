@@ -1,22 +1,23 @@
 package org.edu_sharing.elasticsearch.tracker;
 
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
-import io.micrometer.core.instrument.util.StringUtils;
 import lombok.Setter;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
-import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 
 //@Primary
@@ -86,7 +87,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
                 p -> nodeData.addAll(alfClient.getNodeMetadata(p)),
                 true,
                 true);
-        logger.info("getNodeMetadata done. partitions: {}",partitions.size());
+        logger.info("getNodeMetadata done. partitions: {} nodeMetadata: {}",partitions.size(), nodeData.size());
         indexNodesMetadata(nodeData);
     }
 
@@ -111,11 +112,12 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
         List<BulkOperation> operations = new ArrayList<>();
         for (List<NodeData> p : partitioned) {
-            logger.info("starting partition " + pIdx);
+            logger.info("starting partition: {}, partitionSize: {}",pIdx, p.size());
             runThreaded(p,
                     nodes -> workspaceService.addBulkOperation(nodes, operations),
                     true,
                     true);
+            logger.info("index bulkOperations: {}",operations.size());
             workspaceService.index(operations);
             logger.info("finished partition " + pIdx);
             pIdx++;
@@ -176,7 +178,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     }
 
     public boolean isAllowedType(NodeMetadata nodeMetadata) {
-        if (StringUtils.isNotBlank(workspaceTypes)) {
+        if (StringUtils.hasText(workspaceTypes)) {
             String[] allowedTypesArray = workspaceTypes.split(",");
             String type = nodeMetadata.getType();
 
