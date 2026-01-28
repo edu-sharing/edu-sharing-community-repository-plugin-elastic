@@ -153,7 +153,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
 
             if(!isAllowedType(data)){
-                logger.debug("ignoring type:" + data.getType());
+                logger.info("ignoring type:" + data.getType());
                 continue;
             }
 
