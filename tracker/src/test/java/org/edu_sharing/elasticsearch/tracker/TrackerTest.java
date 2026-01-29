@@ -22,7 +22,7 @@ import static org.mockito.Mockito.doNothing;
 @Slf4j
 public class TrackerTest {
 
-    Transactions data;
+
 
     MaxCommitTimeStrategy strategy;
 
@@ -30,23 +30,24 @@ public class TrackerTest {
     private EduSharingClient eduSharingClient;
 
     @InjectMocks
-    DefaultTransactionTracker tracker;
+    DefaultTransactionTrackerTest tracker;
 
 
     @BeforeEach
     void setUp() throws Exception {
-        // Daten laden
-        data = TestUtil.loadTransactions("transactionsTest.json");
+
 
         // Tracker konfigurieren
-        tracker.setAlfClient(new AlfrescoApiMock(data));
-        strategy = new MaxCommitTimeStrategy(1744362767224L);
-        tracker.setTrackerStrategy(strategy);
         tracker.setTransactionStateService(new StatusIndexServiceMock());
     }
 
     @Test
-    public void testGetSomeTransactions() {
+    public void testGetSomeTransactions() throws Exception {
+        Transactions data = TestUtil.loadTransactions("transactionsTest.json");
+        tracker.setAlfClient(new AlfrescoApiMock(data));
+        strategy = new MaxCommitTimeStrategy(1744362767224L);
+        tracker.setTrackerStrategy(strategy);
+
         long limit = strategy.getLimit() + 1;
         long fromCommitTime = 0L;
         long timeStep = tracker.getTimeStep();
@@ -77,7 +78,12 @@ public class TrackerTest {
     }
 
     @Test
-    public void testTrack() {
+    public void testTrack() throws Exception {
+        Transactions data = TestUtil.loadTransactions("transactionsTest.json");
+        tracker.setAlfClient(new AlfrescoApiMock(data));
+        strategy = new MaxCommitTimeStrategy(1744362767224L);
+        tracker.setTrackerStrategy(strategy);
+
         doNothing().when(eduSharingClient).refreshValuespaceCache();
         TransactionTracker.State state;
         do{
@@ -88,5 +94,12 @@ public class TrackerTest {
 
         long txnCommitTime = ((StatusIndexServiceMock)tracker.getTransactionStateService()).getState().getTxnCommitTime(); ;
         assertThat(txnCommitTime).isEqualTo(strategy.getLimit());
+
+        assertThat(tracker.getAllTransactionIds())
+                .containsExactlyElementsOf(
+                        data.getTransactions().stream()
+                                .map(Transaction::getId)
+                                .toList()
+                );
     }
 }

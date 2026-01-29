@@ -125,7 +125,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             if(lastTransactionTimestamp > 0) {
                 long fromCommitTimeMs = lastTransactionTimestamp + 1;
                 long endTime = trackerStrategy.getLimit() != null ? trackerStrategy.getLimit() : alfClient.getTransactions(0L,1L,null,null,1).getMaxTxnCommitTime();
-                // select_Txns ibatis template does < #{toCommitTimeExclusive} but we want it to be included
+                // solr-common-SqlMap.xml select_Txns ibatis template does < #{toCommitTimeExclusive} but we want it to be included
                 endTime += 1;
                 transactions = getSomeTransactions(fromCommitTimeMs,timeStep,numberOfTransactions,endTime);
             } else {
@@ -265,7 +265,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
         transactionStateService.setState(tx);
     }
 
-    private Double calcProgress(Transactions transactions, List<Long> transactionIds) {
+    protected Double calcProgress(Transactions transactions, List<Long> transactionIds) {
         Long last = transactionIds.get(transactionIds.size() - 1);
         return (double) last / (double) transactions.getMaxTxnId() * 100.0d;
     }
