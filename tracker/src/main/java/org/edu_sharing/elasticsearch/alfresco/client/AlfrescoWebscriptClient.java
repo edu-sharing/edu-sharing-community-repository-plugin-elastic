@@ -445,7 +445,9 @@ public class AlfrescoWebscriptClient {
     }
 
     public Acls getAcls(GetAclsParam param) {
-        String url = getUrl(URL_ACLS);
+        // prevent maxResults to be cut by the default value of alfresco
+        // see AclsGet: int maxResults = maxResultsParam == null ? 1024 : Integer.valueOf(maxResultsParam);
+        String url = getUrl(URL_ACLS + "?maxResults=" + Integer.MAX_VALUE);
 
         return client.target(url)
                 .request(MediaType.APPLICATION_JSON)
