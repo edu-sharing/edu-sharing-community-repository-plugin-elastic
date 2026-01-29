@@ -79,9 +79,13 @@ public class TrackerTest {
 
     @Test
     public void testTrack() throws Exception {
-        Transactions data = TestUtil.loadTransactions("transactionsTest.json");
+        testTrack("transactionsTest.json",1744362767224L);
+    }
+
+    public void testTrack(String testData, long maxCommitTime) throws Exception {
+        Transactions data = TestUtil.loadTransactions(testData);
         tracker.setAlfClient(new AlfrescoApiMock(data));
-        strategy = new MaxCommitTimeStrategy(1744362767224L);
+        strategy = new MaxCommitTimeStrategy(maxCommitTime);
         tracker.setTrackerStrategy(strategy);
 
         doNothing().when(eduSharingClient).refreshValuespaceCache();
@@ -101,5 +105,13 @@ public class TrackerTest {
                                 .map(Transaction::getId)
                                 .toList()
                 );
+    }
+
+    @Test
+    public void testTrackMultipleCommitTimesForSameTx() throws Exception {
+        //14277451 -> missing
+        //1764250670277 duplicate commit time
+        tracker.setNumberOfTransactions(500);
+        testTrack("transactionsTest2.json",1764257439907L);
     }
 }
