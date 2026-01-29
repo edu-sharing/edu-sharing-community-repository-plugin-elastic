@@ -123,11 +123,19 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             long nextTransactionId = lastTransactionId + 1;
             Transactions transactions;
             if(lastTransactionTimestamp > 0) {
-                long fromCommitTimeMs = lastTransactionTimestamp + 1;
                 long endTime = trackerStrategy.getLimit() != null ? trackerStrategy.getLimit() : alfClient.getTransactions(0L,1L,null,null,1).getMaxTxnCommitTime();
                 // solr-common-SqlMap.xml select_Txns ibatis template does < #{toCommitTimeExclusive} but we want it to be included
                 endTime += 1;
-                transactions = getSomeTransactions(fromCommitTimeMs,timeStep,numberOfTransactions,endTime);
+                //check if there are txIds with the same commitTime like lastTransactionTimestamp
+                Transactions tempTxs = alfClient.getTransactions(null,null,lastTransactionTimestamp,lastTransactionTimestamp +1,numberOfTransactions);
+                tempTxs.setTransactions(tempTxs.getTransactions().stream().filter(t -> t.getId() > lastTransactionId).toList());
+                if(!tempTxs.getTransactions().isEmpty()) {
+                    log.info("found transactions with the same commitTime: {}", Arrays.toString(tempTxs.getTransactions().stream().map(Transaction::getId).toArray()));
+                    transactions = tempTxs;
+                }else{
+                    long fromCommitTimeMs = lastTransactionTimestamp + 1;
+                    transactions = getSomeTransactions(fromCommitTimeMs,timeStep,numberOfTransactions,endTime);
+                }
             } else {
                 log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
                 transactions = alfClient.getTransactions(nextTransactionId, null, null, trackerStrategy.getLimit(), numberOfTransactions);
@@ -200,9 +208,10 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             trackNodes(nodes);
 
             //remember processed transaction
-            Transaction last = transactions.getTransactions().stream().max((a, b) -> Long.compare(
-                    a.getCommitTimeMs(), b.getCommitTimeMs()
-            )).get();
+            Transaction last = transactions.getTransactions().stream().max(Comparator
+                    .comparingLong(Transaction::getCommitTimeMs)
+                    .thenComparingLong(Transaction::getId)
+            ).get();
             commit(transactionStateService, new Tx(last.getId(), last.getCommitTimeMs()));
 
             // log progress
