@@ -12,6 +12,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.edu_sharing.elasticsearch.tools.Tools;
+import org.edu_sharing.elasticsearch.tracker.strategy.StatusIndexServiceStrategie;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.util.function.ThrowingConsumer;
@@ -135,9 +136,12 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             long maxTrackerTxnId = transactions.getMaxTxnId();
 
             if (transactions.getTransactions().isEmpty()) {
-                if(metricContext != null){
-                    metricContext.getProgress().set((long) (100 * PROGRESS_FACTOR));
-                    metricContext.getTimestamp().set(System.currentTimeMillis());
+                if(metricContext != null) {
+                    boolean isBehindMainTracker = (trackerStrategy instanceof StatusIndexServiceStrategie && trackerStrategy.getLimit() < transactions.getMaxTxnCommitTime());
+                    if(!isBehindMainTracker) {
+                        metricContext.getProgress().set((long) (100 * PROGRESS_FACTOR));
+                        metricContext.getTimestamp().set(System.currentTimeMillis());
+                    }
                 }
                 if (trackerStrategy.getLimit() != null) {
                     log.info("max transaction limit by strategy reached: {} / {}", maxTrackerTxnId, trackerStrategy.getLimit());
