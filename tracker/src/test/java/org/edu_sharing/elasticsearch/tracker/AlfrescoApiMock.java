@@ -24,7 +24,8 @@ public class AlfrescoApiMock implements AlfrescoApi {
                     .toList();
         }else if(minTxnId != null){
             transactions = data.getTransactions().stream()
-                    .filter(t -> t.getId() > minTxnId)
+                    // solr-common-SqlMap.xml select_Txns fromIdInclusive
+                    .filter(t -> t.getId() >= minTxnId)
                     .limit(maxResults)
                     .toList();
         }
