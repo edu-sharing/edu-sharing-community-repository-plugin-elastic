@@ -38,7 +38,8 @@ public class ElasticIndexComparator {
 
         ElasticsearchClient client = new ElasticsearchClient(transport);
 
-        compareIndices(client, index1, index2,"ccm:io");
+        //compareIndices(client, index1, index2,"ccm:io");
+        compareIndices(client,"authorities_10.0_bak","authorities_10.0","cm:person");
 
         restClient.close();
     }
@@ -146,7 +147,9 @@ public class ElasticIndexComparator {
         System.out.println("-------------------------------------------------");
 
         missingInIndex2.forEach(id ->
-                System.out.println("Missing document ID: " + id +" "+index1Ids.get(id).get("nodeRef") + " "+ ((Map)index1Ids.get(id).get("properties")).get("ccm:editorial_state"))
-        );
+                System.out.println("Missing document ID: " + id +" "
+                        +index1Ids.get(id).get("nodeRef")));
+                        //.get("properties"))
+                        //.get("ccm:editorial_state"))
     }
 }
