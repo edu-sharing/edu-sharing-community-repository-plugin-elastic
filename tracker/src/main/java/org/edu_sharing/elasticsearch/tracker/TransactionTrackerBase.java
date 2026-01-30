@@ -65,6 +65,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
      * include node types
      * make sure to use short names like ccm:io!
      */
+    @Getter
     @Setter
     protected List<String> includeNodeTypes = null;
 
@@ -72,6 +73,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
      * exclude node types
      * make sure to use short names like ccm:io!
      */
+    @Getter
     @Setter
     protected List<String> excludeNodeTypes = null;
 

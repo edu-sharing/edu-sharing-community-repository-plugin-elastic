@@ -17,6 +17,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AppInfo;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
+import org.edu_sharing.elasticsearch.tracker.DefaultTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.TrackerServiceFactory;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
 import org.edu_sharing.repository.client.tools.CCConstants;
@@ -25,6 +26,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -426,6 +428,12 @@ public class AutoConfigurationTracker {
     @Bean
     @ConditionalOnMissingBean(name = "transactionTracker")
     public TransactionTracker transactionTracker(TrackerServiceFactory trackerServiceFactory, StatusIndexService<Tx> transactionStateService) {
-        return trackerServiceFactory.createDefaultTrackerService(transactionStateService);
+        DefaultTransactionTracker defaultTrackerService = trackerServiceFactory.createDefaultTrackerService(transactionStateService);
+        List<String> excludeNodeTypes = defaultTrackerService.getExcludeNodeTypes();
+        if(excludeNodeTypes == null) excludeNodeTypes = new ArrayList<>();
+        excludeNodeTypes.add("cm:person");
+        excludeNodeTypes.add("cm:authorityContainer");
+        defaultTrackerService.setExcludeNodeTypes(excludeNodeTypes);
+        return defaultTrackerService;
     }
 }
