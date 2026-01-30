@@ -1,11 +1,13 @@
 package org.edu_sharing.elasticsearch.tracker;
 
+import lombok.Getter;
 import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+@Getter
 public class DefaultTransactionTrackerTest extends DefaultTransactionTracker {
     List<Long> allTransactionIds = new ArrayList<>();
 
@@ -20,7 +22,4 @@ public class DefaultTransactionTrackerTest extends DefaultTransactionTracker {
         return super.calcProgress(transactions, transactionIds);
     }
 
-    public List<Long> getAllTransactionIds() {
-        return allTransactionIds;
-    }
 }

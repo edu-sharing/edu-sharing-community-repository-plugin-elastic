@@ -1,4 +1,4 @@
-package org.edu_sharing.elasticsearch.tracker;
+package org.edu_sharing.elasticsearch.tracker.mock;
 
 import org.edu_sharing.elasticsearch.alfresco.client.*;
 
