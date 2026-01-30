@@ -243,7 +243,7 @@ public class WorkspaceService {
             builder.field("owner", node.getOwner());
             builder.field("type", node.getType());
             if(!Objects.equals(objectName, "relation")) {
-                //scriptExecutor.addCustomPropertiesByScript(builder, nodeData);
+                scriptExecutor.addCustomPropertiesByScript(builder, nodeData);
             }
             //valuespaces
             if (nodeData.getValueSpaces() != null && !nodeData.getValueSpaces().isEmpty()) {
