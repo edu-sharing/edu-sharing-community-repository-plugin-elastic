@@ -1,7 +1,9 @@
 package org.edu_sharing.elasticsearch.tools;
 
 import groovy.lang.Binding;
+import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyShell;
+import groovy.lang.Script;
 import net.sourceforge.cardme.engine.VCardEngine;
 import net.sourceforge.cardme.vcard.VCard;
 import org.apache.logging.log4j.LogManager;
@@ -14,8 +16,10 @@ import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -30,7 +34,9 @@ public class ScriptExecutor {
     static Logger logger = LogManager.getLogger(ScriptExecutor.class);
     private final EduSharingClient eduSharingClient;
     private final ScriptLoaderConfiguration.ScriptLoaderService scriptLoaderService;
-    private File[] scripts = new File[0];
+    private final GroovyClassLoader groovyClassLoader = new GroovyClassLoader();
+    private Map<File, Class<? extends Script>> scriptCache = new ConcurrentHashMap<>();
+
 
     public ScriptExecutor(EduSharingClient eduSharingClient, ScriptLoaderConfiguration.ScriptLoaderService scriptLoaderService) {
         this.eduSharingClient = eduSharingClient;
@@ -42,12 +48,14 @@ public class ScriptExecutor {
         Map<String, Serializable> metadata = nodeData.getNodeMetadata().getProperties().entrySet().stream()
                 .collect(HashMap::new, (m, v) -> m.put(CCConstants.getValidLocalName(v.getKey()), v.getValue()), HashMap::putAll);
         builder.startObject("customProperties");
-        for (File script : scripts) {
+        for (File script : scriptCache.keySet()) {
             try {
 
                 Binding sharedData = getBindings(metadata, nodeData.getNodeMetadata().getAspects());
-                GroovyShell shell = new GroovyShell(sharedData);
-                Map<String, Serializable> result = (Map<String, Serializable>) shell.evaluate(script);
+                Script groovy = getScript(script);
+                groovy.setBinding(sharedData);
+
+                Map<String, Serializable> result = (Map<String, Serializable>) groovy.run();
                 if (result != null) {
                     String mds = eduSharingClient.getMdsId(nodeData);
                     for (Map.Entry<String, Serializable> entry : result.entrySet()) {
@@ -99,18 +107,24 @@ public class ScriptExecutor {
         return result;
     }
 
-    private void init() {
+    private void init(){
         try {
-            scripts = scriptLoaderService.getFiles();
+            File[] scripts = scriptLoaderService.getFiles();
             if (scripts == null) {
                 scripts = new File[0];
             }
             Arrays.sort(scripts);
-            for (File script : scripts) {
+
+            for(File script : scripts) {
+                scriptCache.put(script,groovyClassLoader.parseClass(script));
                 logger.info("Registered script: " + script.getName());
             }
         } catch (Throwable t) {
             logger.warn("Could not init scripts", t);
         }
+    }
+
+    Script getScript(File script) throws Exception {
+        return scriptCache.get(script).getDeclaredConstructor().newInstance();
     }
 }
