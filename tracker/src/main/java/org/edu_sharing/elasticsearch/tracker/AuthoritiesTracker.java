@@ -65,13 +65,13 @@ public class AuthoritiesTracker extends DefaultTransactionTracker{
         indexNodesMetadata(nodeData);
     }
 
-    public void indexNodesMetadata(List<NodeMetadata> nodeData) throws IOException {
-        Map<Boolean, List<NodeMetadata>> partitioned = nodeData.stream()
+    public void indexNodesMetadata(List<NodeMetadata> nodeMetadata) throws IOException {
+        Map<Boolean, List<NodeMetadata>> partitioned = nodeMetadata.stream()
                 .collect(Collectors.partitioningBy(
                         n -> List.of("cm:person", "cm:authorityContainer").contains(n.getType())
                 ));
 
-        nodeData = partitioned.get(true);
+        nodeMetadata = partitioned.get(true);
         List<NodeMetadata> otherNodes = partitioned.get(false);
         if(!otherNodes.isEmpty()){
             String otherNodesString = otherNodes.stream()
@@ -80,9 +80,9 @@ public class AuthoritiesTracker extends DefaultTransactionTracker{
             log.warn("no person or authority nodes:" + otherNodesString);
         }
         // authorities
-        log.info("start index Authorities/Persons:"+nodeData.size());
-        List<NodeData> toIndexAuthorities = alfClient.getNodeData(nodeData);
+        log.info("start index Authorities/Persons:"+ nodeMetadata.size());
+        List<NodeData> toIndexAuthorities = alfClient.getNodeData(nodeMetadata);
         authorityService.index(toIndexAuthorities);
-        log.info("finished index Authorities/Persons:"+nodeData.size());
+        log.info("finished index Authorities/Persons:"+ nodeMetadata.size());
     }
 }

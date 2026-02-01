@@ -7,6 +7,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -88,9 +89,20 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         indexNodesMetadata(nodeData);
     }
 
-    public void indexNodesMetadata(List<NodeMetadata> nodeData) throws IOException {
+    public void indexNodesMetadata(List<NodeMetadata> nodeMetadata) throws IOException {
+        // filter not allowed types:
+        logger.info("filter disallowed types");
+        nodeMetadata = nodeMetadata.stream()
+                .peek(d -> { if (!isAllowedType(d)) logger.info("ignoring type: {}", d.getType()); })
+                .filter(this::isAllowedType)
+                .toList();
 
-        List<NodeData> toIndexNodes = prepareNodes(nodeData);
+        logger.info("find and add nodes with subobject changes");
+        nodeMetadata = addNodesWithSubobjectChanges(nodeMetadata);
+        logger.info("transform to NodeData");
+        List<NodeData> toIndex = getNodeData(nodeMetadata);
+        logger.info("translate i18n");
+        List<NodeData> toIndexNodes = translate(toIndex);
 
         // io's, maps
         logger.info("index user nodes size:" + toIndexNodes.size());
@@ -122,7 +134,23 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         }
     }
 
-    private List<NodeData> prepareNodes(List<NodeMetadata> nodeData) throws IOException {
+    private List<NodeData> translate(List<NodeData> toIndex) throws IOException {
+        //skipping preview and valuespace translation for archived nodes
+        List<NodeData> toTranslate = Collections.synchronizedList(toIndex.stream().filter(n -> !n.getNodeMetadata().getNodeRef().startsWith(CCConstants.ARCHIVE_STOREREF)).toList());
+        runThreaded(toTranslate,
+                n -> eduSharingClient.translateValuespaceProps(n),
+                false,
+                false);
+        return toIndex;
+    }
+
+    private List<NodeData> getNodeData(List<NodeMetadata> nodeData) {
+        List<NodeData> toIndex = alfClient.getNodeData(nodeData);
+        return toIndex;
+    }
+
+    @NotNull
+    private List<NodeMetadata> addNodesWithSubobjectChanges(List<NodeMetadata> nodeData) throws IOException {
         List<NodeMetadata> toIndexMd = new ArrayList<>();
         List<Node> ioSubobjectChange = new ArrayList<>();
 
@@ -149,28 +177,15 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
                 }//else io does not exist in index
             }
 
-
-            if(!isAllowedType(data)){
-                logger.info("ignoring type:" + data.getType());
-                continue;
-            }
-
             toIndexMd.add(data);
         }
 
         if (!ioSubobjectChange.isEmpty()) {
             toIndexMd.addAll(alfClient.getNodeMetadata(ioSubobjectChange));
         }
-
-        List<NodeData> toIndex = alfClient.getNodeData(toIndexMd);
-        //skipping preview and valuespace translation for archived nodes
-        List<NodeData> toTranslate = Collections.synchronizedList(toIndex.stream().filter(n -> !n.getNodeMetadata().getNodeRef().startsWith(CCConstants.ARCHIVE_STOREREF)).toList());
-        runThreaded(toTranslate,
-                n -> eduSharingClient.translateValuespaceProps(n),
-                false,
-                false);
-        return toIndex;
+        return toIndexMd;
     }
+
     public List<NodeMetadata> filterByNodeTypes(List<NodeMetadata> nodeData, String... types ) {
         return nodeData.stream().filter(n -> Arrays.asList(types).contains(n.getType())).collect(Collectors.toList());
     }
