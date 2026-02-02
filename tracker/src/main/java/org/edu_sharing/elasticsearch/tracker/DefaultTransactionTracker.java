@@ -144,9 +144,11 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         return toIndex;
     }
 
-    private List<NodeData> getNodeData(List<NodeMetadata> nodeData) {
-        List<NodeData> toIndex = alfClient.getNodeData(nodeData);
-        return toIndex;
+    private List<NodeData> getNodeData(List<NodeMetadata> nodeMetadata) throws IOException {
+        Collection<List<NodeMetadata>> partitions = Partition.getPartitions(nodeMetadata, fetchSizeAlfresco);
+        List<NodeData> nodeData = Collections.synchronizedList(new ArrayList<>());
+        runThreaded(partitions.stream().toList(),p -> nodeData.addAll(alfClient.getNodeData(p)),true,true);
+        return nodeData;
     }
 
     @NotNull
