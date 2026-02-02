@@ -13,6 +13,7 @@ import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -74,8 +75,8 @@ public class TrackerServiceFactory {
             dtt.setFetchSizeAlfresco(fetchSizeAlfresco);
             dtt.setBulkSizeElastic(bulkSizeElastic);
         }
-        defaultTransactionTracker.setExcludeNodeTypes(excludeNodeTypes);
-        defaultTransactionTracker.setIncludeNodeTypes(includeNodeTypes);
+        defaultTransactionTracker.setExcludeNodeTypes(new ArrayList<>(excludeNodeTypes));
+        defaultTransactionTracker.setIncludeNodeTypes(new ArrayList<>(includeNodeTypes));
         defaultTransactionTracker.init();
         return defaultTransactionTracker;
     }
