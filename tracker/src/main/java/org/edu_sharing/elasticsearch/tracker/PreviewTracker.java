@@ -9,6 +9,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -20,7 +21,7 @@ public class PreviewTracker extends DefaultTransactionTracker {
 
         Collection<List<Node>> partitions = Partition.getPartitions(nodes, fetchSizeAlfresco);
         for (List<Node> partition : partitions) {
-            List<BulkOperation> updates = new ArrayList<>();
+            List<BulkOperation> updates = Collections.synchronizedList(new ArrayList<>());
             for (Node node : partition) {
                 threadPool.execute(() -> {
                     NodePreview previewData = eduSharingClient.getPreviewDataByNodeRef(node.getNodeRef());
