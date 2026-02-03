@@ -2,10 +2,15 @@ package org.edu_sharing.elasticsearch.elasticsearch.config.mode;
 
 import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
+import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.WaitForMigrationJob;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.RelationTx;
 import org.edu_sharing.elasticsearch.jobs.*;
 import org.edu_sharing.elasticsearch.tracker.*;
+import org.edu_sharing.elasticsearch.tracker.generic.GenericTimebaseTracker;
+import org.edu_sharing.elasticsearch.tracker.generic.GenericTimebaseTrackerFactory;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.RelationData;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +45,14 @@ public class DefaultConfiguration {
     @ConditionalOnProperty(prefix = "userActivities", name = "enabled", havingValue = "true")
     public UserActivityTrackerJob userActivitiesTrackerJob(UserActivityTracker userActivityTracker, TrackerAvailabilityTickService tickService){
         return new UserActivityTrackerJob(userActivityTracker, tickService);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "relations", name = "enabled", havingValue = "true")
+    public RelationDataTrackerJob relationDataTrackerJob(RelationDataTrackingSupportFactory relationDataTrackingSupportFactory, GenericTimebaseTrackerFactory genericTimebaseTrackerFactory, StatusIndexService<RelationTx> relationTxStatusIndexService, TrackerAvailabilityTickService tickService){
+        GenericTimebaseTracker<RelationData, RelationTx> relationDataTracker = genericTimebaseTrackerFactory.createTracker(relationTxStatusIndexService);
+        relationDataTracker.addTrackingSupport(relationDataTrackingSupportFactory.getTrackingSupport());
+        return new RelationDataTrackerJob(relationDataTracker, tickService);
     }
 
     @Bean

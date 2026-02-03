@@ -30,11 +30,13 @@ import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.model.ElasticNode;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
+import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilderSerializer;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.utils.NodeMetadataSimple;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.CascadeTracker;
 import org.edu_sharing.elasticsearch.tracker.Partition;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.RelationData;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.ShareInfo;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.UserNodeActivity;
 import org.edu_sharing.repository.client.tools.CCConstants;
@@ -105,6 +107,124 @@ public class WorkspaceService {
                 .script(scr -> scr
                         .source("ctx._source.permissions=params")
                         .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x -> JsonData.of(x.getValue())))))
+        );
+
+        logger.debug("updated: {}", bulkByScrollResponse.updated());
+        List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
+        for (BulkIndexByScrollFailure failure : bulkFailures) {
+            logger.error(failure.cause().toString(), failure.cause());
+        }
+    }
+
+    public void updateNodesWithRelations(final String nodeId, final List<RelationData> relationData) throws IOException {
+        // language=painless
+        final String SCRIPT_UPDATE_RELATIONS_BY_KEY = """
+                if (ctx._source.relations == null) {
+                    ctx._source.relations = new ArrayList();
+                }
+                
+                for (def incoming : params.relations) {
+                  boolean updated = false;
+                
+                  for (int i = 0; i < ctx._source.relations.size(); i++) {
+                    def existing = ctx._source.relations.get(i);
+                
+                    if (existing != null
+                        && existing.fromNode == incoming.fromNode
+                        && existing.toNode == incoming.toNode
+                        && existing.type == incoming.type) {
+                
+                      // Replace the whole relation object (or change to partial field updates if desired)
+                      ctx._source.relations.set(i, incoming);
+                      updated = true;
+                      break;
+                    }
+                  }
+                
+                  if (!updated) {
+                    ctx._source.relations.add(incoming);
+                  }
+                }
+                """;
+
+        UpdateByQueryResponse bulkByScrollResponse = client.updateByQuery(req -> req
+                .index(index)
+                .query(q -> q.bool(b -> b
+                        .should(s -> s.term(t -> t.field("_id").value(nodeId)))
+                        .should(s -> s.bool(b2 -> b2
+                                .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
+                                .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
+                        ))))
+                .conflicts(Conflicts.Proceed)
+                .refresh(true)
+                .script(src -> src
+                        .source(SCRIPT_UPDATE_RELATIONS_BY_KEY)
+                        .params("relations", JsonData.of(relationData)))
+        );
+
+        logger.debug("updated: {}", bulkByScrollResponse.updated());
+        List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
+        for (BulkIndexByScrollFailure failure : bulkFailures) {
+            logger.error(failure.cause().toString(), failure.cause());
+        }
+    }
+
+    public void removeRelationsFromNodes(final String nodeId, final List<RelationData> relationData) throws IOException {
+        // language=painless
+        final String SCRIPT_REMOVE_RELATIONS_BY_KEY = """
+                if (ctx._source.relations == null || ctx._source.relations.size() == 0) {
+                  ctx.op = 'noop';
+                  return;
+                }
+                
+                boolean changed = false;
+                
+                // remove all existing relations that match any relation in params.relations
+                for (int i = ctx._source.relations.size() - 1; i >= 0; i--) {
+                  def existing = ctx._source.relations.get(i);
+                  if (existing == null) {
+                    continue;
+                  }
+                
+                  boolean shouldRemove = false;
+                
+                  for (def incoming : params.relations) {
+                    if (incoming == null) {
+                      continue;
+                    }
+                
+                    if (existing.fromNode == incoming.fromNode
+                        && existing.toNode == incoming.toNode
+                        && existing.type == incoming.type) {
+                      shouldRemove = true;
+                      break;
+                    }
+                  }
+                
+                  if (shouldRemove) {
+                    ctx._source.relations.remove(i);
+                    changed = true;
+                  }
+                }
+                
+                if (!changed) {
+                  ctx.op = 'noop';
+                }
+                """;
+
+        UpdateByQueryResponse bulkByScrollResponse = client.updateByQuery(req -> req
+                .index(index)
+                .query(q -> q.bool(b -> b
+                        .should(s -> s.term(t -> t.field("id").value(nodeId)))
+                        .should(s -> s.bool(b2 -> b2
+                                .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
+                                .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
+                        ))))
+                .conflicts(Conflicts.Proceed)
+                .refresh(true)
+                .script(src -> src
+                        .source(SCRIPT_REMOVE_RELATIONS_BY_KEY)
+                        .params("relations", JsonData.of(relationData)))
         );
 
         logger.debug("updated: {}", bulkByScrollResponse.updated());
@@ -1255,7 +1375,7 @@ public class WorkspaceService {
      * @param nodeRefs a list of node reference strings representing the nodes whose property values are to be retrieved.
      * @param property the name of the property whose value should be extracted from the source data.
      * @return a map where the key is the node reference ID and the value is the Serializable value of the specified property
-     *         for that node. The map will not include entries for nodes where the specified property is null or absent.
+     * for that node. The map will not include entries for nodes where the specified property is null or absent.
      * @throws IOException if an error occurs during the retrieval process.
      */
     public Map<String, Serializable> getProperty(List<String> nodeRefs, String property) throws IOException {
@@ -1276,7 +1396,7 @@ public class WorkspaceService {
      *
      * @param nodeRefs a list of node reference strings representing the nodes whose source data is to be retrieved.
      * @return a map where the key is the node reference ID and the value is a map representing the source data for that node.
-     *         The returned map may not contain all nodeRefs provided in the input.
+     * The returned map may not contain all nodeRefs provided in the input.
      * @throws IOException if an error occurs during the retrieval process.
      */
     public Map<String, Map<String, Object>> getSourceMap(List<String> nodeRefs) throws IOException {

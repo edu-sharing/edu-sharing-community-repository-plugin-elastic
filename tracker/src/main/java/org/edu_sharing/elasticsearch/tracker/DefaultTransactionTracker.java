@@ -200,6 +200,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
                 //skipping preview and valuespace translation for archived nodes
                 continue;
             }
+
             threadPool.execute(() -> {
                 eduSharingService.addPreview(data);
                 eduSharingService.translateValuespaceProps(data);

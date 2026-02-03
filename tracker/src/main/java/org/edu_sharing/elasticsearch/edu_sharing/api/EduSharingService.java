@@ -14,18 +14,22 @@ import org.edu_sharing.repository.client.tools.CCConstants;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.io.Serializable;
 import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class EduSharingService {
+    public static final String DEFAULT_REPOSITORY = "-home-";
+
     private final NetworkV1Api networkV1Api;
     private final StatisticV1Api statisticV1Api;
     private final MdsV1Api mdsV1Api;
@@ -34,6 +38,7 @@ public class EduSharingService {
     private final NodeV1Api nodeV1Api;
     private final TrackingV1Api trackingV1Api;
     private final SharingV1Api sharingV1Api;
+    private final RelationV1Api relationV1Api;
 
     @Value("${valuespace.languages}")
     private String[] valuespaceLanguages;
@@ -67,11 +72,11 @@ public class EduSharingService {
 
     @Nullable
     public MdsEntries getMetadataSets() {
-        return mdsV1Api.getMetadataSets("-home-").block();
+        return mdsV1Api.getMetadataSets(DEFAULT_REPOSITORY).block();
     }
 
     public List<String> getValuespaceProperties(String mdsId) {
-        return mdsV1Api.getMetadataSet("-home-", mdsId)
+        return mdsV1Api.getMetadataSet(DEFAULT_REPOSITORY, mdsId)
                 .map(x -> x.getWidgets()
                         .stream()
                         .filter(Objects::nonNull)
@@ -181,7 +186,7 @@ public class EduSharingService {
                 .valueParameters(ValueParameters.builder().query("ngsearch").build())
                 .build();
 
-        entries = mdsV1Api.getValues("-home-", mds, suggestionParam).block();
+        entries = mdsV1Api.getValues(DEFAULT_REPOSITORY, mds, suggestionParam).block();
         addValuespaceToCache(mds, language, property, entries);
         return entries;
     }
@@ -234,7 +239,7 @@ public class EduSharingService {
         preview.setIsIcon(false);
         PreviewData previewSmall = previewApi.getPreviewData(storeProtocol, storeId, nodeId, 400, 400, 60);
 
-        NodeEntry nodeEntry = nodeV1Api.getMetadata("-home-", nodeId, null, null).block();
+        NodeEntry nodeEntry = nodeV1Api.getMetadata(DEFAULT_REPOSITORY, nodeId, null, null).block();
         if (nodeEntry != null) {
             Node nodeData = nodeEntry.getNode();
             if (nodeData.getPreview() != null) {
@@ -277,16 +282,30 @@ public class EduSharingService {
     }
 
     public List<UserNodeActivity> getUserActivitiesSince(OffsetDateTime since, int maxItems) {
-        return trackingV1Api.getAllUserNodeActivities("-home-", since, maxItems).collectList().block();
+        return trackingV1Api.getAllUserNodeActivities(DEFAULT_REPOSITORY, since, maxItems).collectList().block();
     }
 
     public List<ShareInfoOplog> getShareInfoOplog(OffsetDateTime since, int maxItems) {
-        return sharingV1Api.getOpLog("-home-", null, since, maxItems).collectList().block();
+        return sharingV1Api.getOpLog(DEFAULT_REPOSITORY, null, since, maxItems).collectList().block();
     }
 
     public List<ShareInfo> getShareInfos(List<Long> shareIds) {
-        return sharingV1Api.getShares1("-home-", shareIds).collectList().block();
+        return sharingV1Api.getShares1(DEFAULT_REPOSITORY, shareIds).collectList().block();
     }
 
+    public List<NodeRelationData> getRelations(String nodeId) {
+        return relationV1Api.getRelations(DEFAULT_REPOSITORY, nodeId).collectList().block();
+    }
 
+    public List<RelationData> getRelationsSince(OffsetDateTime lastTimestampDate, int batchSize, boolean deleted) {
+        return relationV1Api.getTrackedRelation(DEFAULT_REPOSITORY, lastTimestampDate, batchSize, deleted)
+                .flatMap(x -> Flux.just(x, x.toBuilder()
+                        .fromNode(x.getToNode())
+                        .toNode(x.getFromNode())
+                        .type(RelationData.TypeEnum.fromValue(x.getReverseType().getValue()))
+                        .reverseType(RelationData.ReverseTypeEnum.fromValue(x.getType().getValue()))
+                        .build()))
+                .collectList()
+                .block();
+    }
 }

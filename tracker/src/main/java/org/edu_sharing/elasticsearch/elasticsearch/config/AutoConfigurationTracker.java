@@ -157,7 +157,8 @@ public class AutoConfigurationTracker {
 
     /**
      * get mappings for the index
-     * @param mapping the builder to use
+     *
+     * @param mapping                the builder to use
      * @param unlimitedKeywordFields list of fields for which ignore_above is removed in the keyword section
      */
     ObjectBuilder<TypeMapping> getWorkspaceMappings(TypeMapping.Builder mapping, List<String> unlimitedKeywordFields) {
@@ -360,16 +361,16 @@ public class AutoConfigurationTracker {
         if (unlimitedKeywordFields != null && !unlimitedKeywordFields.isEmpty()) {
             templates.add(0,
                     new NamedValue<>("unlimited_keyword_length_type", DynamicTemplate.of(dt -> dt
-                                    .matchMappingType("*")
-                                    .matchPattern(MatchType.Regex)
-                                    .pathMatch("^(?:\\w+\\.)*properties.(" + StringUtils.join(unlimitedKeywordFields, "|") + ")$")
-                                    .mapping(mp -> mp.text(t -> t
-                                                    .store(true)
-                                                    .fields("keyword", prop -> prop.keyword(v -> v))
-                                                    .fields("sort", prop -> prop.keyword(v -> v.normalizer("lowercase")))
-                                            )
+                            .matchMappingType("*")
+                            .matchPattern(MatchType.Regex)
+                            .pathMatch("^(?:\\w+\\.)*properties.(" + StringUtils.join(unlimitedKeywordFields, "|") + ")$")
+                            .mapping(mp -> mp.text(t -> t
+                                            .store(true)
+                                            .fields("keyword", prop -> prop.keyword(v -> v))
+                                            .fields("sort", prop -> prop.keyword(v -> v.normalizer("lowercase")))
                                     )
                             )
+                    )
                     )
             );
         }
@@ -396,23 +397,35 @@ public class AutoConfigurationTracker {
                                 .properties("small", prop -> prop.binary(v -> v))))
                 .properties("userEvent", ueProp -> ueProp
                         .object(ueObject -> ueObject
-                                .properties("nodeId", prop -> prop.keyword(v->v))
-                                .properties("initiator", prop -> prop.keyword(v->v))
-                                .properties("receiver", prop -> prop.keyword(v->v))
-                                .properties("type", prop -> prop.keyword(v->v))
-                                .properties("timestamp", prop -> prop.date(v->v))))
+                                .properties("nodeId", prop -> prop.keyword(v -> v))
+                                .properties("initiator", prop -> prop.keyword(v -> v))
+                                .properties("receiver", prop -> prop.keyword(v -> v))
+                                .properties("type", prop -> prop.keyword(v -> v))
+                                .properties("timestamp", prop -> prop.date(v -> v))))
                 .properties("share", shareProp -> shareProp
                         .object(shareObj -> shareObj
                                 .properties("id", prop -> prop.long_(v -> v))
                                 .properties("nodeId", prop -> prop.keyword(v -> v))
-                                .properties("sharedBy", prop -> prop.keyword(v->v))
-                                .properties("sharedWith", prop -> prop.keyword(v->v))
-                                .properties("shareStatus", prop -> prop.keyword(v->v))
-                                .properties("shareType", prop -> prop.keyword(v->v))
-                                .properties("timestamp", prop -> prop.date(v->v))))
-                .properties("join_children", joinChildrenProp->joinChildrenProp
+                                .properties("sharedBy", prop -> prop.keyword(v -> v))
+                                .properties("sharedWith", prop -> prop.keyword(v -> v))
+                                .properties("shareStatus", prop -> prop.keyword(v -> v))
+                                .properties("shareType", prop -> prop.keyword(v -> v))
+                                .properties("timestamp", prop -> prop.date(v -> v))))
+                .properties("join_children", joinChildrenProp -> joinChildrenProp
                         .join(join -> join
                                 .relations("node", List.of("userEvent", "share"))
+                        ))
+                .properties("relations", relationProp -> relationProp
+                        .object(relObj -> relObj
+                                .properties("fromNode", prop -> prop.keyword(v -> v))
+                                .properties("toNode", prop -> prop.keyword(v -> v))
+                                .properties("type", prop -> prop.keyword(v -> v))
+                                .properties("createdBy", prop -> prop.keyword(v -> v))
+                                .properties("modifiedBy", prop -> prop.keyword(v -> v))
+                                .properties("evaluation", evalProp -> evalProp
+                                        .object(evalObj -> evalObj
+                                                .properties("approvedBy", prop -> prop.keyword(v -> v))
+                                        ))
                         ));
     }
 
@@ -445,6 +458,13 @@ public class AutoConfigurationTracker {
     public StatusIndexService<UserActivityTx> userActivityStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
         return trackerStateServiceFactory.createUserActivityStateService(transactions.getIndex());
     }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "relationTxStatusIndexService")
+    public StatusIndexService<RelationTx> relationTxStatusIndexService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
+        return trackerStateServiceFactory.createRelationStateService(transactions.getIndex());
+    }
+
 
     @Bean
     @ConditionalOnMissingBean(name = "shareInfoStateService")

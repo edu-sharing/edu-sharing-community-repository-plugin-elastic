@@ -30,4 +30,8 @@ public class StatusIndexServiceFactory {
     public StatusIndexService<ShareInfoTx> createShareInfoStateService(String index) {
         return new StatusIndexService<>(index, client, ShareInfoTx::new, "5", ShareInfoTx.class);
     }
+
+    public StatusIndexService<RelationTx> createRelationStateService(String index) {
+        return new StatusIndexService<>(index, client, RelationTx::new, "6", RelationTx.class);
+    }
 }

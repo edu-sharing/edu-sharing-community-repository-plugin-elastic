@@ -5,6 +5,10 @@ import co.elastic.clients.elasticsearch.synonyms.ElasticsearchSynonymsClient;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,7 +51,10 @@ public class ElasticsearchConfig {
 
     @Bean
     public ElasticsearchTransport transport(RestClient restClient){
-        return new RestClientTransport(restClient, new JacksonJsonpMapper());
+        return new RestClientTransport(restClient, new JacksonJsonpMapper(new ObjectMapper()
+                .configure(SerializationFeature.INDENT_OUTPUT, false)
+                .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+                .registerModule(new JavaTimeModule())));
     }
     
     @Bean

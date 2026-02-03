@@ -7,6 +7,7 @@ import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewApi;
 import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewDataDecoder;
 import org.edu_sharing.generated.repository.backend.services.rest.client.api.*;
 import org.edu_sharing.generated.repository.backend.services.rest.client.handler.ApiClient;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.RelationData;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -110,5 +111,10 @@ public class EduSharingConfig {
     @Bean
     public SharingV1Api sharingV1Api(ApiClient apiClient){
         return new SharingV1Api(apiClient);
+    }
+
+    @Bean
+    public RelationV1Api relationV1Api(ApiClient apiClient){
+        return new RelationV1Api(apiClient);
     }
 }

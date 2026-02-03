@@ -1,61 +1,26 @@
 package org.edu_sharing.elasticsearch.alfresco.client;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.RelationData;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class NodeData {
-    @Setter
-    NodeMetadata nodeMetadata;
-    @Setter
-    NodePreview nodePreview;
-    @Setter
-    Reader reader;
-    @Setter
-    String fullText;
-
-    Map<String,List<String>> permissions;
-
-    @Setter
-    boolean refreshPath = false;
-
-    List<NodeData> children = new ArrayList<>();
-
-    @Setter
-    Map<String, Map<String, List<String>>> valueSpaces = new HashMap<>();
-
-    public NodeMetadata getNodeMetadata() {
-        return nodeMetadata;
-    }
-
-    public boolean isRefreshPath() {
-        return refreshPath;
-    }
-
-    public NodePreview getNodePreview() {
-        return nodePreview;
-    }
-
-    public Reader getReader() {
-        return reader;
-    }
-
-    public Map<String, Map<String, List<String>>> getValueSpaces() {
-        return valueSpaces;
-    }
-
-    public String getFullText() {
-        return fullText;
-    }
+    private NodeMetadata nodeMetadata;
+    private NodePreview nodePreview;
+    private Reader reader;
+    private String fullText;
+    private boolean refreshPath = false;
+    private Map<String,List<String>> permissions;
+    private List<NodeData> children = new ArrayList<>();
+    private Map<String, Map<String, List<String>>> valueSpaces = new HashMap<>();
 
     public void setAccessControlList(AccessControlList accessControlList) {
         permissions = new HashMap<>();
@@ -71,11 +36,4 @@ public class NodeData {
         }
     }
 
-    public Map<String,List<String>> getPermissions(){
-        return permissions;
-    }
-
-    public List<NodeData> getChildren() {
-        return children;
-    }
 }
