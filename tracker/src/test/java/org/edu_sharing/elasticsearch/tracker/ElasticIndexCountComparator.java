@@ -14,12 +14,11 @@ import org.elasticsearch.client.RestClient;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class ElasticIndexComparator {
+public class ElasticIndexCountComparator {
 
     private static final int PAGE_SIZE = 1000;
     private static final String SCROLL_TIMEOUT = "2m";
@@ -38,8 +37,8 @@ public class ElasticIndexComparator {
 
         ElasticsearchClient client = new ElasticsearchClient(transport);
 
-        //compareIndices(client, index1, index2,"ccm:io");
-        compareIndices(client,"authorities_10.0_bak","authorities_10.0","cm:person");
+        compareIndices(client, index1, index2,"ccm:io");
+        //compareIndices(client,"authorities_10.0_bak","authorities_10.0","cm:person");
 
         restClient.close();
     }
