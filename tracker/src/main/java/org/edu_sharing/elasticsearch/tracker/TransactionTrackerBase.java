@@ -140,7 +140,11 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
                 }
             } else {
                 log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
-                transactions = alfClient.getTransactions(nextTransactionId, null, null, trackerStrategy.getLimit(), numberOfTransactions);
+                if(trackerStrategy instanceof StatusIndexServiceStrategie && trackerStrategy.getLimit() == 0){
+                    log.warn("waiting for dependent tracker");
+                    return State.FINISHED;
+                }
+                transactions = alfClient.getTransactions(nextTransactionId, null, null, null, 1);
             }
 
             long maxTrackerTxnId = transactions.getMaxTxnId();
