@@ -6,6 +6,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
+import org.edu_sharing.elasticsearch.tracker.Tracker;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -16,7 +17,7 @@ import java.util.*;
 
 @Slf4j
 @RequiredArgsConstructor
-public class GenericTimebaseTracker<DATA, STATE> {
+public class GenericTimebaseTracker<DATA, STATE> implements Tracker {
 
     protected final StatusIndexService<STATE> transactionStatusIndexService;
     protected final StatusIndexService<Tx> txStatusIndexService;

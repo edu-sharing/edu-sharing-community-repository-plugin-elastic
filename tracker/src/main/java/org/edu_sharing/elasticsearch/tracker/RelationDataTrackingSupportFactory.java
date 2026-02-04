@@ -8,9 +8,12 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.RelationTx;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.UserActivityTx;
 import org.edu_sharing.elasticsearch.tracker.generic.GenericTimebaseTracker;
 import org.edu_sharing.elasticsearch.tracker.generic.GenericTrackingSupport;
+import org.edu_sharing.elasticsearch.tracker.generic.TrackingSupportFactory;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.RelationData;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.UserNodeActivity;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -22,7 +25,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class RelationDataTrackingSupportFactory {
+public class RelationDataTrackingSupportFactory  implements TrackingSupportFactory<RelationData, RelationTx> {
 
     private final WorkspaceService elasticWorkspaceService;
     private final EduSharingService eduSharingService;

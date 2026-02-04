@@ -4,14 +4,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompletedAware;
-import org.edu_sharing.elasticsearch.tracker.UserActivityTracker;
+import org.edu_sharing.elasticsearch.tracker.Tracker;
 import org.springframework.scheduling.annotation.Scheduled;
 
 @Slf4j
 @RequiredArgsConstructor
 public class UserActivityTrackerJob implements MigrationCompletedAware {
 
-    private final UserActivityTracker userActivityTracker;
+    private final Tracker tracker;
     private final TrackerAvailabilityTickService tickService;
 
     private boolean migrated = false;
@@ -28,7 +28,7 @@ public class UserActivityTrackerJob implements MigrationCompletedAware {
             return;
         }
 
-        userActivityTracker.track();
+        tracker.track();
     }
 
     @Override

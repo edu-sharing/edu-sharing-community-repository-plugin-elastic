@@ -4,16 +4,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompletedAware;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.RelationTx;
-import org.edu_sharing.elasticsearch.tracker.generic.GenericTimebaseTracker;
-import org.edu_sharing.generated.repository.backend.services.rest.client.model.RelationData;
+import org.edu_sharing.elasticsearch.tracker.Tracker;
 import org.springframework.scheduling.annotation.Scheduled;
 
 @Slf4j
 @RequiredArgsConstructor
 public class RelationDataTrackerJob implements MigrationCompletedAware {
 
-    private final GenericTimebaseTracker<RelationData, RelationTx> tracker;
+    private final Tracker tracker;
     private final TrackerAvailabilityTickService tickService;
 
     private boolean migrated = false;
