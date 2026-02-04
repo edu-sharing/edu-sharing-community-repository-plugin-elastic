@@ -64,7 +64,17 @@ public class AclTracker {
                 long endTime = (maxChangeSetCommitTime > maxTxnCommitTime) ? maxTxnCommitTime : maxChangeSetCommitTime;
                 //alf sql template select_ChangeSets_Summary: toCommitTimeExclusive but we want endTime inclusive
                 endTime+=1;
-                aclChangeSets = getSomeAclChangeSets(lastFromCommitTime + 1,timeStep,AclTracker.maxResults, endTime);
+
+                //check if there are aclChangSetIds with the same commitTime like lastFromCommitTime
+                AclChangeSets tempAclCs = alfClient.getAclChangeSets(null,lastFromCommitTime,lastFromCommitTime +1,AclTracker.maxResults);
+                tempAclCs.setAclChangeSets(tempAclCs.getAclChangeSets().stream().filter(c -> c.getId() > lastACLChangeSetId).toList());
+
+                if(!tempAclCs.getAclChangeSets().isEmpty()) {
+                    logger.info("found aclChangeSets with the same commitTime: {}", Arrays.toString(tempAclCs.getAclChangeSets().stream().map(AclChangeSet::getId).toArray()));
+                    aclChangeSets = tempAclCs;
+                }else{
+                    aclChangeSets = getSomeAclChangeSets(lastFromCommitTime + 1,timeStep,AclTracker.maxResults, endTime);
+                }
             }else {
                 logger.warn("no last lastFromCommitTime timestamp, need to fallback to id mode, aCLChangeSetId {}", nextACLChangeSetId);
                 aclChangeSets = alfClient.getAclChangeSets(nextACLChangeSetId,null, null, AclTracker.maxResults);
@@ -136,8 +146,9 @@ public class AclTracker {
                 workspaceService.updateNodesWithAcl(acl.getId(), permissionsAlf);
             }
 
-            AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().stream().max((a, b) -> Long.compare(
-                    a.getCommitTimeMs(), b.getCommitTimeMs()
+            AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().stream().max((Comparator
+                    .comparingLong(AclChangeSet::getCommitTimeMs)
+                    .thenComparingLong(AclChangeSet::getId)
             )).get();
 
             aclStateService.setState(new AclTx(lastAclChangeSet.getId(), lastAclChangeSet.getCommitTimeMs()));
