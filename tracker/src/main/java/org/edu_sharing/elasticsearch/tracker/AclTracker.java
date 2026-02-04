@@ -29,7 +29,8 @@ public class AclTracker {
     private final WorkspaceService workspaceService;
 
 
-    final static int maxResults = 100;
+    @Value("${tracker.aclchangesets.max:200}")
+    int aclchangeSetsMax;
 
     @Value("${tracker.timestep:36000000}")
     int timeStep;
@@ -66,18 +67,18 @@ public class AclTracker {
                 endTime+=1;
 
                 //check if there are aclChangSetIds with the same commitTime like lastFromCommitTime
-                AclChangeSets tempAclCs = alfClient.getAclChangeSets(null,lastFromCommitTime,lastFromCommitTime +1,AclTracker.maxResults);
+                AclChangeSets tempAclCs = alfClient.getAclChangeSets(null,lastFromCommitTime,lastFromCommitTime +1,aclchangeSetsMax);
                 tempAclCs.setAclChangeSets(tempAclCs.getAclChangeSets().stream().filter(c -> c.getId() > lastACLChangeSetId).toList());
 
                 if(!tempAclCs.getAclChangeSets().isEmpty()) {
                     logger.info("found aclChangeSets with the same commitTime: {}", Arrays.toString(tempAclCs.getAclChangeSets().stream().map(AclChangeSet::getId).toArray()));
                     aclChangeSets = tempAclCs;
                 }else{
-                    aclChangeSets = getSomeAclChangeSets(lastFromCommitTime + 1,timeStep,AclTracker.maxResults, endTime);
+                    aclChangeSets = getSomeAclChangeSets(lastFromCommitTime + 1,timeStep,aclchangeSetsMax, endTime);
                 }
             }else {
                 logger.warn("no last lastFromCommitTime timestamp, need to fallback to id mode, aCLChangeSetId {}", nextACLChangeSetId);
-                aclChangeSets = alfClient.getAclChangeSets(nextACLChangeSetId,null, null, AclTracker.maxResults);
+                aclChangeSets = alfClient.getAclChangeSets(nextACLChangeSetId,null, null, aclchangeSetsMax);
             }
 
 
