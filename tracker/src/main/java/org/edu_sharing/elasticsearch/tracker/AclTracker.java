@@ -29,7 +29,7 @@ public class AclTracker {
     private final WorkspaceService workspaceService;
 
 
-    @Value("${tracker.aclchangesets.max:200}")
+    @Value("${tracker.acl.changesets.max:200}")
     int aclchangeSetsMax;
 
     @Value("${tracker.timestep:36000000}")
