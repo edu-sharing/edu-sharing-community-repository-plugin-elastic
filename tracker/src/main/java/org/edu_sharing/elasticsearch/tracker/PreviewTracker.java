@@ -23,7 +23,7 @@ public class PreviewTracker extends DefaultTransactionTracker {
         for (List<Node> partition : partitions) {
             List<BulkOperation> updates = Collections.synchronizedList(new ArrayList<>());
             for (Node node : partition) {
-                threadPool.execute(() -> {
+                threadUtil.getThreadPool().execute(() -> {
                     NodePreview previewData = eduSharingClient.getPreviewDataByNodeRef(node.getNodeRef());
                     DataBuilder builder = new DataBuilder();
 
@@ -47,7 +47,7 @@ public class PreviewTracker extends DefaultTransactionTracker {
                     updates.add(bulkOp);
                 });
             }
-            if (!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)) {
+            if (!threadUtil.getThreadPool().awaitQuiescence(10, TimeUnit.MINUTES)) {
                 log.error("Fatal error while processing nodes: timeout of preview and transform processing");
                 log.error(partition.stream().map(Node::getNodeRef).collect(Collectors.joining(", ")));
             }

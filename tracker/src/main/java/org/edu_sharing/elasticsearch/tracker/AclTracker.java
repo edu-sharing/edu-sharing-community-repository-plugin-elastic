@@ -1,5 +1,6 @@
 package org.edu_sharing.elasticsearch.tracker;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
@@ -41,6 +42,18 @@ public class AclTracker {
     private static final long MAX_TIME_STEP = TimeUnit.DAYS.toMillis(32);
 
     private final StatusIndexService<Tx> transactionStateService;
+
+    @Value("${threading.threadCount}")
+    Integer threadCount;
+
+    ThreadUtil threadUtil;
+
+    @PostConstruct
+    public void init() {
+        threadUtil = new ThreadUtil(threadCount);
+    }
+
+
 
 
     public boolean track() {
@@ -114,6 +127,7 @@ public class AclTracker {
             Map<Long, AccessControlList> accessControlListMap = accessControlLists.getAccessControlLists().stream()
                     .collect(Collectors.toMap(AccessControlList::getAclId, accessControlList -> accessControlList));
 
+            Map<Long,Map<String, List<String>>> aclPermMap = new HashMap<>();
             for (Acl acl : acls.getAcls()) {
 
                 Reader reader = readersMap.get(acl.getId());
@@ -144,8 +158,10 @@ public class AclTracker {
                 }
                 //sort alf map keys:
                 permissionsAlf = new TreeMap<>(permissionsAlf);
-                workspaceService.updateNodesWithAcl(acl.getId(), permissionsAlf);
+                aclPermMap.put(acl.getId(), permissionsAlf);
             }
+
+            threadUtil.runThreaded(new ArrayList<>(aclPermMap.keySet()),aclId -> workspaceService.updateNodesWithAcl(aclId, aclPermMap.get(aclId)),true,true);
 
             AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().stream().max((Comparator
                     .comparingLong(AclChangeSet::getCommitTimeMs)

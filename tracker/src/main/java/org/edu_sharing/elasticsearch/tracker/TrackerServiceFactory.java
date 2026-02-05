@@ -67,7 +67,7 @@ public class TrackerServiceFactory {
         defaultTransactionTracker.setTrackerStrategy(trackerStrategy);
 
         defaultTransactionTracker.setNumberOfTransactions(numberOfTransactions);
-        defaultTransactionTracker.setThreadCount(threadCount);
+        defaultTransactionTracker.setThreadUtil(new ThreadUtil(threadCount));
         defaultTransactionTracker.setMetricContext(metricContext);
         if(defaultTransactionTracker instanceof  DefaultTransactionTracker dtt){
             dtt.setIndexStoreRefs(indexStoreRefs);

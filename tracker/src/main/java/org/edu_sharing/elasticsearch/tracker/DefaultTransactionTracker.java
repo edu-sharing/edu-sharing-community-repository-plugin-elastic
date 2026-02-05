@@ -80,7 +80,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
         logger.info("getNodeMetadata start. partitions: {}",partitions.size());
         List<NodeMetadata> nodeData = Collections.synchronizedList(new ArrayList<>());
-        runThreaded(
+        this.threadUtil.runThreaded(
                 partitions.stream().toList(),
                 p -> nodeData.addAll(alfClient.getNodeMetadata(p)),
                 true,
@@ -123,7 +123,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         for (List<NodeData> p : partitioned) {
             List<BulkOperation> operations = Collections.synchronizedList(new ArrayList<>());
             logger.info("starting partition: {}, partitionSize: {}",pIdx, p.size());
-            runThreaded(p,
+            this.threadUtil.runThreaded(p,
                     nodes -> workspaceService.addBulkOperation(nodes, operations),
                     true,
                     true);
@@ -137,7 +137,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     private List<NodeData> translate(List<NodeData> toIndex) throws IOException {
         //skipping preview and valuespace translation for archived nodes
         List<NodeData> toTranslate = Collections.synchronizedList(toIndex.stream().filter(n -> !n.getNodeMetadata().getNodeRef().startsWith(CCConstants.ARCHIVE_STOREREF)).toList());
-        runThreaded(toTranslate,
+        this.threadUtil.runThreaded(toTranslate,
                 n -> eduSharingClient.translateValuespaceProps(n),
                 false,
                 false);
@@ -147,7 +147,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     private List<NodeData> getNodeData(List<NodeMetadata> nodeMetadata) throws IOException {
         Collection<List<NodeMetadata>> partitions = Partition.getPartitions(nodeMetadata, fetchSizeAlfresco);
         List<NodeData> nodeData = Collections.synchronizedList(new ArrayList<>());
-        runThreaded(partitions.stream().toList(),p -> nodeData.addAll(alfClient.getNodeData(p)),true,true);
+        this.threadUtil.runThreaded(partitions.stream().toList(),p -> nodeData.addAll(alfClient.getNodeData(p)),true,true);
         return nodeData;
     }
 

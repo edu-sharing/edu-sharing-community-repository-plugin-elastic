@@ -51,8 +51,6 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     @Setter(AccessLevel.PACKAGE)
     private TrackerStrategy trackerStrategy;
 
-    @Setter
-    Integer threadCount = 4;
 
     @Setter
     int numberOfTransactions = 200;
@@ -95,7 +93,9 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     @Setter
     protected String storeIdentifier = null;
 
-    protected ForkJoinPool threadPool;
+    @Setter
+    protected ThreadUtil threadUtil = null;
+
 
     @Getter
     @Setter
@@ -104,8 +104,8 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     protected TransactionTrackerBase() {
     }
 
-    public void init() {
-        threadPool = new ForkJoinPool(threadCount);
+    public void init(){
+
     }
 
     @Override
@@ -286,33 +286,4 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     }
 
     public abstract void trackNodes(List<Node> nodes) throws IOException;
-
-
-    public <T> void runThreaded(List<T> data, ThrowingConsumer<T> worker, boolean throwOnTimeout, boolean reThrow) throws IOException {
-        List<Throwable> errors = new ArrayList<>();
-        for(T d : data){
-            threadPool.execute(() -> {
-                try{
-                    worker.acceptWithException(d);
-                }catch (Throwable e) {
-                    errors.add(e);
-                }
-            });
-        }
-        if (!threadPool.awaitQuiescence(10, TimeUnit.MINUTES)) {
-            String msg = "Fatal error while processing data: timeout";
-            log.error(msg);
-            if(throwOnTimeout) throw new RuntimeException(msg);
-        }
-        if(!errors.isEmpty()){
-            log.error("Fatal error while processing data: {}", errors);
-            if(reThrow){
-                if(errors.get(0) instanceof IOException){
-                    throw (IOException) errors.get(0);
-                }else{
-                    throw new RuntimeException(errors.get(0));
-                }
-            }
-        }
-    }
 }
