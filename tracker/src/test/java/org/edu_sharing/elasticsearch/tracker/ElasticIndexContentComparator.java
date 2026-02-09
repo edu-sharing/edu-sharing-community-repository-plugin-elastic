@@ -69,11 +69,11 @@ public class ElasticIndexContentComparator {
 
         // Alle NodeIds eines Typs aus IndexA
         log.info("fetching nodeIds");
-        List<String> nodeIds = fetchAllNodeIds(client, indexA, type, 100000).stream().sorted().toList();
+        List<String> nodeIds = fetchAllNodeIds(client, indexA, type, 150000).stream().sorted().toList();
         log.info("fetching nodeIds finished {}", nodeIds.size());
 
-        int pageSize = 30000;
-        int pageNumber = 1;
+        int pageSize = 50000;
+        int pageNumber = 2;
 
         int fromIndex = pageNumber * pageSize;
         int toIndex = Math.min(fromIndex + pageSize, nodeIds.size());
@@ -173,9 +173,21 @@ public class ElasticIndexContentComparator {
 
             List<DiffEntry> failures = new ArrayList<>();
             List<DiffEntry> warnings = new ArrayList<>();
-            compareRecursive(docA, docB, "", failures, warnings);
 
             String uuid = (String)((Map)docA.get("nodeRef")).get("id");
+
+            Map aProps = (Map)docA.get("properties");
+            Map bProps = (Map)docB.get("properties");
+            if(aProps != null && bProps != null){
+                Long aModified = (Long)aProps.get("cm:modified");
+                Long bModified = (Long)bProps.get("cm:modified");
+                if((aModified != null && bModified != null) && !aModified.equals(bModified)){
+                    log.info("{}, {} was modified. ignoring.",nodeId, uuid);
+                    return new DiffReport(nodeId, uuid, failures, warnings);
+                }
+            }
+
+            compareRecursive(docA, docB, "", failures, warnings);
 
             return new DiffReport(nodeId, uuid, failures, warnings);
         } catch (Exception e) {
@@ -241,7 +253,9 @@ public class ElasticIndexContentComparator {
         }
 
         if (left instanceof List && right instanceof List) {
-            if (!left.equals(right)) {
+            List l =  (List) left;
+            List r = (List) right;
+            if (l.size() != r.size() || !new HashSet(l).equals(new HashSet(r))) {
                 addDiff(path, left, right, level, failures, warnings);
             }
             return;
