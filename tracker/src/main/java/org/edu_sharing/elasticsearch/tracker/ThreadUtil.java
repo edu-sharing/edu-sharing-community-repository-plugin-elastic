@@ -6,6 +6,7 @@ import org.springframework.util.function.ThrowingConsumer;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -25,7 +26,7 @@ public class ThreadUtil {
 
 
     public <T> void runThreaded(List<T> data, ThrowingConsumer<T> worker, boolean throwOnTimeout, boolean reThrow) throws IOException {
-        List<Throwable> errors = new ArrayList<>();
+        List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
         for(T d : data){
             threadPool.execute(() -> {
                 try{
