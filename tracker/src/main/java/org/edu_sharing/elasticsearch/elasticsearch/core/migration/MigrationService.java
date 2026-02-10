@@ -28,9 +28,8 @@ import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Slf4j
@@ -76,19 +75,46 @@ public class MigrationService {
                 .mapToObj(migrationInfos::get)
                 .anyMatch(MigrationInfo::isRequiresAuthoritiesReindex);
 
+        Set<String> knownMigrationCallbacks = new HashSet<>();
+        migrationInfos.stream()
+                .map(MigrationInfo::getCallback)
+                .filter(Objects::nonNull)
+                .forEach(callback -> {
+                    if(knownMigrationCallbacks.contains(callback.getName())){
+                        throw new IllegalStateException("Migration callback with name " + callback.getName() + " is already registered!");
+                    }
+                    knownMigrationCallbacks.add(callback.getName());
+                });
+
+        List<MigrationCallback> migrationCallbacks = IntStream.range(startIndex, migrationInfos.size())
+                .mapToObj(migrationInfos::get)
+                .map(MigrationInfo::getCallback)
+                .filter(Objects::nonNull)
+                .toList();
+
+
         String sourceWorkspaceIndex = currentVersion == null ? "workspace" : "workspace_" + currentVersion;
         String sourceTransactionIndex = currentVersion == null ? "transactions" : "transactions_" + currentVersion;
         String sourceAuthoritiesIndex = currentVersion == null ? "authorities" : "authorities_" + currentVersion;
 
         if (adminService.indicesExists(sourceWorkspaceIndex, sourceTransactionIndex)) {
 
-            while (!adminService.indecesConfiguredExist()){
+            while (!adminService.indecesConfiguredExist()) {
                 log.info("waiting for indeces...");
                 Thread.sleep(2000);
             }
 
             // we need to migrate
-            MigrationJob migrationJob = new MigrationJob(sourceWorkspaceIndex, sourceTransactionIndex, sourceAuthoritiesIndex, latestVersion, migrationIndex.getIndex(), requiresDocMigration, requiresAuthoritiesMigration);
+            MigrationJobImpl migrationJob = new MigrationJobImpl(
+                    sourceWorkspaceIndex,
+                    sourceTransactionIndex,
+                    sourceAuthoritiesIndex,
+                    latestVersion,
+                    migrationIndex.getIndex(),
+                    requiresDocMigration,
+                    requiresAuthoritiesMigration,
+                    migrationCallbacks);
+
             migrationJob.run();
         }
 
@@ -180,21 +206,22 @@ public class MigrationService {
                 .orElse(new MigrationState());
     }
 
-    class MigrationJob {
+    @lombok.Value
+    class MigrationJobImpl implements MigrationJob {
 
-        private final String sourceWorkspaceIndex;
-        private final String sourceTransactionIndex;
-        private final String sourceAuthoritiesIndex;
-        private final String version;
-        private final String index;
-        private final boolean requiresDocumentMigration;
-        private final boolean requiresAuthoritiesMigration;
+        String sourceWorkspaceIndex;
+        String sourceTransactionIndex;
+        String sourceAuthoritiesIndex;
+        String version;
+        String index;
+        boolean requiresDocumentMigration;
+        boolean requiresAuthoritiesMigration;
 
+        String migrationTransactionIndex;
+        String migrationTransactionAuthoritiesIndex;
+        List<MigrationCallback> migrationCallbacks;
 
-        private final String migrationTransactionIndex;
-        private final String migrationTransactionAuthoritiesIndex;
-
-        MigrationJob(String sourceWorkspaceIndex, String sourceTransactionIndex, String sourceAuthoritiesIndex, String version, String index, boolean requiresDocumentMigration, boolean requiresAuthoritiesMigration) {
+        MigrationJobImpl(String sourceWorkspaceIndex, String sourceTransactionIndex, String sourceAuthoritiesIndex, String version, String index, boolean requiresDocumentMigration, boolean requiresAuthoritiesMigration, List<MigrationCallback> migrationCallbacks) {
             this.sourceWorkspaceIndex = sourceWorkspaceIndex;
             this.sourceTransactionIndex = sourceTransactionIndex;
             this.sourceAuthoritiesIndex = sourceAuthoritiesIndex;
@@ -204,6 +231,7 @@ public class MigrationService {
             this.requiresAuthoritiesMigration = requiresAuthoritiesMigration;
             migrationTransactionIndex = "migration_" + version + "_tracker";
             migrationTransactionAuthoritiesIndex = "migration_authorities_" + version + "_tracker";
+            this.migrationCallbacks = migrationCallbacks;
         }
 
 
@@ -323,11 +351,9 @@ public class MigrationService {
                                 migrationState.setStatusMessage(curStep.message);
                                 updateMigrationState(migrationState, curStep, Long.toString(txnCommitTime));
                                 log.info("start migration of authorities");
-                            } else if (requiresDocumentMigration) {
-                                curStep = setStateMigrateDocs(migrationState);
                             } else {
-                                curStep = setStateComplete( migrationState);
-                                log.info("migration completed");
+                                migrationState.setProgressContent(null);
+                                curStep = setInitialStateMigrationCallback(migrationState);
                             }
                             break;
                         }
@@ -343,27 +369,47 @@ public class MigrationService {
                         long maxCommitTime = Long.parseLong(migrationState.getProgressContent());
                         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
                         StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
-                        AuthoritiesTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesTracker::new,migrationTransactionStateService,new MaxCommitTimeStrategy(maxCommitTime), null);
+                        AuthoritiesTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesTracker::new, migrationTransactionStateService, new MaxCommitTimeStrategy(maxCommitTime), null);
                         migrationTracker.setNumberOfTransactions(authoritiesTrackerNumberOfTransactions);
-                        while (true) {
+                        do {
                             trackerAvailabilityTickService.tick();
-                            if (migrationTracker.track() == TransactionTracker.State.FINISHED) {
-                                break;
-                            }
-                        }
+                        } while (migrationTracker.track() != TransactionTracker.State.FINISHED);
 
                         log.info("delete authorities migration transactions index");
                         adminService.deleteIndex(indexConfiguration);
 
+                        migrationState.setProgressContent(null);
+                        curStep = setInitialStateMigrationCallback(migrationState);
+                        break;
+                    }
+
+                    case ON_MIGRATION_CALLBACK_PROGRESS_STEP:
+                        String migrationCallbackProgressContent = migrationState.getProgressContent();
+                        int startIndex = 0;
+                        if (migrationCallbackProgressContent != null) {
+                            String migrationCallbackName = migrationCallbackProgressContent.split(":")[0];
+                            startIndex = IntStream.range(0, migrationCallbacks.size())
+                                    .filter(i -> migrationCallbacks.get(i).getName().equals(migrationCallbackName))
+                                    .findFirst()
+                                    .orElseThrow(() -> new IllegalStateException("No migration callback found with name " + migrationCallbackName + " in " + migrationCallbacks.stream().map(MigrationCallback::getName).collect(Collectors.joining(","))));
+                        }
+
+                        IntStream.range(startIndex, migrationCallbacks.size())
+                                .mapToObj(migrationCallbacks::get)
+                                .filter(Objects::nonNull)
+                                .forEach(callback -> {
+                                    log.info("Run Migration callback {}: {}", callback.getName(), callback.getClass().getSimpleName());
+                                    callback.onMigrationCallback(this, migrationState, client);
+                                });
+
                         if (requiresDocumentMigration) {
                             curStep = setStateMigrateDocs(migrationState);
-                        }else {
+                        } else {
                             curStep = setStateComplete(migrationState);
                             log.info("document migration finished");
                             log.info("migration completed");
                         }
                         break;
-                    }
 
                     case MIGRATE_DOCUMENTS_PROGRESS_STEP:
                         long maxCommitTime = Long.parseLong(migrationState.getProgressContent());
@@ -371,12 +417,9 @@ public class MigrationService {
                         StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
                         DefaultTransactionTracker migrationTracker = trackerServiceFactory.createDefaultTrackerService(migrationTransactionStateService, new MaxCommitTimeStrategy(maxCommitTime));
 
-                        while (true) {
+                        do {
                             trackerAvailabilityTickService.tick();
-                            if (migrationTracker.track() == TransactionTracker.State.FINISHED) {
-                                break;
-                            }
-                        }
+                        } while (migrationTracker.track() != TransactionTracker.State.FINISHED);
 
                         log.info("delete document migration transactions index");
                         adminService.deleteIndex(indexConfiguration);
@@ -393,15 +436,43 @@ public class MigrationService {
             }
         }
 
+        private MigrationStep setInitialStateMigrationCallback(MigrationState migrationState) throws IOException {
+            MigrationStep curStep = MigrationStep.ON_MIGRATION_CALLBACK_PROGRESS_STEP;
+            migrationState.setProgressStep(curStep.value);
+            migrationState.setStatusMessage(curStep.message + " - started");
+            migrationState.setProgressContent(null);
+            updateMigrationState(migrationState, curStep, null);
+            return curStep;
+        }
+
+        @Override
+        public MigrationStep setStateMigrationCallback(MigrationState migrationState, MigrationCallback migrationCallback, String progressContent, String message) throws IOException {
+            MigrationStep curStep = MigrationStep.ON_MIGRATION_CALLBACK_PROGRESS_STEP;
+            migrationState.setProgressStep(curStep.value);
+            migrationState.setStatusMessage(curStep.message + " - " + message);
+            migrationState.setProgressContent(migrationCallback.getName() + ":" + progressContent);
+            updateMigrationState(migrationState, curStep, null);
+            return curStep;
+        }
+
+        @Override
+        public String getProgressContentFromStateMigrationCallback(MigrationState migrationState) {
+            String progressContent = migrationState.getProgressContent();
+            if (progressContent == null) {
+                return null;
+            }
+
+            return progressContent.split(":")[1];
+        }
+
         @NotNull
         private MigrationStep setStateMigrateDocs(MigrationState migrationState) throws IOException {
-            MigrationStep curStep;
             log.info("create document migration transactions index");
             IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionIndex));
             adminService.createIndex(indexConfiguration);
             long txnCommitTime = transactionStateService.getState().getTxnCommitTime();
 
-            curStep = MigrationStep.MIGRATE_DOCUMENTS_PROGRESS_STEP;
+            MigrationStep curStep = MigrationStep.MIGRATE_DOCUMENTS_PROGRESS_STEP;
             migrationState.setProgressStep(curStep.value);
             migrationState.setStatusMessage(curStep.message);
             updateMigrationState(migrationState, curStep, Long.toString(txnCommitTime));
@@ -411,8 +482,7 @@ public class MigrationService {
 
         @NotNull
         private MigrationStep setStateComplete(MigrationState migrationState) throws IOException {
-            MigrationStep curStep;
-            curStep = MigrationStep.COMPLETED_PROGRESS_STEP;
+            MigrationStep curStep = MigrationStep.COMPLETED_PROGRESS_STEP;
             migrationState.setProgressStep(curStep.value);
             migrationState.setStatusMessage(curStep.message);
             updateMigrationState(migrationState, curStep, null);

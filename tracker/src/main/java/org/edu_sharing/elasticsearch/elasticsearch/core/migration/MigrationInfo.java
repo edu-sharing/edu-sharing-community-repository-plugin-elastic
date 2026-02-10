@@ -23,4 +23,15 @@ public class MigrationInfo {
      */
     boolean requiresAuthoritiesReindex;
 
+    /**
+     * A callback interface used during the migration process to execute custom logic at a particular stage.
+     * The implementation of this callback can contain logic specific to the migration process such as
+     * additional validations, transformations, or post-migration actions.
+     * </br>
+     * The {@link MigrationCallback} is invoked during the migration process according to the workflow
+     * orchestrated by the {@link MigrationJob}. It can access both the job details and a client instance
+     * for further actions through the callback method.
+     */
+    MigrationCallback callback;
+
 }

@@ -6,8 +6,9 @@ public enum MigrationStep {
     REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP(2, "Reindex transactions"),
     REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP(3, "ReIndex Authorities"),
     MIGRATE_AUTHORITIES_INDEX_PROGRESS_STEP(4, "Migrate Authorities"),
-    MIGRATE_DOCUMENTS_PROGRESS_STEP(5, "Migrate Documents"),
-    COMPLETED_PROGRESS_STEP(6, "Completed");
+    ON_MIGRATION_CALLBACK_PROGRESS_STEP(5, "On Migration Callback"),
+    MIGRATE_DOCUMENTS_PROGRESS_STEP(6, "Migrate Documents"),
+    COMPLETED_PROGRESS_STEP(7, "Completed");
 
 
     public final int value;
@@ -19,15 +20,16 @@ public enum MigrationStep {
     }
 
     public static MigrationStep valueOf(int value) {
-        switch (value){
-            case 0: return INIT_PROGRESS_STEP;
-            case 1: return REINDEX_WORKSPACE_INDEX_PROGRESS_STEP;
-            case 2: return REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP;
-            case 3: return REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP;
-            case 4: return MIGRATE_AUTHORITIES_INDEX_PROGRESS_STEP;
-            case 5: return MIGRATE_DOCUMENTS_PROGRESS_STEP;
-            case 6: return COMPLETED_PROGRESS_STEP;
-            default: throw new IllegalArgumentException(value + " is not an valid value");
-        }
+        return switch (value) {
+            case 0 -> INIT_PROGRESS_STEP;
+            case 1 -> REINDEX_WORKSPACE_INDEX_PROGRESS_STEP;
+            case 2 -> REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP;
+            case 3 -> REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP;
+            case 4 -> MIGRATE_AUTHORITIES_INDEX_PROGRESS_STEP;
+            case 5 -> ON_MIGRATION_CALLBACK_PROGRESS_STEP;
+            case 6 -> MIGRATE_DOCUMENTS_PROGRESS_STEP;
+            case 7 -> COMPLETED_PROGRESS_STEP;
+            default -> throw new IllegalArgumentException(value + " is not an valid value");
+        };
     }
 }
