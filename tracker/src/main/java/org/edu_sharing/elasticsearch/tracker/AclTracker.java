@@ -30,7 +30,7 @@ public class AclTracker {
     private final WorkspaceService workspaceService;
 
 
-    // max 512
+
     @Value("${tracker.acl.changesets.max:200}")
     int aclchangeSetsMax;
 
@@ -105,29 +105,33 @@ public class AclTracker {
 
             logger.info("aclChangeSets:" + aclChangeSets.getAclChangeSets().stream().map(s -> s.getId()).collect(Collectors.toList()));
 
-
+            logger.info("resolving acl's");
             GetAclsParam param = new GetAclsParam();
             for (AclChangeSet aclChangeSet : aclChangeSets.getAclChangeSets()) {
                 param.getAclChangeSetIds().add(aclChangeSet.getId());
             }
 
-
+            // max 512 aclChangeSetIds allowed
             Acls acls = alfClient.getAcls(param);
 
-            GetPermissionsParam grp = new GetPermissionsParam();
+
             Map<Long, Acl> aclIdMap = acls.getAcls().stream()
                     .collect(Collectors.toMap(Acl::getId, accessControlList -> accessControlList));
+            logger.info("aclIds:" + aclIdMap.keySet());
 
+            logger.info("resolving Readers");
+            GetPermissionsParam grp = new GetPermissionsParam();
             grp.setAclIds(new ArrayList<>(aclIdMap.keySet()));
             ReadersACL readers = alfClient.getReader(grp);
             Map<Long, Reader> readersMap = readers.getAclsReaders().stream()
                     .collect(Collectors.toMap(Reader::getAclId, readersList -> readersList));
 
-            logger.debug("aclIds:" + grp.getAclIds().toString());
+            logger.info("resolving AccessControlLists");
             AccessControlLists accessControlLists = alfClient.getAccessControlLists(grp);
             Map<Long, AccessControlList> accessControlListMap = accessControlLists.getAccessControlLists().stream()
                     .collect(Collectors.toMap(AccessControlList::getAclId, accessControlList -> accessControlList));
 
+            logger.info("prepare Index Data");
             Map<Long,Map<String, List<String>>> aclPermMap = new HashMap<>();
             for (Acl acl : acls.getAcls()) {
 
@@ -162,6 +166,7 @@ public class AclTracker {
                 aclPermMap.put(acl.getId(), permissionsAlf);
             }
 
+            logger.info("updating node permissions in index");
             threadUtil.runThreaded(new ArrayList<>(aclPermMap.keySet()),aclId -> workspaceService.updateNodesWithAcl(aclId, aclPermMap.get(aclId)),true,true);
 
             AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().stream().max((Comparator
