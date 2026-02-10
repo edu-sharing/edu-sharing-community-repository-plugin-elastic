@@ -168,6 +168,7 @@ public class AclTracker {
 
             logger.info("updating node permissions in index");
             threadUtil.runThreaded(new ArrayList<>(aclPermMap.keySet()),aclId -> workspaceService.updateNodesWithAcl(aclId, aclPermMap.get(aclId)),true,true);
+            workspaceService.refreshWorkspace();
 
             AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().stream().max((Comparator
                     .comparingLong(AclChangeSet::getCommitTimeMs)

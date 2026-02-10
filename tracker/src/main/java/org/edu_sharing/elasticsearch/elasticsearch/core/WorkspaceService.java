@@ -98,7 +98,7 @@ public class WorkspaceService {
                 .index(index)
                 .query(q -> q.term(t -> t.field("aclId").value(aclId)))
                 .conflicts(Conflicts.Proceed)
-                .refresh(true)
+                .refresh(false)
                 .script(scr -> scr
                         .source("ctx._source.permissions=params")
                         .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x -> JsonData.of(x.getValue())))))
