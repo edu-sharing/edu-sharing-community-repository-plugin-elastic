@@ -6,6 +6,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompletedAware;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.TransactionTrackerBase;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class TrackerScheduler {
+public class TrackerScheduler implements MigrationCompletedAware {
 
     private final Map<String, TransactionTrackerBase> trackerRegistry;
     private final TrackerProperties props;
@@ -36,6 +37,8 @@ public class TrackerScheduler {
 
     @Setter
     private ApplicationContext applicationContext;
+
+    private boolean migrated = false;
 
     @PostConstruct
     public void start() {
@@ -61,6 +64,9 @@ public class TrackerScheduler {
         });
     }
     private void track(TransactionTrackerBase transactionTracker) {
+        if(!migrated){
+            return;
+        }
         boolean transactionChanges;
         do {
             transactionChanges = false;
@@ -85,6 +91,11 @@ public class TrackerScheduler {
     @PreDestroy
     public void shutdown() {
         executors.forEach(ExecutorService::shutdown);
+    }
+
+    @Override
+    public void MigrationCompleted() {
+        migrated = true;
     }
 }
 
