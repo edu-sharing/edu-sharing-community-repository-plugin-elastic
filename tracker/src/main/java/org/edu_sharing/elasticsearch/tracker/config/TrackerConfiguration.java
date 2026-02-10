@@ -21,22 +21,16 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-@RequiredArgsConstructor
 @Configuration
+@RequiredArgsConstructor
 public class TrackerConfiguration {
 
     private final TrackerServiceFactory trackerServiceFactory;
-
     private final StatusIndexServiceFactory statusIndexServiceFactory;
-
     private final Map<String,TrackerProvider> trackerProviders;
-
     private final TrackerProperties props;
-
     private final AdminService adminService;
-
     private final StatusIndexService<AppInfo> appInfoStatusService;
-
     private final TransactionTracker transactionTracker;
 
     @Bean

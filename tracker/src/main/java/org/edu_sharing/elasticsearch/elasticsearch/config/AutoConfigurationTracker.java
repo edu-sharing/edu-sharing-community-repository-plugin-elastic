@@ -430,7 +430,9 @@ public class AutoConfigurationTracker {
     public TransactionTracker transactionTracker(TrackerServiceFactory trackerServiceFactory, StatusIndexService<Tx> transactionStateService) {
         DefaultTransactionTracker defaultTrackerService = trackerServiceFactory.createDefaultTrackerService(transactionStateService);
         List<String> excludeNodeTypes = defaultTrackerService.getExcludeNodeTypes();
-        if(excludeNodeTypes == null) excludeNodeTypes = new ArrayList<>();
+        if(excludeNodeTypes == null) {
+            excludeNodeTypes = new ArrayList<>();
+        }
         excludeNodeTypes.add("cm:person");
         excludeNodeTypes.add("cm:authorityContainer");
         defaultTrackerService.setExcludeNodeTypes(excludeNodeTypes);

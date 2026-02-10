@@ -52,7 +52,7 @@ public class AuthoritiesTracker extends DefaultTransactionTracker{
 
         int pIdx = 0;
         for (List<Node> partition : partitions) {
-            log.info("indexNodes partition " + pIdx);
+            log.info("indexNodes partition {}", pIdx);
             indexNodes(partition);
             pIdx++;
         }
@@ -77,12 +77,12 @@ public class AuthoritiesTracker extends DefaultTransactionTracker{
             String otherNodesString = otherNodes.stream()
                     .map(n -> n.getNodeRef() + ":" + n.getType())
                     .collect(Collectors.joining(","));
-            log.warn("no person or authority nodes:" + otherNodesString);
+            log.warn("no person or authority nodes:{}", otherNodesString);
         }
         // authorities
-        log.info("start index Authorities/Persons:"+ nodeMetadata.size());
+        log.info("start index Authorities/Persons:{}", nodeMetadata.size());
         List<NodeData> toIndexAuthorities = alfClient.getNodeData(nodeMetadata);
         authorityService.index(toIndexAuthorities);
-        log.info("finished index Authorities/Persons:"+ nodeMetadata.size());
+        log.info("finished index Authorities/Persons:{}", nodeMetadata.size());
     }
 }

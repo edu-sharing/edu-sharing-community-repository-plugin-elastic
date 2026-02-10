@@ -5,7 +5,6 @@ import org.edu_sharing.elasticsearch.alfresco.client.Transaction;
 import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.tracker.mock.AlfrescoApiMock;
-import org.edu_sharing.elasticsearch.tracker.DefaultTransactionTrackerTest;
 import org.edu_sharing.elasticsearch.tracker.mock.StatusIndexServiceMock;
 import org.edu_sharing.elasticsearch.tracker.mock.TestUtil;
 import org.edu_sharing.elasticsearch.tracker.strategy.MaxCommitTimeStrategy;
@@ -22,8 +21,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doNothing;
 
-@ExtendWith(MockitoExtension.class)
 @Slf4j
+@ExtendWith(MockitoExtension.class)
 public class TrackerTest {
 
 
@@ -38,7 +37,7 @@ public class TrackerTest {
 
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
 
 
         // Tracker konfigurieren
@@ -59,7 +58,7 @@ public class TrackerTest {
 
         long currentFrom = fromCommitTime;
         List<Transaction> collected = new ArrayList<>();
-        Transactions transactions = null;
+        Transactions transactions;
         do{
             transactions = tracker.getSomeTransactions(currentFrom,timeStep,maxResult,limit);
             if(transactions.getTransactions().isEmpty()){

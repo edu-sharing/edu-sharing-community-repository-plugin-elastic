@@ -56,9 +56,9 @@ public class StatisticsTracker {
                 StatisticTimestamp statisticTimestamp = statisticTimestampStateService.getState();
                 if (statisticTimestamp != null) {
                     trackFromTime = statisticTimestamp.getStatisticTimestamp();
-                    logger.info("starting from last run " + new Date(trackFromTime));
+                    logger.info("starting from last run {}", new Date(trackFromTime));
                 } else {
-                    logger.info("starting from history " + new Date(trackFromTime));
+                    logger.info("starting from history {}", new Date(trackFromTime));
                 }
 
                 Tx defaultTrackerState = transactionStateService.getState();
@@ -74,27 +74,27 @@ public class StatisticsTracker {
                 trackTsTo = defaultTrackerState.getTxnCommitTime();
                 Map<String, List<NodeStatistic>> nodeStatistics = new HashMap<>();
                 List<String> statistics = eduSharingClient.getStatisticsNodeIds(trackFromTime,trackTsTo);
-                logger.info("found " + statistics.size() + " statistic changes");
+                logger.info("found {} statistic changes", statistics.size());
 
                 for(String nodeId : statistics){
-                    logger.debug("track statistics for node " + nodeId);
+                    logger.debug("track statistics for node {}", nodeId);
                     try {
                         List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTimeFull);
                         nodeStatistics.put(nodeId, statisticsForNode);
                     } catch(ResponseProcessingException e) {
-                        logger.warn("Could not parse statistics for node " + nodeId, e);
+                        logger.warn("Could not parse statistics for node {}", nodeId, e);
                     }
                 }
                 
                 AtomicInteger counter = new AtomicInteger();
 
                 currentChunks = nodeStatistics.entrySet().stream().collect(Collectors.groupingBy(e -> counter.getAndIncrement() / chunkSize));
-                logger.info("splitted into "+currentChunks.size() +" chunks");
+                logger.info("splitted into {} chunks", currentChunks.size());
             }
 
             List<Integer> successfullChunks = new ArrayList<>();
             for(Map.Entry<Integer, List<Map.Entry<String, List<NodeStatistic>>>> entry : currentChunks.entrySet()){
-                logger.info("current chunk:"+ entry.getKey() +" size: "+entry.getValue().size() +" all chunks:"+currentChunks.size());
+                logger.info("current chunk:{} size: {} all chunks:{}", entry.getKey(), entry.getValue().size(), currentChunks.size());
                 Map<String,List<NodeStatistic>> nodeStatistics = new HashMap<>();
                 for(Map.Entry<String,List<NodeStatistic>> e : entry.getValue()){
                     nodeStatistics.put(e.getKey(),e.getValue());
@@ -110,7 +110,7 @@ public class StatisticsTracker {
             successfullChunks.forEach(c -> currentChunks.remove(c));
 
             if(currentChunks.isEmpty()) {
-                logger.info("finished statistics until:" + new Date(trackTsTo));
+                logger.info("finished statistics until:{}", new Date(trackTsTo));
                 statisticTimestampStateService.setState(new StatisticTimestamp(allNodesInIndex, trackTsTo));
             }
             elasticService.refreshWorkspace();

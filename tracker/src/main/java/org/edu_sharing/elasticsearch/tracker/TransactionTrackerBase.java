@@ -15,11 +15,9 @@ import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.strategy.StatusIndexServiceStrategie;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.springframework.util.function.ThrowingConsumer;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -77,7 +75,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     protected List<String> excludeNodeTypes = null;
 
     /**
-     *  make sure to use short names like ccm:collection!
+     * make sure to use short names like ccm:collection!
      */
     @Setter
     protected List<String> excludeAspects = null;
@@ -105,7 +103,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     protected TransactionTrackerBase() {
     }
 
-    public void init(){
+    public void init() {
 
     }
 
@@ -125,23 +123,23 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
             long nextTransactionId = lastTransactionId + 1;
             Transactions transactions;
-            if(lastTransactionTimestamp > 0) {
-                long endTime = trackerStrategy.getLimit() != null ? trackerStrategy.getLimit() : alfClient.getTransactions(0L,1L,null,null,1).getMaxTxnCommitTime();
+            if (lastTransactionTimestamp > 0) {
+                long endTime = trackerStrategy.getLimit() != null ? trackerStrategy.getLimit() : alfClient.getTransactions(0L, 1L, null, null, 1).getMaxTxnCommitTime();
                 // solr-common-SqlMap.xml select_Txns ibatis template does < #{toCommitTimeExclusive} but we want it to be included
                 endTime += 1;
                 //check if there are txIds with the same commitTime like lastTransactionTimestamp
-                Transactions tempTxs = alfClient.getTransactions(null,null,lastTransactionTimestamp,lastTransactionTimestamp +1,numberOfTransactions);
+                Transactions tempTxs = alfClient.getTransactions(null, null, lastTransactionTimestamp, lastTransactionTimestamp + 1, numberOfTransactions);
                 tempTxs.setTransactions(tempTxs.getTransactions().stream().filter(t -> t.getId() > lastTransactionId).toList());
-                if(!tempTxs.getTransactions().isEmpty()) {
+                if (!tempTxs.getTransactions().isEmpty()) {
                     log.info("found transactions with the same commitTime: {}", Arrays.toString(tempTxs.getTransactions().stream().map(Transaction::getId).toArray()));
                     transactions = tempTxs;
-                }else{
+                } else {
                     long fromCommitTimeMs = lastTransactionTimestamp + 1;
-                    transactions = getSomeTransactions(fromCommitTimeMs,timeStep,numberOfTransactions,endTime);
+                    transactions = getSomeTransactions(fromCommitTimeMs, timeStep, numberOfTransactions, endTime);
                 }
             } else {
                 log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
-                if(trackerStrategy instanceof StatusIndexServiceStrategie && trackerStrategy.getLimit() == 0){
+                if (trackerStrategy instanceof StatusIndexServiceStrategie && trackerStrategy.getLimit() == 0) {
                     log.warn("waiting for dependent tracker");
                     return State.FINISHED;
                 }
@@ -151,9 +149,9 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             long maxTrackerTxnId = transactions.getMaxTxnId();
 
             if (transactions.getTransactions().isEmpty()) {
-                if(metricContext != null) {
+                if (metricContext != null) {
                     boolean isBehindMainTracker = (trackerStrategy instanceof StatusIndexServiceStrategie && trackerStrategy.getLimit() < transactions.getMaxTxnCommitTime());
-                    if(!isBehindMainTracker) {
+                    if (!isBehindMainTracker) {
                         metricContext.getProgress().set((long) (100 * PROGRESS_FACTOR));
                         metricContext.getTimestamp().set(System.currentTimeMillis());
                     }
@@ -175,39 +173,39 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
             GetNodeParamExtension getNodeParam = new GetNodeParamExtension();
 
-            if(this.includeNodeTypes != null && !this.includeNodeTypes.isEmpty()) {
+            if (this.includeNodeTypes != null && !this.includeNodeTypes.isEmpty()) {
                 List<String> list = this.includeNodeTypes.stream()
                         .map(CCConstants::getValidGlobalName)
                         .filter(Objects::nonNull).toList();
-                if(!list.isEmpty()) getNodeParam.setIncludeNodeTypes(list);
+                if (!list.isEmpty()) getNodeParam.setIncludeNodeTypes(list);
             }
-            if(this.excludeNodeTypes != null && !this.excludeNodeTypes.isEmpty()) {
+            if (this.excludeNodeTypes != null && !this.excludeNodeTypes.isEmpty()) {
                 List<String> list = this.excludeNodeTypes.stream()
                         .map(CCConstants::getValidGlobalName)
                         .filter(Objects::nonNull).toList();
-                if(!list.isEmpty()) getNodeParam.setExcludeNodeTypes(list);
+                if (!list.isEmpty()) getNodeParam.setExcludeNodeTypes(list);
             }
-            if(this.includeAspects != null && !this.includeAspects.isEmpty()) {
+            if (this.includeAspects != null && !this.includeAspects.isEmpty()) {
                 List<String> list = this.includeAspects.stream()
                         .map(CCConstants::getValidGlobalName)
                         .filter(Objects::nonNull).toList();
-                if(!list.isEmpty()) getNodeParam.setIncludeAspects(list);
+                if (!list.isEmpty()) getNodeParam.setIncludeAspects(list);
             }
-            if(this.excludeAspects != null && !this.excludeAspects.isEmpty()) {
+            if (this.excludeAspects != null && !this.excludeAspects.isEmpty()) {
                 List<String> list = this.excludeAspects.stream()
                         .map(CCConstants::getValidGlobalName)
                         .filter(Objects::nonNull).toList();
-                if(!list.isEmpty()) getNodeParam.setExcludeAspects(list);
+                if (!list.isEmpty()) getNodeParam.setExcludeAspects(list);
             }
 
-            if(this.storeIdentifier != null && !this.storeIdentifier.isEmpty() && storeProtocol != null && !storeProtocol.isEmpty()) {
+            if (this.storeIdentifier != null && !this.storeIdentifier.isEmpty() && storeProtocol != null && !storeProtocol.isEmpty()) {
                 getNodeParam.setStoreProtocol(storeProtocol);
                 getNodeParam.setStoreIdentifier(storeIdentifier);
             }
 
             getNodeParam.setTxnIds(transactionIds);
             List<Node> nodes = alfClient.getNodes(getNodeParam);
-            log.info("got " + nodes.size() + " nodes");
+            log.info("got {} nodes", nodes.size());
 
             eduSharingClient.refreshValuespaceCache();
 
@@ -218,11 +216,11 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
             Transaction last = transactions.getTransactions().stream().max(Comparator
                     .comparingLong(Transaction::getCommitTimeMs)
                     .thenComparingLong(Transaction::getId)
-            ).get();
+            ).orElseThrow();
             commit(transactionStateService, new Tx(last.getId(), last.getCommitTimeMs()));
 
             // log progress
-            if(metricContext != null){
+            if (metricContext != null) {
                 metricContext.getProgress().set((long) (calcProgress(transactions, transactionIds) * PROGRESS_FACTOR));
                 metricContext.getTimestamp().set(lastTransactionTimestamp);
             }
@@ -250,29 +248,28 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
      * @param endTime
      * @return
      */
-    public Transactions getSomeTransactions(Long fromCommitTime, long timeStep, int maxResults, long endTime){
+    public Transactions getSomeTransactions(Long fromCommitTime, long timeStep, int maxResults, long endTime) {
         Transactions transactions;
         long startTime = fromCommitTime;
-        do{
+        do {
             long toCommitTime = startTime + timeStep;
-            if(toCommitTime > endTime){
+            if (toCommitTime > endTime) {
                 toCommitTime = endTime;
             }
             transactions = alfClient.getTransactions(null, null, startTime, toCommitTime, maxResults);
             startTime = toCommitTime;
             if (transactions.getTransactions().isEmpty()) {
                 long nextFromCommitTime = alfClient.getNextCommitTime(startTime).getNextTransactionCommitTimeMs();
-                if (nextFromCommitTime != -1 && nextFromCommitTime < endTime)
-                {
+                if (nextFromCommitTime != -1 && nextFromCommitTime < endTime) {
                     long nextToCommitTime = nextFromCommitTime + timeStep;
-                    if (nextToCommitTime > endTime){
+                    if (nextToCommitTime > endTime) {
                         nextToCommitTime = endTime;
                     }
-                    log.info("Advancing transactions from {} to {}",startTime,nextFromCommitTime);
+                    log.info("Advancing transactions from {} to {}", startTime, nextFromCommitTime);
                     transactions = alfClient.getTransactions(null, null, nextFromCommitTime, nextToCommitTime, maxResults);
                 }
             }
-        }while (transactions.getTransactions().isEmpty() && (startTime < endTime));
+        } while (transactions.getTransactions().isEmpty() && (startTime < endTime));
         return transactions;
     }
 

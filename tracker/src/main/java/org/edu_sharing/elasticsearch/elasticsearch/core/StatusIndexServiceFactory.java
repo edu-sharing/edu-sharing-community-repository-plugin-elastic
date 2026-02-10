@@ -13,15 +13,15 @@ public class StatusIndexServiceFactory {
 
     private final ElasticsearchClient client;
 
-    public StatusIndexService<Tx> createTransactionStateService(String index){
+    public StatusIndexService<Tx> createTransactionStateService(String index) {
         return new StatusIndexService<>(index, client, Tx::new, "1", Tx.class);
     }
 
-    public StatusIndexService<AclTx> createAclStateService(String index){
+    public StatusIndexService<AclTx> createAclStateService(String index) {
         return new StatusIndexService<>(index, client, AclTx::new, "2", AclTx.class);
     }
 
-    public StatusIndexService<StatisticTimestamp> createStatisticTimestampStateService(String index){
+    public StatusIndexService<StatisticTimestamp> createStatisticTimestampStateService(String index) {
         return new StatusIndexService<>(index, client, StatisticTimestamp::new, "3", StatisticTimestamp.class);
     }
 }
