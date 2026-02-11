@@ -17,6 +17,10 @@ public class StatusIndexServiceFactory {
         return new StatusIndexService<>(index, client, Tx::new, "1", Tx.class);
     }
 
+    public StatusIndexService<Tx> createTransactionStateService(String index, String id) {
+        return new StatusIndexService<>(index, client, Tx::new, id, Tx.class);
+    }
+
     public StatusIndexService<AclTx> createAclStateService(String index) {
         return new StatusIndexService<>(index, client, AclTx::new, "2", AclTx.class);
     }

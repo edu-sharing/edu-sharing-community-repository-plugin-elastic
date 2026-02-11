@@ -1,9 +1,10 @@
 package org.edu_sharing.elasticsearch;
 
 import lombok.RequiredArgsConstructor;
+import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCallback10_1;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
-import org.edu_sharing.elasticsearch.tracker.config.TrackerRegistry;
+import org.edu_sharing.elasticsearch.tracker.config.TrackerProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -33,7 +34,7 @@ public class Migrations {
 
     @Bean
     @Order(3)
-    public MigrationInfo migration10_1(TrackerRegistry trackerRegistry) {
-        return new MigrationInfo("10.1", false,false, new MigrationCallback10_1(trackerRegistry));
+    public MigrationInfo migration10_1(StatusIndexServiceFactory statusIndexServiceFactory, TrackerProperties props) {
+        return new MigrationInfo("10.1", false,false, new MigrationCallback10_1(statusIndexServiceFactory,props));
     }
 }

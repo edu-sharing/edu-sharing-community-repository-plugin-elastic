@@ -43,7 +43,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     protected EduSharingClient eduSharingClient;
 
     @Getter
-    @Setter(AccessLevel.PACKAGE)
+    @Setter()
     protected StatusIndexServiceInterface<Tx> transactionStateService;
 
     @Getter

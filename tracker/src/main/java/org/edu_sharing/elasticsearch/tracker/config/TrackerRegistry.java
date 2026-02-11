@@ -2,6 +2,7 @@ package org.edu_sharing.elasticsearch.tracker.config;
 
 import io.micrometer.common.util.StringUtils;
 import org.edu_sharing.elasticsearch.elasticsearch.core.*;
+import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AppInfo;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
@@ -26,6 +27,7 @@ public class TrackerRegistry {
     private final AdminService adminService;
     private final StatusIndexService<AppInfo> appInfoStatusService;
     private final TransactionTracker mainTransactionTracker;
+    private final List<MigrationInfo> migrationInfos;
 
 
     private final Map<String, TransactionTracker> registeredTracker = new HashMap<>();
@@ -42,7 +44,8 @@ public class TrackerRegistry {
             TrackerProperties props,
             AdminService adminService,
             StatusIndexService<AppInfo> appInfoStatusService,
-            TransactionTracker mainTransactionTracker
+            TransactionTracker mainTransactionTracker,
+            List<MigrationInfo> migrationInfos
     ) {
         this.trackerServiceFactory = trackerServiceFactory;
         this.statusIndexServiceFactory = statusIndexServiceFactory;
@@ -51,6 +54,7 @@ public class TrackerRegistry {
         this.adminService = adminService;
         this.appInfoStatusService = appInfoStatusService;
         this.mainTransactionTracker = mainTransactionTracker;
+        this.migrationInfos = migrationInfos;
         try {
             createTracker();
         } catch (IOException e) {
@@ -60,11 +64,11 @@ public class TrackerRegistry {
 
     private void createTracker() throws IOException {
 
-        String appVersion = appInfoStatusService.getState().getTrackerVersion();
+        String appVersion = migrationInfos.get(migrationInfos.size() - 1).getVersion();
 
         props.getTracker().forEach((trackerName, cfg) -> {
             TransactionTracker trackerService;
-            if (cfg.getProvider().equals("main")) {
+            if (trackerName.equals("main")) {
                 trackerService = mainTransactionTracker;
             } else {
                 trackerService = createTransactionTracker(trackerName, cfg, appVersion);
@@ -110,14 +114,14 @@ public class TrackerRegistry {
     }
 
     private StatusIndexService<Tx> createTransactionStateService(String trackerName, String appVersion) {
-        String indexName = "transactions_" + trackerName + "_" + appVersion;
+        String indexName = "transactions_" + appVersion;
         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(indexName));
         try {
             adminService.createIndex(indexConfiguration);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
+        return statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex(),trackerName);
     }
 
     @NotNull
