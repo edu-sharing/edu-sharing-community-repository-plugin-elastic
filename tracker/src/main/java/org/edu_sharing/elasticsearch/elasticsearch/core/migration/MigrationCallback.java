@@ -1,10 +1,6 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core.migration;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
-import org.edu_sharing.elasticsearch.tracker.TransactionTrackerBase;
-
-import java.util.Map;
 
 /**
  * Interface defining a callback mechanism for custom actions during the migration process.
@@ -45,5 +41,5 @@ public interface MigrationCallback {
      * @param client         the Elasticsearch client used for interacting with the Elasticsearch system
      *                       during the migration process.
      */
-    void onMigrationCallback(final MigrationJob migrationJob, final MigrationState migrationState, final ElasticsearchClient client, Map<String, TransactionTrackerBase> trackerRegistry, TransactionTracker transactionTracker);
+    void onMigrationCallback(final MigrationJob migrationJob, final MigrationState migrationState, final ElasticsearchClient client);
 }
