@@ -27,8 +27,8 @@ public class DefaultConfiguration {
     }
 
     @Bean
-    public TransactionTrackerJob transactionTrackerJob(TransactionTracker transactionTracker, TrackerAvailabilityTickService tickService){
-        return new TransactionTrackerJob(transactionTracker, tickService);
+    public TransactionTrackerJob transactionTrackerJob(TransactionTracker mainTransactionTracker, TrackerAvailabilityTickService tickService){
+        return new TransactionTrackerJob(mainTransactionTracker, tickService);
     }
 
     @Bean

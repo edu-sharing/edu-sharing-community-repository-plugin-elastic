@@ -426,8 +426,8 @@ public class AutoConfigurationTracker {
     }
 
     @Bean
-    @ConditionalOnMissingBean(name = "transactionTracker")
-    public TransactionTracker transactionTracker(TrackerServiceFactory trackerServiceFactory, StatusIndexService<Tx> transactionStateService) {
+    @ConditionalOnMissingBean(name = "mainTransactionTracker")
+    public TransactionTracker mainTransactionTracker(TrackerServiceFactory trackerServiceFactory, StatusIndexService<Tx> transactionStateService) {
         DefaultTransactionTracker defaultTrackerService = trackerServiceFactory.createDefaultTrackerService(transactionStateService);
         List<String> excludeNodeTypes = defaultTrackerService.getExcludeNodeTypes();
         if(excludeNodeTypes == null) {

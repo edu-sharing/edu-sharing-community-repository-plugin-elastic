@@ -1,13 +1,12 @@
 package org.edu_sharing.elasticsearch.tracker.config;
 
 import org.edu_sharing.elasticsearch.tracker.PreviewTracker;
-import org.edu_sharing.elasticsearch.tracker.TransactionTrackerBase;
 import org.springframework.stereotype.Component;
 
 @Component("previewTrackerProvider")
-public class PreviewTrackerProvider implements TrackerProvider{
+public class PreviewTrackerProvider implements TrackerProvider<PreviewTracker> {
     @Override
-    public TransactionTrackerBase create() {
+    public PreviewTracker create() {
         return new PreviewTracker();
     }
 }

@@ -8,6 +8,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
+import org.edu_sharing.elasticsearch.tracker.config.TrackerProvider;
 import org.edu_sharing.elasticsearch.tracker.strategy.FixNumberOfTransactionStrategy;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +16,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 @Component
 @RequiredArgsConstructor
@@ -35,50 +35,51 @@ public class TrackerServiceFactory {
     @Value("${index.storerefs}")
     private List<String> indexStoreRefs;
 
-    @Value("#{'${include.nodeTypes:}'.isEmpty() ? {} : '${include.nodeTypes}'.split(',')}")
+    @Value("${include.nodeTypes}")
     private List<String> includeNodeTypes;
 
-    @Value("#{'${exclude.nodeTypes:}'.isEmpty() ? {} : '${exclude.nodeTypes}'.split(',')}")
+    @Value("${exclude.nodeTypes}")
     private List<String> excludeNodeTypes;
 
     @Value("${allowed.types}")
-    private String allowedTypes;
+    private List<String> allowedTypes;
 
     @Value("${tracker.fetch.size.alfresco}")
-    private  int fetchSizeAlfresco;
+    private int fetchSizeAlfresco;
 
     @Value("${tracker.bulk.size.elastic}")
-    private  int bulkSizeElastic;
+    private int bulkSizeElastic;
 
     public DefaultTransactionTracker createDefaultTrackerService(StatusIndexService<Tx> transactionStateService) {
         return createDefaultTrackerService(transactionStateService, new FixNumberOfTransactionStrategy());
     }
+
     public DefaultTransactionTracker createDefaultTrackerService(StatusIndexService<Tx> transactionStateService, TrackerStrategy trackerStrategy) {
         return createTrackerService(DefaultTransactionTracker::new, transactionStateService, trackerStrategy, MetricContextHolder.getTransactionContext());
     }
 
-    public <T extends TransactionTrackerBase> T createTrackerService(Supplier<T> trackerSupplier, StatusIndexService<Tx> transactionStateService, TrackerStrategy trackerStrategy, MetricContextHolder.MetricContext metricContext){
-        T defaultTransactionTracker = trackerSupplier.get();
-        defaultTransactionTracker.setAlfClient(alfClient);
-        defaultTransactionTracker.setWorkspaceService(workspaceService);
-        defaultTransactionTracker.setAuthorityService(authorityService);
-        defaultTransactionTracker.setEduSharingClient(eduSharingClient);
-        defaultTransactionTracker.setTransactionStateService(transactionStateService);
-        defaultTransactionTracker.setTrackerStrategy(trackerStrategy);
+    public <T extends TransactionTrackerBase> T createTrackerService(TrackerProvider<T> trackerProvider, StatusIndexService<Tx> transactionStateService, TrackerStrategy trackerStrategy, MetricContextHolder.MetricContext metricContext) {
+        T transactionTracker = trackerProvider.create();
+        transactionTracker.setAlfClient(alfClient);
+        transactionTracker.setWorkspaceService(workspaceService);
+        transactionTracker.setAuthorityService(authorityService);
+        transactionTracker.setEduSharingClient(eduSharingClient);
+        transactionTracker.setTransactionStateService(transactionStateService);
+        transactionTracker.setTrackerStrategy(trackerStrategy);
 
-        defaultTransactionTracker.setNumberOfTransactions(numberOfTransactions);
-        defaultTransactionTracker.setThreadUtil(new ThreadUtil(threadCount));
-        defaultTransactionTracker.setMetricContext(metricContext);
-        if(defaultTransactionTracker instanceof  DefaultTransactionTracker dtt){
+        transactionTracker.setThreadUtil(new ThreadUtil(threadCount));
+        transactionTracker.setMetricContext(metricContext);
+        if (transactionTracker instanceof DefaultTransactionTracker dtt) {
             dtt.setIndexStoreRefs(indexStoreRefs);
             dtt.setWorkspaceTypes(allowedTypes);
             dtt.setFetchSizeAlfresco(fetchSizeAlfresco);
             dtt.setBulkSizeElastic(bulkSizeElastic);
         }
-        defaultTransactionTracker.setExcludeNodeTypes(new ArrayList<>(excludeNodeTypes));
-        defaultTransactionTracker.setIncludeNodeTypes(new ArrayList<>(includeNodeTypes));
-        defaultTransactionTracker.init();
-        return defaultTransactionTracker;
+        transactionTracker.setNumberOfTransactions(numberOfTransactions);
+        transactionTracker.setExcludeNodeTypes(new ArrayList<>(excludeNodeTypes));
+        transactionTracker.setIncludeNodeTypes(new ArrayList<>(includeNodeTypes));
+        transactionTracker.init();
+        return transactionTracker;
     }
 
 

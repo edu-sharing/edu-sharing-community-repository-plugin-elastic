@@ -1,13 +1,12 @@
 package org.edu_sharing.elasticsearch.tracker.config;
 
 import org.edu_sharing.elasticsearch.tracker.CollectionSyncTracker;
-import org.edu_sharing.elasticsearch.tracker.TransactionTrackerBase;
 import org.springframework.stereotype.Component;
 
 @Component("collectionSyncTrackerProvider")
-public class CollectionSyncTrackerProvider implements TrackerProvider {
+public class CollectionSyncTrackerProvider implements TrackerProvider<CollectionSyncTracker> {
     @Override
-    public TransactionTrackerBase create() {
+    public CollectionSyncTracker create() {
         return new CollectionSyncTracker();
     }
 }

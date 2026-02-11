@@ -12,7 +12,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.edu_sharing.elasticsearch.tools.Tools;
-import org.edu_sharing.elasticsearch.tracker.strategy.StatusIndexServiceStrategie;
+import org.edu_sharing.elasticsearch.tracker.strategy.DependentStatusIndexServiceStrategie;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 import org.edu_sharing.repository.client.tools.CCConstants;
 
@@ -139,7 +139,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
                 }
             } else {
                 log.warn("no last transaction timestamp, need to fallback to id mode, txnId {}", nextTransactionId);
-                if (trackerStrategy instanceof StatusIndexServiceStrategie && trackerStrategy.getLimit() == 0) {
+                if (trackerStrategy instanceof DependentStatusIndexServiceStrategie && trackerStrategy.getLimit() == 0) {
                     log.warn("waiting for dependent tracker");
                     return State.FINISHED;
                 }
@@ -150,26 +150,25 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
 
             if (transactions.getTransactions().isEmpty()) {
                 if (metricContext != null) {
-                    boolean isBehindMainTracker = (trackerStrategy instanceof StatusIndexServiceStrategie && trackerStrategy.getLimit() < transactions.getMaxTxnCommitTime());
+                    boolean isBehindMainTracker = (trackerStrategy instanceof DependentStatusIndexServiceStrategie && trackerStrategy.getLimit() < transactions.getMaxTxnCommitTime());
                     if (!isBehindMainTracker) {
-                        metricContext.getProgress().set((long) (100 * PROGRESS_FACTOR));
+                        metricContext.getProgress().set(100 * PROGRESS_FACTOR);
                         metricContext.getTimestamp().set(System.currentTimeMillis());
                     }
                 }
                 if (trackerStrategy.getLimit() != null) {
                     log.info("max transaction limit by strategy reached: {} / {}", maxTrackerTxnId, trackerStrategy.getLimit());
-                    return State.FINISHED;
                 } else {
                     log.info("index is up to date getMaxTxnId(): {} lastTransactionId: {}", maxTrackerTxnId, lastTransactionId);
-                    return State.FINISHED;
                 }
+                return State.FINISHED;
             }
 
             List<Long> transactionIds = transactions.getTransactions()
                     .stream()
                     .map(Transaction::getId)
                     .collect(Collectors.toList());
-            log.info("got " + transactionIds.size() + " transactions last:" + transactionIds.get(transactionIds.size() - 1));
+            log.info("got {} transactions last:{}", transactionIds.size(), transactionIds.get(transactionIds.size() - 1));
 
             GetNodeParamExtension getNodeParam = new GetNodeParamExtension();
 

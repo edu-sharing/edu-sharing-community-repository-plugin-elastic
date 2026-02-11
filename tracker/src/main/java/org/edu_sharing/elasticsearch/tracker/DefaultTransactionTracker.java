@@ -11,22 +11,19 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-//@Primary
-//@ConditionalOnProperty(prefix = "transaction", name = "tracker", havingValue = "default", matchIfMissing = true)
 public class DefaultTransactionTracker extends TransactionTrackerBase {
 
     @Setter
     private List<String> globalTypeFilter;
 
     @Setter
-    private String workspaceTypes;
+    private List<String> workspaceTypes;
 
     @Setter
     protected List<String> indexStoreRefs;
@@ -105,7 +102,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         List<NodeData> toIndexNodes = translate(toIndex);
 
         // io's, maps
-        logger.info("index user nodes size:" + toIndexNodes.size());
+        logger.info("index user nodes size:{}", toIndexNodes.size());
         updateNodes(toIndexNodes);
         // refresh index so that collections will be found by cacheCollections process
         logger.info("starting refresh index");
@@ -129,7 +126,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
                     true);
             logger.info("index bulkOperations: {}",operations.size());
             workspaceService.index(operations);
-            logger.info("finished partition " + pIdx);
+            logger.info("finished partition {}", pIdx);
             pIdx++;
         }
     }
@@ -169,7 +166,7 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
                 if (value != null) {
                     long parentDbid = ((Number) value).longValue();
-                    logger.info("FOUND PARENT IO WITH " + parentDbid);
+                    logger.info("FOUND PARENT IO WITH {}", parentDbid);
                     //check if exists in list
                     if (nodeData.stream().noneMatch(n -> n.getId() == parentDbid)) {
                         Node n = new Node();
@@ -193,11 +190,9 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
     }
 
     public boolean isAllowedType(NodeMetadata nodeMetadata) {
-        if (StringUtils.hasText(workspaceTypes)) {
-            String[] allowedTypesArray = workspaceTypes.split(",");
+        if (!workspaceTypes.isEmpty()) {
             String type = nodeMetadata.getType();
-
-            return Arrays.asList(allowedTypesArray).contains(type);
+            return workspaceTypes.contains(type);
         }
         return true;
     }

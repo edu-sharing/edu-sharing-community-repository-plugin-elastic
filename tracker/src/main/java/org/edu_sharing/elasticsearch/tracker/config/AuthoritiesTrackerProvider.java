@@ -1,13 +1,12 @@
 package org.edu_sharing.elasticsearch.tracker.config;
 
 import org.edu_sharing.elasticsearch.tracker.AuthoritiesTracker;
-import org.edu_sharing.elasticsearch.tracker.TransactionTrackerBase;
 import org.springframework.stereotype.Component;
 
 @Component("authoritiesTrackerProvider")
-public class AuthoritiesTrackerProvider implements TrackerProvider {
+public class AuthoritiesTrackerProvider implements TrackerProvider<AuthoritiesTracker> {
     @Override
-    public TransactionTrackerBase create() {
+    public AuthoritiesTracker create() {
         return new AuthoritiesTracker();
     }
 }

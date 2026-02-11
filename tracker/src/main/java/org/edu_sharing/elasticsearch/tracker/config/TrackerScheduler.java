@@ -8,7 +8,6 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompletedAware;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
-import org.edu_sharing.elasticsearch.tracker.TransactionTrackerBase;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -27,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class TrackerScheduler implements MigrationCompletedAware {
 
-    private final Map<String, TransactionTrackerBase> trackerRegistry;
+    private final TrackerRegistry trackerRegistry;
     private final TrackerProperties props;
 
     private final List<ScheduledExecutorService> executors = new ArrayList<>();
@@ -42,7 +40,7 @@ public class TrackerScheduler implements MigrationCompletedAware {
 
     @PostConstruct
     public void start() {
-        trackerRegistry.forEach((key, tracker) -> {
+        trackerRegistry.getRegisteredTracker().forEach((key, tracker) -> {
             ScheduledExecutorService executor =
                     Executors.newSingleThreadScheduledExecutor(r -> {
                         Thread t = new Thread(r);
@@ -63,10 +61,11 @@ public class TrackerScheduler implements MigrationCompletedAware {
             );
         });
     }
-    private void track(TransactionTrackerBase transactionTracker) {
+    private void track(TransactionTracker transactionTracker) {
         if(!migrated){
             return;
         }
+
         boolean transactionChanges;
         do {
             transactionChanges = false;

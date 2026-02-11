@@ -4,7 +4,6 @@ import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.edu_sharing.elasticsearch.TrackerAvailabilityService;
 import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompletedAware;
 import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
@@ -20,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RequiredArgsConstructor
 public class TransactionTrackerJob implements MigrationCompletedAware, ApplicationContextAware {
 
-    private final TransactionTracker transactionTracker;
+    private final TransactionTracker mainTransactionTracker;
     private final TrackerAvailabilityTickService tickService;
 
     private boolean migrated = false;
@@ -47,7 +46,7 @@ public class TransactionTrackerJob implements MigrationCompletedAware, Applicati
         do {
             transactionChanges = false;
             try {
-                transactionChanges = (transactionTracker.track() == TransactionTracker.State.INPROGRESS);
+                transactionChanges = (mainTransactionTracker.track() == TransactionTracker.State.INPROGRESS);
                 log.info("recursive transactionChanges: {}", transactionChanges);
             }catch (Throwable e){
                 log.error(e.getMessage(),e);

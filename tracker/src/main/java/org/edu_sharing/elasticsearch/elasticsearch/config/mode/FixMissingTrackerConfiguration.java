@@ -31,7 +31,7 @@ public class FixMissingTrackerConfiguration {
     }
 
     @Bean
-    public TransactionTracker transactionTracker(TrackerServiceFactory trackerServiceFactory, StatusIndexService<Tx> transactionStateService, StatusIndexService<Tx> fixMissingStateService) {
+    public TransactionTracker mainTransactionTracker(TrackerServiceFactory trackerServiceFactory, StatusIndexService<Tx> transactionStateService, StatusIndexService<Tx> fixMissingStateService) {
         try {
             return trackerServiceFactory.createDefaultTrackerService(fixMissingStateService, new MaxCommitTimeStrategy(transactionStateService.getState().getTxnCommitTime()));
         } catch (IOException e) {
