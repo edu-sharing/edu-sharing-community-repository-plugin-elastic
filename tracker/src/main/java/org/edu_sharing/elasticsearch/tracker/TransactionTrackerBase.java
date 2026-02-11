@@ -48,6 +48,7 @@ public abstract class TransactionTrackerBase implements TransactionTracker {
     @Setter(AccessLevel.PACKAGE)
     protected StatusIndexServiceInterface<Tx> transactionStateService;
 
+    @Getter
     @Setter(AccessLevel.PACKAGE)
     private TrackerStrategy trackerStrategy;
 

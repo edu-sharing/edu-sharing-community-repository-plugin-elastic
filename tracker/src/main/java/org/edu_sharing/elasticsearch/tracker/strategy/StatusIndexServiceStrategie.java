@@ -1,5 +1,6 @@
 package org.edu_sharing.elasticsearch.tracker.strategy;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
@@ -7,6 +8,8 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 
 @RequiredArgsConstructor
 public class StatusIndexServiceStrategie implements TrackerStrategy {
+
+    @Getter
     private final StatusIndexServiceInterface<Tx> transactionStateService;
 
     @SneakyThrows
