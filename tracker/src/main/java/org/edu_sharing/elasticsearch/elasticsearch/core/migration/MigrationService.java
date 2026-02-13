@@ -304,7 +304,7 @@ public class MigrationService {
                             log.info("reindexing transactions finished: {}", task);
                             BooleanResponse exists = client.indices().exists(e -> e.index(sourceAuthoritiesIndex));
                             if (!exists.value()) client.indices().create(c -> c.index(sourceAuthoritiesIndex));
-                            String taskId = reindex(sourceTransactionIndex, "authorities_" + version);
+                            String taskId = reindex(sourceAuthoritiesIndex, "authorities_" + version);
                             curStep = MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP;
                             updateMigrationState(migrationState, curStep, taskId);
                             break;
