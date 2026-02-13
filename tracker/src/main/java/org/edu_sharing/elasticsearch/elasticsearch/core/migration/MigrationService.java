@@ -416,7 +416,14 @@ public class MigrationService {
                         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionIndex));
                         StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
                         DefaultTransactionTracker migrationTracker = trackerServiceFactory.createDefaultTrackerService(migrationTransactionStateService, new MaxCommitTimeStrategy(maxCommitTime));
-
+                        // @TODO central config?
+                        List<String> excludeNodeTypes = migrationTracker.getExcludeNodeTypes();
+                        if(excludeNodeTypes == null) {
+                            excludeNodeTypes = new ArrayList<>();
+                        }
+                        excludeNodeTypes.add("cm:person");
+                        excludeNodeTypes.add("cm:authorityContainer");
+                        migrationTracker.setExcludeNodeTypes(excludeNodeTypes);
                         do {
                             trackerAvailabilityTickService.tick();
                         } while (migrationTracker.track() != TransactionTracker.State.FINISHED);
