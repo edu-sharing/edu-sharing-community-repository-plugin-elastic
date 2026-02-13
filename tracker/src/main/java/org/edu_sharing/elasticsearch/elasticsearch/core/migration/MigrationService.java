@@ -339,22 +339,8 @@ public class MigrationService {
 
                         if (tasksResponse.completed()) {
                             log.info("reindexing authorities finished: {}", task);
-                            if (requiresAuthoritiesMigration) {
-                                log.info("create authorities migration transactions index");
-                                IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
-                                adminService.createIndex(indexConfiguration);
-
-                                long txnCommitTime = transactionStateService.getState().getTxnCommitTime();
-
-                                curStep = MigrationStep.MIGRATE_AUTHORITIES_INDEX_PROGRESS_STEP;
-                                migrationState.setProgressStep(curStep.value);
-                                migrationState.setStatusMessage(curStep.message);
-                                updateMigrationState(migrationState, curStep, Long.toString(txnCommitTime));
-                                log.info("start migration of authorities");
-                            } else {
-                                migrationState.setProgressContent(null);
-                                curStep = setInitialStateMigrationCallback(migrationState);
-                            }
+                            migrationState.setProgressContent(null);
+                            curStep = setInitialStateMigrationCallback(migrationState);
                             break;
                         }
 
@@ -363,24 +349,6 @@ public class MigrationService {
                         Thread.sleep(5000);
                         break;
 
-                    }
-
-                    case MIGRATE_AUTHORITIES_INDEX_PROGRESS_STEP: {
-                        long maxCommitTime = Long.parseLong(migrationState.getProgressContent());
-                        IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
-                        StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
-                        AuthoritiesTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesTracker::new, migrationTransactionStateService, new MaxCommitTimeStrategy(maxCommitTime), null);
-                        migrationTracker.setNumberOfTransactions(authoritiesTrackerNumberOfTransactions);
-                        do {
-                            trackerAvailabilityTickService.tick();
-                        } while (migrationTracker.track() != TransactionTracker.State.FINISHED);
-
-                        log.info("delete authorities migration transactions index");
-                        adminService.deleteIndex(indexConfiguration);
-
-                        migrationState.setProgressContent(null);
-                        curStep = setInitialStateMigrationCallback(migrationState);
-                        break;
                     }
 
                     case ON_MIGRATION_CALLBACK_PROGRESS_STEP:
@@ -402,6 +370,38 @@ public class MigrationService {
                                     callback.onMigrationCallback(this, migrationState, client);
                                 });
 
+
+                        if (requiresAuthoritiesMigration) {
+                            log.info("create authorities migration transactions index");
+                            IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
+                            adminService.createIndex(indexConfiguration);
+
+                            long txnCommitTime = transactionStateService.getState().getTxnCommitTime();
+
+                            curStep = MigrationStep.MIGRATE_AUTHORITIES_INDEX_PROGRESS_STEP;
+                            migrationState.setProgressStep(curStep.value);
+                            migrationState.setStatusMessage(curStep.message);
+                            updateMigrationState(migrationState, curStep, Long.toString(txnCommitTime));
+                            log.info("start migration of authorities");
+                        } else {
+                            migrationState.setProgressContent(null);
+                            curStep = setInitialStateMigrationCallback(migrationState);
+                        }
+                        break;
+
+                    case MIGRATE_AUTHORITIES_INDEX_PROGRESS_STEP: {
+                        long maxCommitTime = Long.parseLong(migrationState.getProgressContent());
+                        IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionAuthoritiesIndex));
+                        StatusIndexService<Tx> migrationTransactionStateService = statusIndexServiceFactory.createTransactionStateService(indexConfiguration.getIndex());
+                        AuthoritiesTracker migrationTracker = trackerServiceFactory.createTrackerService(AuthoritiesTracker::new, migrationTransactionStateService, new MaxCommitTimeStrategy(maxCommitTime), null);
+                        migrationTracker.setNumberOfTransactions(authoritiesTrackerNumberOfTransactions);
+                        do {
+                            trackerAvailabilityTickService.tick();
+                        } while (migrationTracker.track() != TransactionTracker.State.FINISHED);
+
+                        log.info("delete authorities migration transactions index");
+                        adminService.deleteIndex(indexConfiguration);
+
                         if (requiresDocumentMigration) {
                             curStep = setStateMigrateDocs(migrationState);
                         } else {
@@ -410,6 +410,7 @@ public class MigrationService {
                             log.info("migration completed");
                         }
                         break;
+                    }
 
                     case MIGRATE_DOCUMENTS_PROGRESS_STEP:
                         long maxCommitTime = Long.parseLong(migrationState.getProgressContent());
