@@ -76,10 +76,10 @@ public class MigrationCallback10_1 implements MigrationCallback {
                 Tx state = currentStateService.getState();
                 if(state == null || state.getTxnCommitTime() == 0L ){
                     if(copyFromTx != null){
-                        log.info("init tracker {} by using state from dependent or main tracker. state: {} ",key,state);
                         state = new Tx();
                         state.setTxnCommitTime(copyFromTx.getTxnCommitTime());
                         state.setTxnId(copyFromTx.getTxnId());
+                        log.info("init tracker {} by using state from dependent or main tracker. state: {} ",key,state);
                         currentStateService.setState(state);
                     }
                 }
