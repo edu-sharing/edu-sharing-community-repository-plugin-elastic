@@ -2,7 +2,6 @@ package org.edu_sharing.elasticsearch.tracker.strategy;
 
 import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 
 import java.io.IOException;
 import java.util.List;
@@ -21,7 +20,7 @@ import java.util.List;
  */
 @RequiredArgsConstructor
 public class DependentStatusIndexServiceStrategie implements TrackerStrategy {
-    private final List<StatusIndexServiceInterface<Tx>> dependentTransactionStateServices;
+    private final List<StatusIndexServiceInterface<? extends CommiteTimeStatus>> dependentTransactionStateServices;
 
     @Override
     public Long getLimit() {
@@ -33,7 +32,7 @@ public class DependentStatusIndexServiceStrategie implements TrackerStrategy {
                         throw new RuntimeException(e);
                     }
                 })
-                .map(Tx::getTxnCommitTime)
+                .map(CommiteTimeStatus::getCommitTime)
                 .min(Long::compare)
                 .orElseThrow(() -> new RuntimeException("No dependent transactions found!"));
     }

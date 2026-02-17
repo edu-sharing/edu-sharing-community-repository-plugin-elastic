@@ -3,21 +3,16 @@ package org.edu_sharing.elasticsearch.elasticsearch.core.migration;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 
 /**
- * Interface defining a callback mechanism for custom actions during the migration process.
- * Implementations of this interface can be used to add specific logic, validations, data
- * transformations, or post-migration tasks at designated stages of a migration workflow.
+ * A callback interface used during the migration process to execute custom logic at a particular stage.
+ * The implementation of this callback can contain logic specific to the migration process, such as
+ * additional validations, transformations, or post-migration actions.
  * </br>
- * The callback is invoked by the migration workflow, which is managed by {@link MigrationJob}.
- * It provides access to the {@link MigrationJob} details, the current {@link MigrationState},
- * and an instance of {@link ElasticsearchClient} to enable seamless interactions with the
- * underlying system.
+ * The {@code MigrationCallback} is invoked during the migration process according to the workflow
+ * orchestrated by the {@code CallbackMigrationJob}. It can access both the job details and a client instance
+ * for further actions through the provided methods.
  * </br>
- * Methods:
- * - {@code getName()} is used to retrieve the name of the callback, which can be used for
- *   identification or logging purposes. The name needs to be unique over all migration callbacks.
- * - {@code onMigrationCallback(MigrationJob migrationJob, MigrationState migrationState, ElasticsearchClient client)}
- *   is executed during the migration process to perform custom logic, using the provided migration
- *   job details, state information, and the Elasticsearch client.
+ * This interface allows for defining custom behaviors to be executed as part of the migration process,
+ * ensuring flexibility and extensibility in handling migration scenarios.
  */
 public interface MigrationCallback {
 
@@ -31,15 +26,15 @@ public interface MigrationCallback {
      */
     String getName();
     /**
-     * Defines a callback triggered during the migration process to perform custom logic.
-     * The callback is invoked at a specific stage of the migration workflow, providing
-     * access to the migration job details, the current migration state, and an Elasticsearch client.
+     * The method invoked during the migration process to execute custom logic, validations, or actions.
+     * It provides access to the migration job details, migration context, and an Elasticsearch client to perform
+     * workflow-specific operations. This method can be implemented to add custom functionality at a specific
+     * stage in a migration workflow.
      *
-     * @param migrationJob   the migration job providing information about the indices, migration requirements,
-     *                       and versioning details. It also facilitates setting migration state and progress updates.
-     * @param migrationState the current state of the migration process, including progress, updates, and status messages.
-     * @param client         the Elasticsearch client used for interacting with the Elasticsearch system
-     *                       during the migration process.
+     * @param context the migration context containing information about the state of the migration,
+     *                including the source and target indices, configuration details, and tracker state.
+     * @param client  the Elasticsearch client used for interacting with the underlying search
+     *                infrastructure during the migration.
      */
-    void onMigrationCallback(final MigrationJob migrationJob, final MigrationState migrationState, final ElasticsearchClient client);
+    void onMigrationCallback(final MigrationContext context, final ElasticsearchClient client);
 }

@@ -14,7 +14,6 @@ import co.elastic.clients.json.JsonData;
 import co.elastic.clients.util.ObjectBuilder;
 import com.google.gson.GsonBuilder;
 import com.google.gson.ToNumberPolicy;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import net.sourceforge.cardme.engine.VCardEngine;
@@ -31,8 +30,8 @@ import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.utils.NodeMetadataSimple;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
-import org.edu_sharing.elasticsearch.tracker.CascadeTracker;
-import org.edu_sharing.elasticsearch.tracker.Partition;
+import org.edu_sharing.elasticsearch.tracker.cascade.CascadeTracker;
+import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.BasicJsonParser;
@@ -56,7 +55,7 @@ import java.util.stream.Stream;
 
 @Slf4j
 @Component
-public class WorkspaceService {
+public class WorkspaceService implements SearchHitsRunner {
 
     public static final String CONTRIBUTOR_REGEX = "ccm:[a-zA-Z]*contributer_[a-zA-Z_-]*";
 
@@ -79,10 +78,13 @@ public class WorkspaceService {
     private final AtomicInteger nodeCounter = new AtomicInteger(0);
     private final AtomicLong lastNodeCount = new AtomicLong(System.currentTimeMillis());
     private final AlfrescoWebscriptClient alfrescoClient;
-    private final SearchHitsRunner searchHitsRunner = new SearchHitsRunner(this);
     private final String index;
 
-    public WorkspaceService(co.elastic.clients.elasticsearch.ElasticsearchClient client, ScriptExecutor scriptExecutor, EduSharingClient eduSharingClient, AlfrescoWebscriptClient alfrescoClient, IndexConfiguration workspace) {
+    public WorkspaceService(co.elastic.clients.elasticsearch.ElasticsearchClient client,
+                            ScriptExecutor scriptExecutor,
+                            EduSharingClient eduSharingClient,
+                            AlfrescoWebscriptClient alfrescoClient,
+                            IndexConfiguration workspace) {
         this.client = client;
         this.scriptExecutor = scriptExecutor;
         this.alfrescoClient = alfrescoClient;
@@ -795,7 +797,7 @@ public class WorkspaceService {
             boolean collectionDeleted = collectionCheckQuery.equals(queryCollection);
             log.info("cleanup collection cause {}", collectionDeleted ? "collection deleted" : "usage/proposal deleted");
 
-            searchHitsRunner.run(collectionCheckQuery, Map.class, hitIO -> {
+            this.run(collectionCheckQuery, Map.class, hitIO -> {
                 Map<?,?> source = hitIO.source();
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> collections = (List<Map<String, Object>>) source.get("collections");
@@ -849,7 +851,7 @@ public class WorkspaceService {
 
     public void syncCollectionReplicas(NodeMetadataSimple collection) throws IOException {
         log.info("starting for collection: {}", collection.getNodeRef());
-        searchHitsRunner.run(InternalQueries.queryCollectionNodes(collection.getId()), maxCollectionChildItemsUpdateSize, Map.class, (hit) -> {
+        this.run(InternalQueries.queryCollectionNodes(collection.getId()), maxCollectionChildItemsUpdateSize, Map.class, (hit) -> {
             try {
                 onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(hit.source()), true, false);
             } catch (IOException e) {
@@ -884,7 +886,7 @@ public class WorkspaceService {
         SearchHitsRunner.IOConsumer<Hit<Map>> action = hit -> {
             long dbId = ((Number) hit.source().get("dbid")).longValue();
             GetNodeMetadataParam param = new GetNodeMetadataParam();
-            param.setNodeIds(Arrays.asList(new Long[]{dbId}));
+            param.setNodeIds(Arrays.asList(dbId));
             List<NodeMetadata> nodeMetadataByIds = alfrescoClient.getNodeMetadataByIds(List.of(dbId));
             if (nodeMetadataByIds == null || nodeMetadataByIds.isEmpty()) {
                 log.warn("could not find usage/proposal object in alfresco with dbid:" + dbId);
@@ -925,8 +927,8 @@ public class WorkspaceService {
         };
         // run queries and apply action above
 
-        searchHitsRunner.run(queryUsages, 25, update ? maxCollectionChildItemsUpdateSize : null, null, Map.class, action);
-        searchHitsRunner.run(queryProposals, 25, update ? maxCollectionChildItemsUpdateSize : null, null, Map.class, action);
+        this.run(queryUsages, 25, update ? maxCollectionChildItemsUpdateSize : null, null, Map.class, action);
+        this.run(queryProposals, 25, update ? maxCollectionChildItemsUpdateSize : null, null, Map.class, action);
         builder.endArray();
         builder.endObject();
         // since the node was indexed before an explicit write is not required and slows down the performance
@@ -1088,7 +1090,6 @@ public class WorkspaceService {
                 client.clearScroll(cs -> cs.scrollId(fscrollId));
             }
         }
-
     }
 
     public Serializable getProperty(String nodeRef, String property) throws IOException {

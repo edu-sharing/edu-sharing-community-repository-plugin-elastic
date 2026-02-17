@@ -4,6 +4,7 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Result;
 import co.elastic.clients.elasticsearch._types.ShardFailure;
 import co.elastic.clients.elasticsearch._types.ShardStatistics;
+import co.elastic.clients.elasticsearch.core.DeleteResponse;
 import co.elastic.clients.elasticsearch.core.IndexResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -27,6 +28,11 @@ public class StatusIndexService<TDATA> implements StatusIndexServiceInterface<TD
     private final String documentId;
     private final Class<TDATA> statusType;
 
+
+    @Override
+    public Class<TDATA> getStateClass() {
+        return statusType;
+    }
 
     @SneakyThrows
     public TDATA getState() throws IOException {
@@ -54,7 +60,23 @@ public class StatusIndexService<TDATA> implements StatusIndexServiceInterface<TD
             log.debug("updated node in elastic: {}", state);
         }
 
-        ShardStatistics shardInfo = indexResponse.shards();
+        logShardInfo(indexResponse.shards());
+    }
+
+    @Override
+    public void resetState() throws IOException {
+        DeleteResponse deleteResponse = client.delete(req -> req
+                .index(index)
+                .id(documentId));
+
+        if (deleteResponse.result() == Result.Deleted) {
+            log.debug("deleted node in elastic: {}", documentId);
+        }
+
+        logShardInfo(deleteResponse.shards());
+    }
+
+    private static void logShardInfo(ShardStatistics shardInfo) {
         if (shardInfo.total().longValue() != shardInfo.successful().longValue()) {
             log.debug("shardInfo.total().longValue() {} != shardInfo.successful().longValue(): {}", shardInfo.total().longValue(), shardInfo.successful().longValue());
         }

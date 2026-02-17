@@ -4,11 +4,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.Transaction;
 import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
+import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
+import org.edu_sharing.elasticsearch.tracker.core.Tracker;
+import org.edu_sharing.elasticsearch.tracker.core.TrackingContext;
 import org.edu_sharing.elasticsearch.tracker.mock.AlfrescoApiMock;
 import org.edu_sharing.elasticsearch.tracker.mock.StatusIndexServiceMock;
 import org.edu_sharing.elasticsearch.tracker.mock.TestUtil;
 import org.edu_sharing.elasticsearch.tracker.strategy.MaxCommitTimeStrategy;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -25,35 +28,26 @@ import static org.mockito.Mockito.doNothing;
 @ExtendWith(MockitoExtension.class)
 public class TrackerTest {
 
-
-
-    MaxCommitTimeStrategy strategy;
+    private MaxCommitTimeStrategy strategy;
 
     @Mock
     private EduSharingClient eduSharingClient;
 
     @InjectMocks
-    DefaultTransactionTrackerTest tracker;
+    private MainTrackerTest tracker;
 
-
-    @BeforeEach
-    void setUp() {
-
-
-        // Tracker konfigurieren
-        tracker.setTransactionStateService(new StatusIndexServiceMock());
-    }
+    @InjectMocks
+    private StatusIndexServiceMock statusIndexService;
 
     @Test
     public void testGetSomeTransactions() throws Exception {
         Transactions data = TestUtil.loadTransactions("transactionsTest.json");
         tracker.setAlfClient(new AlfrescoApiMock(data));
         strategy = new MaxCommitTimeStrategy(1744362767224L);
-        tracker.setTrackerStrategy(strategy);
 
         long limit = strategy.getLimit() + 1;
         long fromCommitTime = 0L;
-        long timeStep = tracker.getTimeStep();
+        long timeStep = tracker.getConfig().getTimeStep().toMillis();
         int maxResult = 100;
 
         long currentFrom = fromCommitTime;
@@ -89,17 +83,17 @@ public class TrackerTest {
         Transactions data = TestUtil.loadTransactions(testData);
         tracker.setAlfClient(new AlfrescoApiMock(data));
         strategy = new MaxCommitTimeStrategy(maxCommitTime);
-        tracker.setTrackerStrategy(strategy);
+        TrackingContext<Tx> trackingContext = new TrackingContext<>(strategy, statusIndexService, MetricContextHolder.MetricContext.builder().build());
 
         doNothing().when(eduSharingClient).refreshValuespaceCache();
-        TransactionTracker.State state;
+        Tracker.State state;
         do{
-            state = tracker.track();
-        }while (state == TransactionTracker.State.INPROGRESS);
+            state = tracker.track(trackingContext);
+        }while (state == Tracker.State.IN_PROGRESS);
         assertThat(state).isNotNull();
-        assertThat(state).isEqualTo(TransactionTracker.State.FINISHED);
+        assertThat(state).isEqualTo(Tracker.State.FINISHED);
 
-        long txnCommitTime = ((StatusIndexServiceMock)tracker.getTransactionStateService()).getState().getTxnCommitTime(); ;
+        long txnCommitTime = statusIndexService.getState().getTxnCommitTime();
         assertThat(txnCommitTime).isEqualTo(strategy.getLimit());
 
         assertThat(tracker.getAllTransactionIds())
@@ -114,7 +108,7 @@ public class TrackerTest {
     public void testTrackMultipleCommitTimesForSameTx() throws Exception {
         //14277451 -> missing
         //1764250670277 duplicate commit time
-        tracker.setNumberOfTransactions(500);
+        tracker.getConfig().setNumberOfTransactions(500);
         testTrack("transactionsTest2.json",1764257439907L);
     }
 }

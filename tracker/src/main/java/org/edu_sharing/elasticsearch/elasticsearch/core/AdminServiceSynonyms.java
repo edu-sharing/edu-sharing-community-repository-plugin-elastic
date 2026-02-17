@@ -10,9 +10,7 @@ import co.elastic.clients.elasticsearch.synonyms.get_synonyms_sets.SynonymsSetIt
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
-import org.edu_sharing.elasticsearch.elasticsearch.config.AutoConfigurationTracker;
-import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
-import org.edu_sharing.elasticsearch.tracker.Partition;
+import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.edu_sharing.repository.client.tools.CCConstants;
 
 import jakarta.annotation.PostConstruct;

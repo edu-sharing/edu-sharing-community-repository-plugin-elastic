@@ -3,19 +3,20 @@ package org.edu_sharing.elasticsearch.elasticsearch.core.migration;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 
-import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @RequiredArgsConstructor
-public class WaitForMigrationJob implements ApplicationContextAware {
+public class WaitForMigrationJob implements ApplicationContextAware, SmartInitializingSingleton {
 
     private final MigrationService migrationService;
 
@@ -23,11 +24,18 @@ public class WaitForMigrationJob implements ApplicationContextAware {
     private ApplicationContext applicationContext;
     private ScheduledFuture<?> scheduledFuture;
 
-    @PostConstruct
-    public void checkMigrationStatus() throws IOException {
-        if(!migrationService.requiresMigration()) {
-            invokeMigrationCompleted();
-            return;
+
+    private final AtomicBoolean migrationCompleted = new AtomicBoolean(false);
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        try {
+            if (!migrationService.requiresMigration()) {
+                invokeMigrationCompleted();
+                return;
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
 
         scheduledFuture = Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(() -> {
@@ -39,16 +47,21 @@ public class WaitForMigrationJob implements ApplicationContextAware {
 
                 scheduledFuture.cancel(false);
                 invokeMigrationCompleted();
-            } catch (Exception ex){
+            } catch (Exception ex) {
                 log.error(ex.getMessage(), ex);
             }
         }, 5, 5, TimeUnit.SECONDS);
     }
 
     private void invokeMigrationCompleted() {
-        Map<String, MigrationCompletedAware> results = applicationContext.getBeansOfType(MigrationCompletedAware.class);
+        migrationCompleted.set(true);
+        Map<String, MigrationCompletedAware> results = applicationContext.getBeansOfType(MigrationCompletedAware.class, false, false);
         for (MigrationCompletedAware invoker : results.values()) {
-            invoker.MigrationCompleted();
+            invoker.migrationCompleted();
         }
+    }
+
+    public boolean isMigrationCompleted() {
+        return migrationCompleted.get();
     }
 }

@@ -61,7 +61,7 @@ public class EduSharingClient {
     @Value("${valuespace.languages}")
     String[] valuespaceLanguages;
 
-    @Value("${valuespace.cache.check.after.ms : 120000}")
+    @Value("${valuespace.cache.check.after.ms:120000}")
     long valuespaceCacheCheckAfterMs = 120000;
 
     @Value("${tracker.fetchThumbnails}")

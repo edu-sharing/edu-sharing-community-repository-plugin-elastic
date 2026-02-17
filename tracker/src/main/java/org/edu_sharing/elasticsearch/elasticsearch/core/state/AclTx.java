@@ -1,9 +1,11 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core.state;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+import org.edu_sharing.elasticsearch.tracker.strategy.CommiteTimeStatus;
 
 @Data
-public class AclTx {
+public class AclTx implements CommiteTimeStatus {
 
     private long aclChangeSetId;
     private long aclChangeSetCommitTime;
@@ -18,4 +20,9 @@ public class AclTx {
         this.aclChangeSetCommitTime = aclChangeSetCommitTime;
     }
 
+    @Override
+    @JsonIgnore
+    public Long getCommitTime() {
+        return aclChangeSetCommitTime;
+    }
 }

@@ -8,6 +8,11 @@ public class StatusIndexServiceMock implements StatusIndexServiceInterface<Tx> {
     Tx state;
 
     @Override
+    public Class<Tx> getStateClass() {
+        return Tx.class;
+    }
+
+    @Override
     public Tx getState(){
         return state;
     }
