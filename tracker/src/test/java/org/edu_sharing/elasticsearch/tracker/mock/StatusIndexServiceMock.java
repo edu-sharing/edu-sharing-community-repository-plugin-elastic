@@ -3,6 +3,8 @@ package org.edu_sharing.elasticsearch.tracker.mock;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 
+import java.io.IOException;
+
 public class StatusIndexServiceMock implements StatusIndexServiceInterface<Tx> {
 
     Tx state;
@@ -20,5 +22,10 @@ public class StatusIndexServiceMock implements StatusIndexServiceInterface<Tx> {
     @Override
     public void setState(Tx state)  {
         this.state = state;
+    }
+
+    @Override
+    public void resetState() throws IOException {
+        state = null;
     }
 }
