@@ -36,6 +36,7 @@ public class DocumentsMigrationJob implements MigrationJob {
 
     private Map<TrackerConfig<?, ?>, TrackingExecutor<?>> trackingExecutors;
 
+
     @Override
     public void onEnterState(MigrationContext context) {
         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionIndex));
@@ -125,7 +126,7 @@ public class DocumentsMigrationJob implements MigrationJob {
     }
 
     @Override
-    public void doOnProgressState(MigrationContext context) {
+    public void onProgressState(MigrationContext context) {
 
         List<Future<?>> futures = new ArrayList<>();
         trackingExecutors.forEach((trackerConfig, trackingExecutor) -> {
@@ -155,7 +156,7 @@ public class DocumentsMigrationJob implements MigrationJob {
     }
 
     @Override
-    public void doOnExitState(MigrationContext context) {
+    public void onExitState(MigrationContext context) {
 
     }
 }

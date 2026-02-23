@@ -290,10 +290,10 @@ public class MigrationService {
                 migrationJob.onEnterState(context);
 
                 log.info("Run MigrationJob: {}", migrationJob.getMigrationStep());
-                migrationJob.doOnProgressState(context);
+                migrationJob.onProgressState(context);
 
                 log.info("Finish MigrationJob: {}", migrationJob.getMigrationStep());
-                migrationJob.doOnExitState(context);
+                migrationJob.onExitState(context);
 
                 migrationState = new MigrationState();
             }

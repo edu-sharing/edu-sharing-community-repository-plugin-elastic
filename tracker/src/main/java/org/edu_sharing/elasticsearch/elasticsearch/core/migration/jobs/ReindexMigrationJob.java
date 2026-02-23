@@ -52,7 +52,7 @@ public class ReindexMigrationJob implements MigrationJob {
     }
 
     @Override
-    public void doOnProgressState(MigrationContext context) {
+    public void onProgressState(MigrationContext context) {
         while(true) {
             try {
                 GetTasksResponse tasksResponse = client.tasks().get(req -> req.taskId(taskId));
@@ -81,7 +81,7 @@ public class ReindexMigrationJob implements MigrationJob {
     }
 
     @Override
-    public void doOnExitState(MigrationContext context) {
+    public void onExitState(MigrationContext context) {
 
     }
 }

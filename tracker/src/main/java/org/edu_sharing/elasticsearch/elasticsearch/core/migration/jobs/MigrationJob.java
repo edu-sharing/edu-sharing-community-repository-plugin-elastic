@@ -9,7 +9,7 @@ public interface MigrationJob {
     MigrationStep getMigrationStep();
     void onEnterState(MigrationContext context);
 
-    void doOnProgressState(MigrationContext context);
+    void onProgressState(MigrationContext context);
 
-    void doOnExitState(MigrationContext context);
+    void onExitState(MigrationContext context);
 }

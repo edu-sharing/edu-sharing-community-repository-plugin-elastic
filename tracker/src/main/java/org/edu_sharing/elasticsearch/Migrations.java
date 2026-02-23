@@ -20,6 +20,13 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class Migrations {
 
+    /**
+     * Configuration for migration beans.
+     * Don't inject other beans directly here, because of circular dependencies.
+     * This Bean is injecte by AutoConfigurationTracker!!!
+     * Use ObjectProvider instead.
+     */
+
     @Bean
     @Order(0)
     public MigrationInfo migration9_0() {
@@ -57,7 +64,6 @@ public class Migrations {
     @Bean
     @Order(3)
     public MigrationInfo migration10_1(ObjectProvider<MigrationCallback10_1> migrationCallback) {
-        // TODo document why we need to use  MigrationCallback10_1 via ObjectProvider
         return new MigrationInfo("10.1", Set.of(), migrationCallback::getObject);
     }
 }

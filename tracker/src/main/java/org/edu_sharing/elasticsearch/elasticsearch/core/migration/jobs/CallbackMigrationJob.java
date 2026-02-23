@@ -24,7 +24,7 @@ public class CallbackMigrationJob implements MigrationJob {
     public void onEnterState(MigrationContext context) {}
 
     @Override
-    public void doOnProgressState(MigrationContext context) {
+    public void onProgressState(MigrationContext context) {
         if(migrationCallbacks.isEmpty()){
             return;
         }
@@ -61,7 +61,7 @@ public class CallbackMigrationJob implements MigrationJob {
                 });
     }
     @Override
-    public void doOnExitState(MigrationContext context) {
+    public void onExitState(MigrationContext context) {
         
     }
 }

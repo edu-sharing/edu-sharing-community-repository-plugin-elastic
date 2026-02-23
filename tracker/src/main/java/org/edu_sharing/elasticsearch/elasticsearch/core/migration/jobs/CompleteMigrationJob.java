@@ -15,12 +15,12 @@ public class CompleteMigrationJob implements MigrationJob{
     }
 
     @Override
-    public void doOnProgressState(MigrationContext context) {
+    public void onProgressState(MigrationContext context) {
 
     }
 
     @Override
-    public void doOnExitState(MigrationContext context) {
+    public void onExitState(MigrationContext context) {
 
     }
 }
