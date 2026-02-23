@@ -4,7 +4,11 @@ import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCallback10_1;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
 import org.edu_sharing.elasticsearch.tracker.auth.AuthoritiesTracker;
+import org.edu_sharing.elasticsearch.tracker.collection.CollectionSyncTracker;
 import org.edu_sharing.elasticsearch.tracker.main.MainTracker;
+import org.edu_sharing.elasticsearch.tracker.preview.PreviewTracker;
+import org.edu_sharing.elasticsearch.tracker.statistics.StatisticsTracker;
+import org.edu_sharing.elasticsearch.tracker.usage.UsageSyncTracker;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,7 +23,14 @@ public class Migrations {
     @Bean
     @Order(0)
     public MigrationInfo migration9_0() {
-        return new MigrationInfo("9.0", Set.of(MainTracker.class), null);
+        return new MigrationInfo("9.0",
+                Set.of(
+                        MainTracker.class,
+                        CollectionSyncTracker.class,
+                        PreviewTracker.class,
+                        StatisticsTracker.class,
+                        UsageSyncTracker.class
+                ), null);
     }
 
     @Bean
@@ -32,7 +43,15 @@ public class Migrations {
     @Order(2)
     public MigrationInfo migration10_0() {
         // required cause old tracker did not map workflow object correctly
-        return new MigrationInfo("10.0", Set.of(MainTracker.class, AuthoritiesTracker.class), null);
+        return new MigrationInfo("10.0",
+                Set.of(
+                        MainTracker.class,
+                        CollectionSyncTracker.class,
+                        PreviewTracker.class,
+                        StatisticsTracker.class,
+                        UsageSyncTracker.class,
+                        AuthoritiesTracker.class
+                ), null);
     }
 
     @Bean
