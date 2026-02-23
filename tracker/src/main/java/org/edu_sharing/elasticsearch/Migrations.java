@@ -5,7 +5,6 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCallb
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
 import org.edu_sharing.elasticsearch.tracker.auth.AuthoritiesTracker;
 import org.edu_sharing.elasticsearch.tracker.main.MainTracker;
-import org.edu_sharing.elasticsearch.tracker.preview.PreviewTracker;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,8 +38,7 @@ public class Migrations {
     @Bean
     @Order(3)
     public MigrationInfo migration10_1(ObjectProvider<MigrationCallback10_1> migrationCallback) {
-        // TODO remove tracker migrations
         // TODo document why we need to use  MigrationCallback10_1 via ObjectProvider
-        return new MigrationInfo("10.1", Set.of(AuthoritiesTracker.class, PreviewTracker.class), migrationCallback::getObject);
+        return new MigrationInfo("10.1", Set.of(), migrationCallback::getObject);
     }
 }
