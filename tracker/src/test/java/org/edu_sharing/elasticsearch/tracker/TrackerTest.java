@@ -5,7 +5,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.Transaction;
 import org.edu_sharing.elasticsearch.alfresco.client.Transactions;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
-import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
+import org.edu_sharing.elasticsearch.metric.MetricContext;
 import org.edu_sharing.elasticsearch.tracker.core.Tracker;
 import org.edu_sharing.elasticsearch.tracker.core.TrackingContext;
 import org.edu_sharing.elasticsearch.tracker.mock.AlfrescoApiMock;
@@ -83,7 +83,7 @@ public class TrackerTest {
         Transactions data = TestUtil.loadTransactions(testData);
         tracker.setAlfClient(new AlfrescoApiMock(data));
         strategy = new MaxCommitTimeStrategy(maxCommitTime);
-        TrackingContext<Tx> trackingContext = new TrackingContext<>(strategy, statusIndexService, MetricContextHolder.MetricContext.builder().build());
+        TrackingContext<Tx> trackingContext = new TrackingContext<>(strategy, statusIndexService, MetricContext.builder().build());
 
         doNothing().when(eduSharingClient).refreshValuespaceCache();
         Tracker.State state;

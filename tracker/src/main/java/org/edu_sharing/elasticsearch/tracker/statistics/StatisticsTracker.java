@@ -18,7 +18,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
+import static org.edu_sharing.elasticsearch.metric.MetricContext.PROGRESS_FACTOR;
 
 @Slf4j
 @Component

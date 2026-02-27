@@ -1,9 +1,6 @@
 package org.edu_sharing.elasticsearch.tracker.core;
 
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
-import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
 import org.edu_sharing.elasticsearch.tracker.core.config.BaseTrackerProperties;
 
 @RequiredArgsConstructor
