@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AlfrescoWebscriptClient {
+public class AlfrescoWebscriptClient implements AlfrescoApi {
 
     @Value("${alfresco.host}")
     String alfrescoHost;
@@ -56,6 +56,7 @@ public class AlfrescoWebscriptClient {
     private static final String URL_ACLS = "/alfresco/s/api/solr/acls";
     private static final String URL_CONTENT = "/alfresco/s/api/solr/textContent";
     private static final String URL_PERMISSIONS = "/alfresco/service/api/solr/permissions";
+    private static final String URL_NEXT_TX_COMMIT_TIME = "/alfresco/s/api/solr/nextTransaction";
 
 
     private Client client;
@@ -74,21 +75,13 @@ public class AlfrescoWebscriptClient {
         }
     }
 
-    public List<Node> getNodes(List<Long> transactionIds) {
-        GetNodeParam p = new GetNodeParam();
-        p.setTxnIds(transactionIds);
-        return getNodes(p);
-    }
-
-
     public List<Node> getNodes(GetNodeParam p) {
 
         String url = getUrl(URL_NODES_TRANSACTION);
-        try {
-            Nodes node = client.target(url)
+        try(Response resp = client.target(url)
                     .request(MediaType.APPLICATION_JSON)
-                    .post(Entity.json(p))
-                    .readEntity(Nodes.class);
+                    .post(Entity.json(p))) {
+            Nodes node = resp.readEntity(Nodes.class);
             return node.getNodes();
         } catch (ResponseProcessingException e) {
             log.warn("Could not parse nodes for all transaction ids, will fetch individually...", e);
@@ -96,10 +89,10 @@ public class AlfrescoWebscriptClient {
             for (Long transactionId : p.getTxnIds()) {
 
                 p.setTxnIds(Collections.singletonList(transactionId));
-                try {
-                    Nodes node = client.target(url)
+                try(Response resp = client.target(url)
                             .request(MediaType.APPLICATION_JSON)
-                            .post(Entity.json(p)).readEntity(Nodes.class);
+                        .post(Entity.json(p))) {
+                    Nodes node = resp.readEntity(Nodes.class);
                     result.addAll(node.getNodes());
                 } catch (ResponseProcessingException e2) {
                     log.warn("Error reading node for transaction id {}", transactionId, e2);
@@ -123,17 +116,18 @@ public class AlfrescoWebscriptClient {
 
     public NodeMetadatas getNodeMetadata(GetNodeMetadataParam param, boolean debug) throws ResponseProcessingException {
         String url = getUrl(URL_NODE_METADATA);
-        Response resp = client.target(url)
+        try(Response resp = client.target(url)
                 .request(MediaType.APPLICATION_JSON)
-                .post(Entity.json(param));
+                .post(Entity.json(param))) {
 
-        if (debug) {
-            String valueAsString = resp.readEntity(String.class);
-            log.error("problems with node(s):{}", valueAsString);
-            return null;
-        } else {
-            //throws ResponseProcessingException when jaxrs data mapping fails
-            return resp.readEntity(NodeMetadatas.class);
+            if (debug) {
+                String valueAsString = resp.readEntity(String.class);
+                log.error("problems with node(s):{}", valueAsString);
+                return null;
+            } else {
+                //throws ResponseProcessingException when jaxrs data mapping fails
+                return resp.readEntity(NodeMetadatas.class);
+            }
         }
     }
 
@@ -141,12 +135,14 @@ public class AlfrescoWebscriptClient {
         String url = getUrl(URL_NODE_METADATA_UUID.replace(
                 "{{uuid}}", uuid
         ));
-        Response resp = client.target(url)
-                .request(MediaType.APPLICATION_JSON)
-                .get();
 
-        NodeMetadataWrapper data = resp.readEntity(NodeMetadataWrapper.class);
-        return data.getNode();
+        try (Response resp = client.target(url)
+                .request(MediaType.APPLICATION_JSON)
+                .get()) {
+
+            NodeMetadataWrapper data = resp.readEntity(NodeMetadataWrapper.class);
+            return data.getNode();
+        }
     }
 
     public List<NodeMetadata> getNodeMetadata(List<Node> nodes) {
@@ -189,11 +185,12 @@ public class AlfrescoWebscriptClient {
                     //finally log the broken node
                 } catch (ResponseProcessingException e2) {
                     String url = getUrl(URL_NODE_METADATA);
-                    Response resp = client.target(url)
+                    try(Response resp = client.target(url)
                             .request(MediaType.APPLICATION_JSON)
-                            .post(Entity.json(getNodeMetadataParam));
-                    String valueAsString = resp.readEntity(String.class);
-                    log.warn("problems with node:{}", valueAsString, e);
+                            .post(Entity.json(getNodeMetadataParam))) {
+                        String valueAsString = resp.readEntity(String.class);
+                        log.warn("problems with node:{}", valueAsString, e);
+                    }
                 }
             }
             return fallbackResult;
@@ -306,7 +303,7 @@ public class AlfrescoWebscriptClient {
                     nodeData.setNodeMetadata(nodeMetadata);
                     nodeData.setReader(reader);
                     nodeData.setAccessControlList(permissionsMap.get(nodeMetadata.getAclId()));
-                    result.add(nodeData);
+            result.add(nodeData);
                 }
             }
 
@@ -386,9 +383,21 @@ public class AlfrescoWebscriptClient {
 
     public ReadersACL getReader(GetPermissionsParam param) {
         String url = getUrl(URL_ACL_READERS);
-        return client.target(url)
+        try(Response resp = client.target(url)
                 .request(MediaType.APPLICATION_JSON)
-                .post(Entity.json(param)).readEntity(ReadersACL.class);
+                .post(Entity.json(param))){
+            return resp.readEntity(ReadersACL.class);
+        }
+    }
+
+    public NextCommitTime getNextCommitTime(long fromCommitTime){
+        String url = getUrl(URL_NEXT_TX_COMMIT_TIME);
+        String fromParam = "fromCommitTime";
+        return client
+                .target(url)
+                .queryParam(fromParam, fromCommitTime)
+                .request(MediaType.APPLICATION_JSON)
+                .get(NextCommitTime.class);
     }
 
 
@@ -417,7 +426,7 @@ public class AlfrescoWebscriptClient {
                 .get(Transactions.class);
     }
 
-    public AclChangeSets getAclChangeSets(Long fromId, Long fromTime, Integer maxResults) {
+    public AclChangeSets getAclChangeSets(Long fromId, Long fromTime, Long toTime, Integer maxResults) {
         String url = getUrl(URL_ACL_CHANGESETS);
         WebTarget webTarget = client.target(url);
         if (fromId != null) {
@@ -429,27 +438,32 @@ public class AlfrescoWebscriptClient {
         if (fromTime != null) {
             webTarget = webTarget.queryParam("fromTime", fromTime);
         }
+        if(fromTime != null) {
+            webTarget = webTarget.queryParam("toTime", toTime);
+        }
         return webTarget
                 .request(MediaType.APPLICATION_JSON)
                 .get(AclChangeSets.class);
     }
 
     public Acls getAcls(GetAclsParam param) {
-        String url = getUrl(URL_ACLS);
-
-        return client.target(url)
+        // prevent maxResults to be cut by the default value of alfresco
+        // see AclsGet: int maxResults = maxResultsParam == null ? 1024 : Integer.valueOf(maxResultsParam);
+        String url = getUrl(URL_ACLS + "?maxResults=" + Integer.MAX_VALUE);
+        try(Response resp =  client.target(url)
                 .request(MediaType.APPLICATION_JSON)
-                .post(Entity.json(param))
-                .readEntity(Acls.class);
+                .post(Entity.json(param))){
+            return resp.readEntity(Acls.class);
+        }
     }
 
 
     public AccessControlLists getAccessControlLists(GetPermissionsParam param) {
         String url = getUrl(URL_PERMISSIONS);
-        return client.target(url)
-                .request(MediaType.APPLICATION_JSON)
-                .post(Entity.json(param))
-                .readEntity(AccessControlLists.class);
+        try(Response resp = client.target(url)
+                    .request(MediaType.APPLICATION_JSON).post(Entity.json(param))){
+            return resp.readEntity(AccessControlLists.class);
+        }
     }
 
 

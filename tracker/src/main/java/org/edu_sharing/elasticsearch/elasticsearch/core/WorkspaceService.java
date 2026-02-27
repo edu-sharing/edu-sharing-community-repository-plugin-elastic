@@ -7,7 +7,6 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
-import co.elastic.clients.elasticsearch.core.bulk.OperationType;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import co.elastic.clients.elasticsearch.core.search.ResponseBody;
@@ -15,16 +14,14 @@ import co.elastic.clients.json.JsonData;
 import co.elastic.clients.util.ObjectBuilder;
 import com.google.gson.GsonBuilder;
 import com.google.gson.ToNumberPolicy;
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.NonNull;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import net.sourceforge.cardme.engine.VCardEngine;
 import net.sourceforge.cardme.vcard.VCard;
 import net.sourceforge.cardme.vcard.exceptions.VCardParseException;
 import net.sourceforge.cardme.vcard.types.ExtendedType;
 import net.sourceforge.cardme.vcard.types.NType;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.tomcat.util.buf.StringUtils;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
@@ -34,8 +31,8 @@ import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilderSerializer;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.utils.NodeMetadataSimple;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
-import org.edu_sharing.elasticsearch.tracker.CascadeTracker;
-import org.edu_sharing.elasticsearch.tracker.Partition;
+import org.edu_sharing.elasticsearch.tracker.cascade.CascadeTracker;
+import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.RelationData;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.ShareInfo;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.UserNodeActivity;
@@ -60,8 +57,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Slf4j
 @Component
-public class WorkspaceService {
+public class WorkspaceService implements SearchHitsRunner {
 
     public static final String CONTRIBUTOR_REGEX = "ccm:[a-zA-Z]*contributer_[a-zA-Z_-]*";
 
@@ -77,7 +75,6 @@ public class WorkspaceService {
     @Value("${tracker.bulk.size.elastic}")
     int bulkSizeElastic;
 
-    private final Logger logger = LogManager.getLogger(WorkspaceService.class);
     private final SimpleDateFormat statisticDateFormatter = new SimpleDateFormat("yyyy-MM-dd");
     private final String homeRepoId;
     private final ElasticsearchClient client;
@@ -85,10 +82,13 @@ public class WorkspaceService {
     private final AtomicInteger nodeCounter = new AtomicInteger(0);
     private final AtomicLong lastNodeCount = new AtomicLong(System.currentTimeMillis());
     private final AlfrescoWebscriptClient alfrescoClient;
-    private final SearchHitsRunner searchHitsRunner = new SearchHitsRunner(this);
     private final String index;
 
-    public WorkspaceService(co.elastic.clients.elasticsearch.ElasticsearchClient client, ScriptExecutor scriptExecutor, EduSharingService eduSharingService, AlfrescoWebscriptClient alfrescoClient, IndexConfiguration workspace) {
+    public WorkspaceService(co.elastic.clients.elasticsearch.ElasticsearchClient client,
+                            ScriptExecutor scriptExecutor,
+                            EduSharingService eduSharingService,
+                            AlfrescoWebscriptClient alfrescoClient,
+                            IndexConfiguration workspace) {
         this.client = client;
         this.scriptExecutor = scriptExecutor;
         this.alfrescoClient = alfrescoClient;
@@ -97,26 +97,26 @@ public class WorkspaceService {
     }
 
     public void updateNodesWithAcl(final long aclId, final Map<String, List<String>> permissions) throws IOException {
-        logger.debug("starting: {} ", aclId);
+        log.info("starting: {} ", aclId);
 
         UpdateByQueryResponse bulkByScrollResponse = client.updateByQuery(req -> req
                 .index(index)
                 .query(q -> q.term(t -> t.field("aclId").value(aclId)))
                 .conflicts(Conflicts.Proceed)
-                .refresh(true)
+                .refresh(false)
                 .script(scr -> scr
                         .source("ctx._source.permissions=params")
                         .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x -> JsonData.of(x.getValue())))))
         );
 
-        logger.debug("updated: {}", bulkByScrollResponse.updated());
+        log.info("updated: {}", bulkByScrollResponse.updated());
         List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
         for (BulkIndexByScrollFailure failure : bulkFailures) {
-            logger.error(failure.cause().toString(), failure.cause());
+            log.error(failure.cause().toString(), failure.cause());
         }
     }
 
-    public void updateNodesWithRelations(final String nodeId, final List<RelationData> relationData) throws IOException {
+    public void updateNodesWithRelations(final String nodeId, final List<RelationData> relationData) {
         // language=painless
         final String SCRIPT_UPDATE_RELATIONS_BY_KEY = """
                 if (ctx._source.relations == null) {
@@ -147,29 +147,34 @@ public class WorkspaceService {
                 }
                 """;
 
-        UpdateByQueryResponse bulkByScrollResponse = client.updateByQuery(req -> req
-                .index(index)
-                .query(q -> q.bool(b -> b
-                        .should(s -> s.term(t -> t.field("_id").value(nodeId)))
-                        .should(s -> s.bool(b2 -> b2
-                                .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
-                                .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
-                        ))))
-                .conflicts(Conflicts.Proceed)
-                .refresh(true)
-                .script(src -> src
-                        .source(SCRIPT_UPDATE_RELATIONS_BY_KEY)
-                        .params("relations", JsonData.of(relationData)))
-        );
+        UpdateByQueryResponse bulkByScrollResponse;
+        try {
+            bulkByScrollResponse = client.updateByQuery(req -> req
+                    .index(index)
+                    .query(q -> q.bool(b -> b
+                            .should(s -> s.term(t -> t.field("_id").value(nodeId)))
+                            .should(s -> s.bool(b2 -> b2
+                                    .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
+                                    .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
+                            ))))
+                    .conflicts(Conflicts.Proceed)
+                    .refresh(true)
+                    .script(src -> src
+                            .source(SCRIPT_UPDATE_RELATIONS_BY_KEY)
+                            .params("relations", JsonData.of(relationData)))
+            );
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-        logger.debug("updated: {}", bulkByScrollResponse.updated());
+        log.debug("updated: {}", bulkByScrollResponse.updated());
         List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
         for (BulkIndexByScrollFailure failure : bulkFailures) {
-            logger.error(failure.cause().toString(), failure.cause());
+            log.error(failure.cause().toString(), failure.cause());
         }
     }
 
-    public void removeRelationsFromNodes(final String nodeId, final List<RelationData> relationData) throws IOException {
+    public void removeRelationsFromNodes(final String nodeId, final List<RelationData> relationData) {
         // language=painless
         final String SCRIPT_REMOVE_RELATIONS_BY_KEY = """
                 if (ctx._source.relations == null || ctx._source.relations.size() == 0) {
@@ -212,25 +217,30 @@ public class WorkspaceService {
                 }
                 """;
 
-        UpdateByQueryResponse bulkByScrollResponse = client.updateByQuery(req -> req
-                .index(index)
-                .query(q -> q.bool(b -> b
-                        .should(s -> s.term(t -> t.field("id").value(nodeId)))
-                        .should(s -> s.bool(b2 -> b2
-                                .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
-                                .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
-                        ))))
-                .conflicts(Conflicts.Proceed)
-                .refresh(true)
-                .script(src -> src
-                        .source(SCRIPT_REMOVE_RELATIONS_BY_KEY)
-                        .params("relations", JsonData.of(relationData)))
-        );
+        UpdateByQueryResponse bulkByScrollResponse = null;
+        try {
+            bulkByScrollResponse = client.updateByQuery(req -> req
+                    .index(index)
+                    .query(q -> q.bool(b -> b
+                            .should(s -> s.term(t -> t.field("id").value(nodeId)))
+                            .should(s -> s.bool(b2 -> b2
+                                    .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
+                                    .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
+                            ))))
+                    .conflicts(Conflicts.Proceed)
+                    .refresh(true)
+                    .script(src -> src
+                            .source(SCRIPT_REMOVE_RELATIONS_BY_KEY)
+                            .params("relations", JsonData.of(relationData)))
+            );
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
-        logger.debug("updated: {}", bulkByScrollResponse.updated());
+        log.debug("updated: {}", bulkByScrollResponse.updated());
         List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
         for (BulkIndexByScrollFailure failure : bulkFailures) {
-            logger.error(failure.cause().toString(), failure.cause());
+            log.error(failure.cause().toString(), failure.cause());
         }
     }
 
@@ -249,7 +259,7 @@ public class WorkspaceService {
         UpdateResponse<TDocument> updateResponse = client.update(request, tDocClass);
 
         if (Objects.requireNonNull(updateResponse.result()) == Result.Created) {
-            logger.info("object did not exist");
+            log.info("object did not exist");
         }
         return updateResponse;
     }
@@ -262,95 +272,74 @@ public class WorkspaceService {
         BulkResponse response = client.bulk(req -> req.index(index).operations(updateRequests));
         for (BulkResponseItem item : response.items()) {
             if (item.error() != null) {
-                logger.error(item.error().reason());
+                log.error(item.error().reason());
             }
         }
     }
 
 
-    public void index(List<NodeData> nodes) throws IOException {
-        logger.info("starting bulk index for {}", nodes.size());
-
-        // TODO Missing required property 'BulkRequest.operations'
-        boolean useBulkUpdate = true;
-
-        List<BulkOperation> operations = new ArrayList<>();
-        for (NodeData nodeData : nodes) {
-            NodeMetadata node = nodeData.getNodeMetadata();
-            // check if a formally moved node was moved again
-            if (nodeData.getNodeMetadata().getAspects().contains("sys:cascadeUpdate")) {
-                HitsMetadata<ElasticNode> hits = search(QueryBuilders.ids(i -> i.values(Tools.getUUID(nodeData.getNodeMetadata().getNodeRef()))),
-                        0,
-                        1,
-                        null,
-                        ElasticNode.class);
-                if (hits != null && !hits.hits().isEmpty()) {
-                    String cascadeTx = (String) hits.hits().get(0).source().getProperties().get(CascadeTracker.propCascadeTx);
-                    if (cascadeTx != null) {
-                        if (Long.parseLong(cascadeTx) < Long.parseLong((String) nodeData.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName(CascadeTracker.propCascadeTx)))) {
-                            nodeData.setRefreshPath(true);
-                        }
-                    }
-                }
-            }
-            DataBuilder builder = new DataBuilder();
-            fillData(nodeData, builder);
-            Object data = builder.build();
-            operations.add(BulkOperation.of(op -> op.index(iop -> iop
-                    .index(index)
-                    .id(Tools.getUUID(node.getNodeRef()))
-                    .document(data))));
-
-            if (nodeCounter.addAndGet(1) % 100 == 0) {
-                logger.info("Processed {} nodes ({}ms per last 100 nodes)", nodeCounter.get(), System.currentTimeMillis() - lastNodeCount.get());
-                lastNodeCount.set(System.currentTimeMillis());
-            }
-        }
-
+    public void index(List<BulkOperation> operations) throws IOException {
         if (!operations.isEmpty()) {
-            logger.info("starting bulk update:");
+            log.info("starting bulk update:");
             BulkResponse bulkResponse = client.bulk(req -> req.index(index).operations(operations));
-            logger.info("finished bulk update:");
-
-            Map<String, NodeData> collectionNodes = new HashMap<>();
-            for (NodeData nodeData : nodes) {
-                NodeMetadata node = nodeData.getNodeMetadata();
-                if ((node.getType().equals("ccm:map") && node.getAspects().contains("ccm:collection"))
-                        || (node.getType().equals("ccm:io") && !node.getAspects().contains("ccm:collection_io_reference"))) {
-                    collectionNodes.put(Tools.getUUID(node.getNodeRef()), nodeData);
+            log.info("finished bulkBulkOperations:{}", bulkResponse.items().size());
+            for (BulkResponseItem item : bulkResponse.items()) {
+                if (item.error() != null) {
+                    log.error("Failed indexing of {}", item.id());
+                    log.error("Failed indexing of {}", item.error().causedBy());
                 }
             }
-            logger.info("start refresh index");
-            this.refreshWorkspace();
-            try {
-                logger.info("start RefreshCollectionReplicas ({})", bulkResponse.items().size());
-                for (BulkResponseItem item : bulkResponse.items()) {
-                    if (item.error() != null) {
-                        logger.error("Failed indexing of {}", item.id());
-                        logger.error("Failed indexing of {}", item.error().causedBy());
-                        continue;
-                    }
-
-                    NodeData nodeData = collectionNodes.get(item.id());
-                    if (nodeData != null) {
-                        onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(nodeData.getNodeMetadata()), item.operationType() == OperationType.Update || item.operationType() == OperationType.Index, true);
-                    }
-                }
-                logger.info("finished RefreshCollectionReplicas");
-            } catch (Throwable e) {
-                logger.error(e.getMessage(), e);
-                throw e;
-            }
-
         }
-        logger.debug("returning");
+    }
+
+    public void addBulkOperation(NodeData nodeData, List<BulkOperation> operations) throws IOException {
+        NodeMetadata node = nodeData.getNodeMetadata();
+        // check if a formally moved node was moved again
+        if (nodeData.getNodeMetadata().getAspects().contains("sys:cascadeUpdate")) {
+            HitsMetadata<ElasticNode> hits = search(QueryBuilders.ids(i -> i.values(Long.toString(nodeData.getNodeMetadata().getId()))),
+                    0,
+                    1,
+                    null,
+                    ElasticNode.class);
+            if (hits != null && !hits.hits().isEmpty()) {
+                Optional<Long> cascadeTx = Optional.of(hits)
+                        .map(HitsMetadata::hits)
+                        .map(x -> x.get(0))
+                        .map(Hit::source)
+                        .map(ElasticNode::getProperties)
+                        .map(x -> x.get(CascadeTracker.propCascadeTx))
+                        .map(String.class::cast)
+                        .map(Long::parseLong);
+
+                if (cascadeTx.isPresent()) {
+                    if (cascadeTx.get() < Long.parseLong((String) nodeData.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName(CascadeTracker.propCascadeTx)))) {
+                        nodeData.setRefreshPath(true);
+                    }
+                }
+            }
+        }
+        DataBuilder builder = new DataBuilder();
+        fillData(nodeData, builder);
+        Object data = builder.build();
+        operations.add(BulkOperation.of(op -> op.update(iop -> iop
+                .index(index)
+                .id(Long.toString(node.getId()))
+                .action(a -> a
+                        .doc(data)
+                        .docAsUpsert(true))
+        )));
+
+        if (nodeCounter.addAndGet(1) % 100 == 0) {
+            log.info("Processed {} nodes ({}ms per last 100 nodes)", nodeCounter.get(), System.currentTimeMillis() - lastNodeCount.get());
+            lastNodeCount.set(System.currentTimeMillis());
+        }
     }
 
     public void fillData(NodeData nodeData, @NonNull DataBuilder builder) throws IOException {
         fillData(nodeData, builder, null);
     }
 
-    void fillData(NodeData nodeData, @NonNull final DataBuilder builder, String objectName) throws IOException {
+    public void fillData(NodeData nodeData, @NonNull final DataBuilder builder, String objectName) throws IOException {
         NodeMetadata node = nodeData.getNodeMetadata();
         String storeRefProtocol = Tools.getProtocol(node.getNodeRef());
         String storeRefIdentifier = Tools.getIdentifier(node.getNodeRef());
@@ -432,7 +421,7 @@ public class WorkspaceService {
                 builder.endObject();
             }
             //content
-            /**
+            /*
              *     "{http://www.alfresco.org/model/content/1.0}content": {
              *    "contentId": "279",
              *    "encoding": "UTF-8",
@@ -453,7 +442,7 @@ public class WorkspaceService {
                 builder.field("size", content.get("size"));
                 if (nodeData.getFullText() != null) {
                     if (maxContentLength > 0 && nodeData.getFullText().length() > maxContentLength) {
-                        logger.info("Node {} has too large fulltext: {}. Will be truncated to {}", node.getNodeRef(), nodeData.getFullText().length(), maxContentLength);
+                        log.info("Node {} has too large fulltext: {}. Will be truncated to {}", node.getNodeRef(), nodeData.getFullText().length(), maxContentLength);
                         builder.field("fulltext", nodeData.getFullText().substring(0, maxContentLength));
                     } else {
                         builder.field("fulltext", nodeData.getFullText());
@@ -469,7 +458,7 @@ public class WorkspaceService {
 
                 String key = CCConstants.getValidLocalName(prop.getKey());
                 if (key == null) {
-                    logger.warn("unknown namespace: {}", prop.getKey());
+                    log.warn("unknown namespace: {}", prop.getKey());
                     continue;
                 }
 
@@ -480,7 +469,8 @@ public class WorkspaceService {
                     }
                 }
 
-                if (prop.getValue() instanceof List<?> listvalue) {
+                if (prop.getValue() instanceof List) {
+                    List<?> listvalue = (List<?>) prop.getValue();
 
                     //i.e. cm:title
                     if (!listvalue.isEmpty() && listvalue.get(0) instanceof Map) {
@@ -500,15 +490,15 @@ public class WorkspaceService {
                             value = (Serializable) mvValue;
                         }//fix: mapper_parsing_exception Preview of field's value: '{locale=de_}']] (empty keyword)
                         else {
-                            logger.info("fallback to \\”\\” for prop {} v:{}", key, value);
+                            log.info("fallback to \\”\\” for prop {} v:{}", key, value);
                             value = "";
                         }
                     }
                 }
                 if ("cm:modified".equals(key) || "cm:created".equals(key)) {
 
-                    if (prop.getValue() != null) {
-                        value = Date.from(Instant.parse((String) prop.getValue())).getTime();
+                    if (prop.getValue() != null && prop.getValue() instanceof String stringValue) {
+                        value = Date.from(Instant.parse(stringValue)).getTime();
                     }
                 }
 
@@ -537,7 +527,7 @@ public class WorkspaceService {
                             try {
                                 result.add(jp.parseMap(mzStatus));
                             } catch (JsonParseException e) {
-                                logger.warn(e.getMessage());
+                                log.warn(e.getMessage());
                             }
                         }
                         if (!result.isEmpty()) {
@@ -563,7 +553,7 @@ public class WorkspaceService {
                     try {
                         builder.field(key, value);
                     } catch (Exception e) {
-                        logger.warn("error parsing value field:{}v{}", key, value, e);
+                        log.warn("error parsing value field:" + key + "v" + value, e);
                     }
                 }
             }
@@ -634,24 +624,15 @@ public class WorkspaceService {
                                     builder.endObject();
                                 }
                             } catch (VCardParseException e) {
-                                logger.warn(e.getMessage(), e);
+                                log.warn(e.getMessage(), e);
                             } catch (NullPointerException e) {
-                                logger.warn("node: {} {}", id, e.getMessage(), e);
+                                log.warn("node: {} {}", id, e.getMessage(), e);
                             }
                         }
 
                     }
                 }
                 builder.endArray();
-            }
-            if (nodeData.getNodePreview() != null) {
-                builder.startObject("preview").
-                        field("mimetype", nodeData.getNodePreview().getMimetype()).
-                        field("type", nodeData.getNodePreview().getType()).
-                        field("icon", nodeData.getNodePreview().isIcon()).
-                        field("small", nodeData.getNodePreview().getSmall()).
-                        //field("large", nodeData.getNodePreview().getLarge()).
-                                endObject();
             }
 
             if (nodeData.getChildren() != null && !nodeData.getChildren().isEmpty()) {
@@ -702,7 +683,7 @@ public class WorkspaceService {
         builder.endObject();
     }
 
-    void mapWorkflowProtocol(Serializable value, @NonNull DataBuilder builder) {
+    public void mapWorkflowProtocol(Serializable value, @NonNull DataBuilder builder) {
         Collection<String> protocol;
         if (value instanceof Collection) {
             protocol = (Collection<String>) value;
@@ -710,9 +691,9 @@ public class WorkspaceService {
             protocol = Collections.singletonList((String) value);
         } else {
             if (value != null) {
-                logger.warn("Unable to convert worfklow protocol of type {}", value.getClass().getName());
+                log.warn("Unable to convert worfklow protocol of type {}", value.getClass().getName());
             } else {
-                logger.warn("Unable to convert worfklow protocol (null)");
+                log.warn("Unable to convert worfklow protocol (null)");
             }
             return;
         }
@@ -721,7 +702,7 @@ public class WorkspaceService {
                     try {
                         return new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create().fromJson(p, HashMap.class);
                     } catch (Throwable e) {
-                        logger.warn("Invalid json in workflow entry: {}", p, e);
+                        log.warn("Invalid json in workflow entry: {}", p, e);
                         return null;
                     }
                 })
@@ -772,9 +753,9 @@ public class WorkspaceService {
     }
 
     public void refreshWorkspace() throws IOException {
-        logger.debug("starting");
+        log.debug("starting");
         client.indices().refresh(req -> req.index(index));
-        logger.debug("returning");
+        log.debug("returning");
     }
 
     public DataBuilder indexCollections(NodeMetadata usageOrProposal) throws IOException {
@@ -787,25 +768,31 @@ public class WorkspaceService {
         if (searchHitCollection == null) return null;
 
         HitsMetadata<Map> ioSearchHits = this.search(ioQuery, 0, 1);
-        if (ioSearchHits == null || ioSearchHits.total().value() == 0) {
-            logger.warn("no io found for: {}", result.nodeIdIO);
+        if (ioSearchHits == null || (ioSearchHits.total() != null && ioSearchHits.total().value() == 0)) {
+            log.warn("no io found for: {}", result.nodeIdIO);
             return null;
         }
 
         Hit<Map> hitIO = ioSearchHits.hits().get(0);
+        if (hitIO == null || hitIO.source() == null) {
+            return null;
+        }
 
-        Map propsIo = (Map) hitIO.source().get("properties");
-        Map propsCollection = (Map) searchHitCollection.source().get("properties");
+        if (searchHitCollection.source() == null) {
+            return null;
+        }
 
+        Map<?, ?> propsIo = (Map<?, ?>) hitIO.source().get("properties");
+        Map<?, ?> propsCollection = (Map<?, ?>) searchHitCollection.source().get("properties");
 
-        logger.info("adding collection data: {} {} IO: {} {}", propsCollection.get("cm:name"), propsCollection.get("sys:node-dbid"), propsIo.get("cm:name"), propsIo.get("sys:node-dbid"));
+        log.info("adding collection data: " + propsCollection.get("cm:name") + " " + propsCollection.get("sys:node-dbid") + " IO: " + propsIo.get("cm:name") + " " + propsIo.get("sys:node-dbid"));
 
         List<Map<String, Object>> collections = (List<Map<String, Object>>) hitIO.source().get("collections");
         DataBuilder builder = new DataBuilder();
         builder.startObject();
         {
             builder.startArray("collections");
-            if (collections != null && collections.size() > 0) {
+            if (collections != null && !collections.isEmpty()) {
                 for (Map<String, Object> collection : collections) {
                     boolean colIsTheSame = searchHitCollection.source().get("dbid").equals(collection.get("dbid"));
 
@@ -833,7 +820,7 @@ public class WorkspaceService {
                 builder.field(entry.getKey(), entry.getValue());
             }
 
-            /**
+            /*
              * check performance, if this call is to slow we could build the metadata structure by hand (instead using get)
              * for usages: we could resolve the collection_ref object to have alternate metadata and store it in relation field
              * but it would be another call and could make the indexing process slower.
@@ -855,7 +842,7 @@ public class WorkspaceService {
         Query collectionQuery = InternalQueries.queryByUUID("properties.sys:node-uuid", result.nodeIdCollection);
         HitsMetadata<Map> searchHitsCollection = this.search(collectionQuery, 0, 1);
         if (searchHitsCollection == null || searchHitsCollection.total().value() == 0) {
-            logger.warn("no collection found for: {}", result.nodeIdCollection);
+            log.warn("no collection found for: " + result.nodeIdCollection);
             return null;
         }
         return searchHitsCollection.hits().get(0);
@@ -866,7 +853,7 @@ public class WorkspaceService {
         String nodeIdIO = null;
 
         if (!(usageOrProposal.getType().equals("ccm:usage") || usageOrProposal.getType().equals("ccm:collection_proposal"))) {
-            logger.warn("wrong type:{}", usageOrProposal.getType());
+            log.warn("wrong type:{}", usageOrProposal.getType());
             return null;
         }
 
@@ -889,7 +876,7 @@ public class WorkspaceService {
             nodeIdCollection = parentUuids.stream().skip(parentUuids.size() - 1).findFirst().get();
             Serializable ioNodeRef = usageOrProposal.getProperties().get("{http://www.campuscontent.de/model/1.0}collection_proposal_target");
             if (ioNodeRef == null) {
-                logger.warn("no proposal target found for: {}", usageOrProposal.getNodeRef());
+                log.warn("no proposal target found for: {}", usageOrProposal.getNodeRef());
                 return null;
             }
             nodeIdIO = Tools.getUUID(ioNodeRef.toString());
@@ -942,7 +929,7 @@ public class WorkspaceService {
                     .document(data))));
         }
 
-        logger.info("starting bulk create activities");
+        log.info("starting bulk create activities");
         BulkResponse bulk = client.bulk(req -> req.index(index).operations(operations));
         if (bulk.errors()) {
             String errors = bulk.items()
@@ -951,10 +938,10 @@ public class WorkspaceService {
                     .filter(Objects::nonNull)
                     .map(ErrorCause::reason)
                     .collect(Collectors.joining("\n"));
-            logger.error("bulk create activities failed with: {}", errors);
+            log.error("bulk create activities failed with: {}", errors);
             throw new IOException("bulk create activities failed");
         }
-        logger.info("finished bulk create activities");
+        log.info("finished bulk create activities");
     }
 
     public void addShares(List<ShareInfo> shareInfos) throws IOException {
@@ -997,7 +984,7 @@ public class WorkspaceService {
                     .document(data))));
         }
 
-        logger.info("starting bulk create shares");
+        log.info("starting bulk create shares");
         BulkResponse bulk = client.bulk(req -> req.index(index).operations(operations));
         if (bulk.errors()) {
             String errors = bulk.items()
@@ -1006,10 +993,10 @@ public class WorkspaceService {
                     .filter(Objects::nonNull)
                     .map(ErrorCause::reason)
                     .collect(Collectors.joining("\n"));
-            logger.error("bulk create shares failed with: {}", errors);
+            log.error("bulk create shares failed with: {}", errors);
             throw new IOException("bulk create shares failed");
         }
-        logger.info("finished bulk create shares");
+        log.info("finished bulk create shares");
     }
 
     public void deleteShares(Collection<Long> deletedShares) throws IOException {
@@ -1018,27 +1005,23 @@ public class WorkspaceService {
         }
 
         List<BulkOperation> operations = deletedShares.stream().map(id -> BulkOperation.of(op -> op.delete(d -> d.index(index).id("shares_" + id.toString())))).collect(Collectors.toList());
-        logger.info("starting bulk delete shares");
+        log.info("starting bulk delete shares");
         client.bulk(req -> req.index(index).operations(operations));
-        logger.info("finished bulk delete shares");
+        log.info("finished bulk delete shares");
     }
 
 
-    @Data
-    @AllArgsConstructor
-    private static class UsageDetails {
-        public final String nodeIdCollection;
-        public final String nodeIdIO;
+    private record UsageDetails(String nodeIdCollection, String nodeIdIO) {
     }
 
     /**
      * checks if its a collection usage by searching for collections.usagedbid, and removes replicated collection object
      */
     public void beforeDeleteCleanupCollectionReplicas(List<Node> nodes) throws IOException {
-        logger.info("starting: {}", nodes.size());
+        log.info("starting: {}", nodes.size());
 
         if (nodes.isEmpty()) {
-            logger.info("returning 0");
+            log.info("returning 0");
             return;
         }
 
@@ -1046,18 +1029,14 @@ public class WorkspaceService {
         for (Node node : nodes) {
 
             Query collectionCheckQuery = null;
-            /**
-             * try it is a usage or proposal
-             */
+            // try it is a usage or proposal
             Query queryUsage = InternalQueries.queryCollectionNodesViaUsage(node);
             HitsMetadata<Map> searchHitsIO = this.search(queryUsage, 0, 1);
             if (searchHitsIO.total().value() > 0) {
                 collectionCheckQuery = queryUsage;
             }
 
-            /**
-             * try it is an collection
-             */
+            // try it is an collection
             Query queryCollection = InternalQueries.queryCollectionNodes(node.getId());
             if (collectionCheckQuery == null) {
                 searchHitsIO = this.search(queryCollection, 0, 1);
@@ -1072,10 +1051,10 @@ public class WorkspaceService {
                 continue;
             }
             boolean collectionDeleted = collectionCheckQuery.equals(queryCollection);
-            logger.info("cleanup collection cause {}", collectionDeleted ? "collection deleted" : "usage/proposal deleted");
+            log.info("cleanup collection cause {}", collectionDeleted ? "collection deleted" : "usage/proposal deleted");
 
-            searchHitsRunner.run(collectionCheckQuery, Map.class, hitIO -> {
-                Map source = hitIO.source();
+            this.run(collectionCheckQuery, Map.class, hitIO -> {
+                Map<?,?> source = hitIO.source();
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> collections = (List<Map<String, Object>>) source.get("collections");
                 DataBuilder builder = new DataBuilder();
@@ -1094,7 +1073,7 @@ public class WorkspaceService {
                             }
 
                             if (collCeckAttValue == null) {
-                                logger.info("replicated collection {} does not have a property to check will leave it out", collection.get("dbid"));
+                                log.info("replicated collection " + collection.get("dbid") + " does not have a property to check will leave it out");
                                 continue;
                             }
                             long collectionAttValue = Long.parseLong(collCeckAttValue.toString());
@@ -1122,21 +1101,22 @@ public class WorkspaceService {
         for (List<BulkOperation> p : partitions) {
             this.updateBulk(p);
         }
-        logger.debug("returning");
+        log.debug("returning");
+    }
+
+    public void syncCollectionReplicas(NodeMetadataSimple collection) throws IOException {
+        log.info("starting for collection: {}", collection.getNodeRef());
+        this.run(InternalQueries.queryCollectionNodes(collection.getId()), maxCollectionChildItemsUpdateSize, Map.class, (hit) -> {
+            try {
+                onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(hit.source()), true, false);
+            } catch (IOException e) {
+                log.warn("error refreshing collections " + collection.getNodeRef(), e);
+            }
+        });
+        log.info("finished for collection: " + collection.getNodeRef());
     }
 
     private void onUpdateRefreshUsageCollectionReplicas(NodeMetadataSimple node, boolean update, boolean resyncIndex) throws IOException {
-        // a collection -> refresh replicas for each item inside this collection
-        if ("ccm:map".equals(node.getType())) {
-            searchHitsRunner.run(InternalQueries.queryCollectionNodes(node.getId()), maxCollectionChildItemsUpdateSize, Map.class, (hit) -> {
-                try {
-                    onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(hit.source()), true, false);
-                } catch (IOException e) {
-                    logger.warn("error refreshing collections {}", node.getNodeRef(), e);
-                }
-            });
-            return;
-        }
         final String query, queryProposal;
         // collect already written collections
         Set<String> collections = new HashSet<>();
@@ -1144,11 +1124,11 @@ public class WorkspaceService {
             query = "properties.ccm:usageparentnodeid.keyword";
             queryProposal = "properties.ccm:collection_proposal_target.keyword";
         } else {
-            logger.info("can not handle collections for type:{}", node.getType());
+            log.info("can not handle collections for type:" + node.getType());
             return;
         }
         AtomicBoolean hasCollections = new AtomicBoolean(false);
-        logger.info("updating collections for {} {}", node.getType(), node.getId());
+        log.info("updating collections for " + node.getType() + " " + node.getId());
         DataBuilder builder = new DataBuilder();
         builder.startObject();
         builder.startArray("collections");
@@ -1164,14 +1144,14 @@ public class WorkspaceService {
             param.setNodeIds(Arrays.asList(dbId));
             List<NodeMetadata> nodeMetadataByIds = alfrescoClient.getNodeMetadataByIds(List.of(dbId));
             if (nodeMetadataByIds == null || nodeMetadataByIds.isEmpty()) {
-                logger.warn("could not find usage/proposal object in alfresco with dbid:{}", dbId);
+                log.warn("could not find usage/proposal object in alfresco with dbid:" + dbId);
                 return;
             }
 
             NodeMetadata usage = nodeMetadataByIds.get(0);
-            logger.debug("Is update: {}", update);
+            log.debug("Is update: {}", update);
 
-            logger.info("running indexCollections for usage: {}", dbId);
+            log.info("running indexCollections for usage: {}", dbId);
             try {
                 UsageDetails result = getGetUsageDetails(usage);
                 if (result == null) {
@@ -1202,8 +1182,8 @@ public class WorkspaceService {
         };
         // run queries and apply action above
 
-        searchHitsRunner.run(queryUsages, 25, update ? maxCollectionChildItemsUpdateSize : null, null, Map.class, action);
-        searchHitsRunner.run(queryProposals, 25, update ? maxCollectionChildItemsUpdateSize : null, null, Map.class, action);
+        this.run(queryUsages, 25, update ? maxCollectionChildItemsUpdateSize : null, null, Map.class, action);
+        this.run(queryProposals, 25, update ? maxCollectionChildItemsUpdateSize : null, null, Map.class, action);
         builder.endArray();
         builder.endObject();
         // since the node was indexed before an explicit write is not required and slows down the performance
@@ -1214,10 +1194,10 @@ public class WorkspaceService {
                 this.refreshWorkspace();
             }
             if (node.getNodeRef() != null) {
-                logger.info("Index Collections done {} - no collections to index ({}ms)", nodeId, System.currentTimeMillis() - startTimeMs);
+                log.info("Index Collections done {} - no collections to index ({}ms)", nodeId, System.currentTimeMillis() - startTimeMs);
             }
         } else {
-            logger.info("Index Collections done {} - no collections to index ({}ms)", nodeId, System.currentTimeMillis() - startTimeMs);
+            log.info("Index Collections done {} - no collections to index ({}ms)", nodeId, System.currentTimeMillis() - startTimeMs);
         }
 
 
@@ -1274,9 +1254,9 @@ public class WorkspaceService {
     }
 
     public void delete(List<Node> nodes, String index) throws IOException {
-        logger.info("starting delete size:{}", nodes.size());
+        log.info("starting delete size:{}", nodes.size());
         for (Node node : nodes) {
-            logger.debug("nodeid to delete: {} / {}", node.getNodeRef(), node.getId());
+            log.debug("nodeid to delete: {} / {}", node.getNodeRef(), node.getId());
         }
         if (!nodes.isEmpty()) {
             BulkResponse response = client.bulk(req -> req
@@ -1287,15 +1267,15 @@ public class WorkspaceService {
                                     )
                             ).collect(Collectors.toList())));
             if (response.items().size() != nodes.size()) {
-                logger.error("Errors occured while deleting nodes: Actual Deleted count {} does not match actual count: {}", response.items().size(), nodes.size());
+                log.error("Errors occured while deleting nodes: Actual Deleted count {} does not match actual count: {}", response.items().size(), nodes.size());
             }
             for (BulkResponseItem item : response.items()) {
                 if (item.error() != null) {
-                    logger.error("{} dbnodeid: {}", item.error().causedBy(), item.id());
+                    log.error("{} dbnodeid: {}", item.error().causedBy(), item.id());
                 }
             }
         }
-        logger.debug("returning delete");
+        log.debug("returning delete");
     }
 
     public HitsMetadata<Map> search(Query queryBuilder, int from, int size) throws IOException {
@@ -1354,11 +1334,11 @@ public class WorkspaceService {
                     if (hitConsumer != null) hitConsumer.accept(hit);
                     hitsProcessed++;
                     if (maxResultsSize != null && (hitsProcessed == maxResultsSize)) {
-                        logger.debug("stop scrolling cause {} reached. query:{}", maxResultsSize, query);
+                        log.debug("stop scrolling cause {} reached. query:{}", maxResultsSize, query);
                         return;
                     }
                 }
-                logger.debug("processed {} searchhits. query:{}", hitsProcessed, query);
+                log.debug("processed {} searchhits. query:{}", hitsProcessed, query);
             } while (!hits.hits().isEmpty());
         } finally {
             String fscrollId = scrollId;
@@ -1366,7 +1346,6 @@ public class WorkspaceService {
                 client.clearScroll(cs -> cs.scrollId(fscrollId));
             }
         }
-
     }
 
     /**
@@ -1399,7 +1378,7 @@ public class WorkspaceService {
      * The returned map may not contain all nodeRefs provided in the input.
      * @throws IOException if an error occurs during the retrieval process.
      */
-    public Map<String, Map<String, Object>> getSourceMap(List<String> nodeRefs) throws IOException {
+    public Map<String, Map<String, Object>> getSourceMap(Collection<String> nodeRefs) throws IOException {
         return this.getSourceMap(nodeRefs, null);
     }
 
@@ -1412,7 +1391,7 @@ public class WorkspaceService {
      * @return a map where the key is the node reference ID and the value is a map representing the source data for that node. The returned may not contain all nodeRefs provided by the input args.
      * @throws IOException if an error occurs during the search operation.
      */
-    public Map<String, Map<String, Object>> getSourceMap(List<String> nodeRefs, List<String> excludes) throws IOException {
+    public Map<String, Map<String, Object>> getSourceMap(Collection<String> nodeRefs, List<String> excludes) throws IOException {
 
         List<String> uuids = nodeRefs.stream().map(Tools::getUUID).toList();
 //        String protocol = Tools.getProtocol(nodeRef);
@@ -1443,7 +1422,7 @@ public class WorkspaceService {
             Collection<List<Map.Entry<String, List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData>>>> partitions = Partition.getPartitions(nodeStatistics.entrySet(), bulkSizeElastic);
             int page = 0;
             for (List<Map.Entry<String, List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData>>> entries : partitions) {
-                logger.info("starting with page:{} collection size:{}", page, entries.size());
+                log.info("starting with page:{} collection size:{}", page, entries.size());
                 try {
                     List<BulkOperation> bulk = new ArrayList<>();
                     for (Map.Entry<String, List<org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData>> entry : entries) {
@@ -1452,28 +1431,16 @@ public class WorkspaceService {
                         if (statistics == null || statistics.isEmpty()) continue;
 
                         if (!this.exists(uuid, index)) {
-                            logger.info("uuid:{} is not in elastic in elastic index", uuid);
+                            log.info("uuid:{} is not in elastic in elastic index", uuid);
                             allInIndex.set(false);
                             continue;
                         }
-//                        String nodeRef = CCConstants.STORE_WORKSPACES_SPACES + "/" + uuid;
-//                        Serializable value = this.getProperty(nodeRef, "dbid");
-//                        if (value == null) {
-//                            String nodeRefArchive = CCConstants.ARCHIVE_STOREREF + "/" + uuid;
-//                            value = this.getProperty(nodeRefArchive, "dbid");
-//
-//                            if (value == null) {
-//                                logger.info("uuid:{} is not in elastic in elastic index", uuid);
-//                                allInIndex.set(false);
-//                                continue;
-//                            }
-//                        }
 
                         DataBuilder builder = new DataBuilder();
                         builder.startObject();
                         for (org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData nodeStatistic : statistics) {
                             if (nodeStatistic == null) {
-                                logger.debug("there is a null value in statistics list:{}", uuid);
+                                log.debug("there is a null value in statistics list:{}", uuid);
                                 continue;
                             }
                             if (nodeStatistic.getCounts() == null || nodeStatistic.getCounts().isEmpty()) continue;
@@ -1514,8 +1481,7 @@ public class WorkspaceService {
 
 
     public void cleanUpNodeStatistics(List<String> nodeUuids) throws IOException {
-        logger.info("starting cleanUpNodeStatistics");
-
+        log.info("starting cleanUpNodeStatistics");
         List<String> excludes = new ArrayList<>();
         excludes.add("preview");
         excludes.add("content");
@@ -1549,7 +1515,7 @@ public class WorkspaceService {
                             propsToRemove.add(propEntry.getKey());
                         }
                     } catch (ParseException e) {
-                        logger.warn("can not get date in: {}", propEntry.getKey());
+                        log.warn("can not get date in: {}", propEntry.getKey());
                     }
                 }
 
@@ -1557,7 +1523,7 @@ public class WorkspaceService {
                     return;
                 }
 
-                logger.info("remove for {}: {}", nodeUuid, String.join(",", propsToRemove));
+                log.info("remove for {}: {}", nodeUuid, String.join(",", propsToRemove));
 
                 this.update(req -> req
                                 .index(index)
@@ -1569,7 +1535,7 @@ public class WorkspaceService {
                         Map.class);
             }
 
-            logger.info("returning cleanUpNodeStatistics");
+            log.info("returning cleanUpNodeStatistics");
         }
     }
 }

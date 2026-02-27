@@ -21,7 +21,6 @@ import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Stream;
 
 
 @Slf4j
@@ -137,7 +136,7 @@ public class EduSharingService {
                     for (Object value : (List<?>) prop.getValue()) {
                         if (value instanceof String) {
                             String translatedVal = translate(mds, language, key, (String) value);
-                            if (translatedVal != null && !StringUtils.isBlank(translatedVal)) {
+                            if (StringUtils.isNotBlank(translatedVal)) {
                                 translatedList.add(translatedVal);
                             }
                         } else {
@@ -151,7 +150,6 @@ public class EduSharingService {
                     String translatedVal = translate(mds, language, key, prop.getValue().toString());
                     if (translatedVal != null) {
                         valuespacesForLanguage.put(prop.getKey(), Collections.singletonList(translatedVal));
-
                     }
                 }
             }
@@ -173,6 +171,16 @@ public class EduSharingService {
         return result;
     }
 
+        /**
+     * Retrieves the valuespace entries for the specified metadata set, language, and property.
+     * If the entries are available in the cache, they are returned directly.
+     * Otherwise, the method requests the data from a remote service, updates the cache, and returns the result.
+     *
+     * @param mds      The metadata set identifier for which the valuespace entries are requested.
+     * @param language The language for which the valuespace entries are requested.
+     * @param property The specific property within the metadata set for which the valuespace entries are requested.
+     * @return The {@link ValuespaceEntries} object representing the retrieved valuespace data.
+     */
     public Suggestions getValuespace(String mds, String language, String property) {
 
         Suggestions entries = getValuespaceFromCache(mds, language, property);
@@ -226,14 +234,14 @@ public class EduSharingService {
         }
     }
 
-    public void addPreview(org.edu_sharing.elasticsearch.alfresco.client.NodeData node) {
+    public NodePreview getPreviewDataByNodeRef(String nodeRef) {
         if (!fetchThumbnails) {
-            return;
+            return null;
         }
 
-        String nodeId = Tools.getUUID(node.getNodeMetadata().getNodeRef());
-        String storeProtocol = Tools.getProtocol(node.getNodeMetadata().getNodeRef());
-        String storeId = Tools.getIdentifier(node.getNodeMetadata().getNodeRef());
+        String nodeId = Tools.getUUID(nodeRef);
+        String storeProtocol = Tools.getProtocol(nodeRef);
+        String storeId = Tools.getIdentifier(nodeRef);
 
         NodePreview preview = new NodePreview();
         preview.setIsIcon(false);
@@ -250,13 +258,13 @@ public class EduSharingService {
 
         if (previewSmall != null && !preview.isIcon()) {
             if (previewSmall.getData() != null && (previewSmall.getData().length / 1024) > previewMaxKiloBytes) {
-                return;
+                return null;
             }
             preview.setMimetype(previewSmall.getMimetype());
             preview.setSmall(previewSmall.getData());
         }
 
-        node.setNodePreview(preview);
+        return preview;
     }
 
     public void translateValuespaceProps(org.edu_sharing.elasticsearch.alfresco.client.NodeData data) {
@@ -276,17 +284,17 @@ public class EduSharingService {
         }
     }
 
-    public List<String> getStatisticsNodeIds(long timestamp) {
-        return statisticV1Api.getNodesAlteredInRange1(timestamp)
+    public List<String> getStatisticsNodeIds(long from, long to) {
+        return statisticV1Api.getNodesAlteredInRange1(from, to)
                 .block();
     }
 
-    public List<UserNodeActivity> getUserActivitiesSince(OffsetDateTime since, int maxItems) {
-        return trackingV1Api.getAllUserNodeActivities(DEFAULT_REPOSITORY, since, maxItems).collectList().block();
+    public List<UserNodeActivity> getUserActivitiesSince(OffsetDateTime since,OffsetDateTime until, int maxItems) {
+        return trackingV1Api.getAllUserNodeActivities(DEFAULT_REPOSITORY, since, until, maxItems).collectList().block();
     }
 
-    public List<ShareInfoOplog> getShareInfoOplog(OffsetDateTime since, int maxItems) {
-        return sharingV1Api.getOpLog(DEFAULT_REPOSITORY, null, since, maxItems).collectList().block();
+    public List<ShareInfoOplog> getShareInfoOplog(OffsetDateTime since, OffsetDateTime until, int maxItems) {
+        return sharingV1Api.getOpLog(DEFAULT_REPOSITORY, null, since, until, maxItems).collectList().block();
     }
 
     public List<ShareInfo> getShareInfos(List<Long> shareIds) {
@@ -297,8 +305,8 @@ public class EduSharingService {
         return relationV1Api.getRelations(DEFAULT_REPOSITORY, nodeId).collectList().block();
     }
 
-    public List<RelationData> getRelationsSince(OffsetDateTime lastTimestampDate, int batchSize, boolean deleted) {
-        return relationV1Api.getTrackedRelation(DEFAULT_REPOSITORY, lastTimestampDate, batchSize, deleted)
+    public List<RelationData> getRelationsSince(OffsetDateTime since, OffsetDateTime until, int batchSize, boolean deleted) {
+        return relationV1Api.getTrackedRelation(DEFAULT_REPOSITORY, since, until, batchSize, deleted)
                 .flatMap(x -> Flux.just(x, x.toBuilder()
                         .fromNode(x.getToNode())
                         .toNode(x.getFromNode())

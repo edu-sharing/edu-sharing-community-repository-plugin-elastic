@@ -2,8 +2,9 @@ package org.edu_sharing.elasticsearch.elasticsearch.core;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import lombok.RequiredArgsConstructor;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.*;
 import org.springframework.context.annotation.Configuration;
+
+import java.lang.reflect.Constructor;
 
 @Configuration
 @RequiredArgsConstructor
@@ -11,27 +12,14 @@ public class StatusIndexServiceFactory {
 
     private final ElasticsearchClient client;
 
-    public StatusIndexService<Tx> createTransactionStateService(String index) {
-        return new StatusIndexService<>(index, client, Tx::new, "1", Tx.class);
-    }
+    public <T> StatusIndexServiceInterface<T> createStateService(Class<T> statusClass, String documentId, String index) {
+        Constructor<T> defaultConstructor;
+        try {
+            defaultConstructor = statusClass.getConstructor();
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("No default constructor found for status class " + statusClass.getName());
+        }
 
-    public StatusIndexService<AclTx> createAclStateService(String index) {
-        return new StatusIndexService<>(index, client, AclTx::new, "2", AclTx.class);
-    }
-
-    public StatusIndexService<StatisticTimestamp> createStatisticTimestampStateService(String index) {
-        return new StatusIndexService<>(index, client, StatisticTimestamp::new, "3", StatisticTimestamp.class);
-    }
-
-    public StatusIndexService<UserActivityTx> createUserActivityStateService(String index) {
-        return new StatusIndexService<>(index, client, UserActivityTx::new, "4", UserActivityTx.class);
-    }
-
-    public StatusIndexService<ShareInfoTx> createShareInfoStateService(String index) {
-        return new StatusIndexService<>(index, client, ShareInfoTx::new, "5", ShareInfoTx.class);
-    }
-
-    public StatusIndexService<RelationTx> createRelationStateService(String index) {
-        return new StatusIndexService<>(index, client, RelationTx::new, "6", RelationTx.class);
+        return new StatusIndexService<>(index, client, defaultConstructor::newInstance, documentId, statusClass);
     }
 }

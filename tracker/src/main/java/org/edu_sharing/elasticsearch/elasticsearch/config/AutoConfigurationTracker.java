@@ -12,11 +12,12 @@ import co.elastic.clients.util.NamedValue;
 import co.elastic.clients.util.ObjectBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.edu_sharing.elasticsearch.elasticsearch.core.*;
+import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
+import org.edu_sharing.elasticsearch.elasticsearch.core.AdminServiceSynonyms;
+import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
+import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.*;
-import org.edu_sharing.elasticsearch.tracker.TrackerServiceFactory;
-import org.edu_sharing.elasticsearch.tracker.TransactionTracker;
+import org.edu_sharing.elasticsearch.elasticsearch.core.state.AppInfo;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -46,7 +47,6 @@ public class AutoConfigurationTracker {
         version = migrationInfos.get(migrationInfos.size() - 1).getVersion();
     }
 
-
     @Bean
     @ConditionalOnMissingBean(AdminService.class)
     public AdminService adminService(ElasticsearchClient client, Collection<IndexConfiguration> indexConfigurations, AdminServiceSynonyms adminServiceSynonyms) {
@@ -69,7 +69,7 @@ public class AutoConfigurationTracker {
     }
 
     @Bean
-    public IndexConfiguration migrationIndex() {
+    public IndexConfiguration migrationsIndex() {
         return new IndexConfiguration(req -> req
                 .index("migrations")
                 .settings(s -> s.index(id -> id
@@ -87,8 +87,8 @@ public class AutoConfigurationTracker {
     }
 
     @Bean
-    @ConditionalOnMissingBean(name = "transactions")
-    public IndexConfiguration transactions() {
+    @ConditionalOnMissingBean(name = "trackerState")
+    public IndexConfiguration trackerState() {
         return new IndexConfiguration(req -> req
                 .index("transactions_" + version)
                 .settings(s -> s.index(id -> id
@@ -433,49 +433,5 @@ public class AutoConfigurationTracker {
     @Bean
     public StatusIndexService<AppInfo> appInfoStatusService(ElasticsearchClient client, IndexConfiguration appInfo) {
         return new StatusIndexService<>(appInfo.getIndex(), client, AppInfo::new, "0", AppInfo.class);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(name = "transactionStateService")
-    public StatusIndexService<Tx> transactionStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
-        return trackerStateServiceFactory.createTransactionStateService(transactions.getIndex());
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(name = "aclStateService")
-    public StatusIndexService<AclTx> aclStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
-        return trackerStateServiceFactory.createAclStateService(transactions.getIndex());
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(name = "statisticTimestampStateService")
-    public StatusIndexService<StatisticTimestamp> statisticTimestampStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
-        return trackerStateServiceFactory.createStatisticTimestampStateService(transactions.getIndex());
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(name = "userActivityStateService")
-    public StatusIndexService<UserActivityTx> userActivityStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
-        return trackerStateServiceFactory.createUserActivityStateService(transactions.getIndex());
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(name = "relationTxStatusIndexService")
-    public StatusIndexService<RelationTx> relationTxStatusIndexService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
-        return trackerStateServiceFactory.createRelationStateService(transactions.getIndex());
-    }
-
-
-    @Bean
-    @ConditionalOnMissingBean(name = "shareInfoStateService")
-    public StatusIndexService<ShareInfoTx> shareInfoStateService(StatusIndexServiceFactory trackerStateServiceFactory, IndexConfiguration transactions) {
-        return trackerStateServiceFactory.createShareInfoStateService(transactions.getIndex());
-    }
-
-
-    @Bean
-    @ConditionalOnMissingBean(name = "transactionTracker")
-    public TransactionTracker transactionTracker(TrackerServiceFactory trackerServiceFactory, StatusIndexService<Tx> transactionStateService) {
-        return trackerServiceFactory.createDefaultTrackerService(transactionStateService);
     }
 }
