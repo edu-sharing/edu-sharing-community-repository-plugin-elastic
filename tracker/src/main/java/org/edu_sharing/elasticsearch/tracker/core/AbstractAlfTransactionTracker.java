@@ -19,7 +19,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
+import static org.edu_sharing.elasticsearch.metric.MetricContext.PROGRESS_FACTOR;
 
 @Slf4j
 public abstract class AbstractAlfTransactionTracker<PROPS extends AlfTransactionTrackerProperties> extends AbstractTracker<PROPS, Tx> {

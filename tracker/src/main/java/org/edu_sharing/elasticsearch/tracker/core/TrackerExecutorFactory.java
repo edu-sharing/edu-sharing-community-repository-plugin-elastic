@@ -3,8 +3,8 @@ package org.edu_sharing.elasticsearch.tracker.core;
 import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
-import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
-import org.edu_sharing.elasticsearch.tracker.strategy.CommitTimeStatus;
+import org.edu_sharing.elasticsearch.metric.MetricContextFactory;
+import org.edu_sharing.elasticsearch.tracker.strategy.CommiteTimeStatus;
 import org.edu_sharing.elasticsearch.tracker.strategy.DependentStatusIndexServiceStrategie;
 import org.edu_sharing.elasticsearch.tracker.strategy.FixNumberOfTransactionStrategy;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
@@ -23,6 +23,7 @@ public class TrackerExecutorFactory {
 
     private final StatusIndexServiceFactory statusIndexServiceFactory;
     private final TrackerRegistry trackerRegistry;
+    private final MetricContextFactory metricContextFactory;
 
     private TrackerStrategy applyDefaultStrategy(TrackerConfig<?, ?> trackerConfig) {
         return new FixNumberOfTransactionStrategy();
@@ -43,7 +44,7 @@ public class TrackerExecutorFactory {
         @SuppressWarnings("unchecked")
         public <STATE> StatusIndexServiceInterface<STATE> getCommitTimeStatusIndex(TrackerConfig<?, STATE> trackerConfig) {
             StatusIndexServiceInterface<?> stateStatusIndexServiceInterface = indexMap.get(trackerConfig.getName());
-            if(stateStatusIndexServiceInterface == null){
+            if (stateStatusIndexServiceInterface == null) {
                 throw new IllegalStateException("No index found for tracker " + trackerConfig.getName());
             }
             return (StatusIndexServiceInterface<STATE>) stateStatusIndexServiceInterface;
@@ -68,7 +69,7 @@ public class TrackerExecutorFactory {
         return createTrackerExecutors(trackerConfigs, index, this::applyDefaultStrategy);
     }
 
-    public Map<TrackerConfig<?, ?>, TrackingExecutor<?>> createTrackerExecutors(Collection<TrackerConfig<?, ?>> trackerConfigs, String index, Function<TrackerConfig<?,?>, TrackerStrategy> defaultStrategySupplier) {
+    public Map<TrackerConfig<?, ?>, TrackingExecutor<?>> createTrackerExecutors(Collection<TrackerConfig<?, ?>> trackerConfigs, String index, Function<TrackerConfig<?, ?>, TrackerStrategy> defaultStrategySupplier) {
         StatusIndexServiceRegistry statusIndexServiceRegistry = new StatusIndexServiceRegistry(index);
 
         Map<TrackerConfig<?, ?>, TrackingExecutor<?>> result = new LinkedHashMap<>();
@@ -79,14 +80,14 @@ public class TrackerExecutorFactory {
         return result;
     }
 
-    private <STATUS> TrackingExecutor<STATUS> createTrackerExecutor(TrackerConfig<?, STATUS> trackerConfig, StatusIndexServiceRegistry statusIndexServiceRegistry, Function<TrackerConfig<?,?>, TrackerStrategy> defaultStrategySupplier) {
+    private <STATUS> TrackingExecutor<STATUS> createTrackerExecutor(TrackerConfig<?, STATUS> trackerConfig, StatusIndexServiceRegistry statusIndexServiceRegistry, Function<TrackerConfig<?, ?>, TrackerStrategy> defaultStrategySupplier) {
         return createTrackerExecutor(
                 trackerConfig.getTracker(),
                 createTrackingContext(trackerConfig, statusIndexServiceRegistry, defaultStrategySupplier));
     }
 
 
-    private <STATE> TrackingContext<STATE> createTrackingContext(TrackerConfig<?, STATE> trackerConfig,StatusIndexServiceRegistry statusIndexServiceRegistry, Function<TrackerConfig<?, ?>, TrackerStrategy> defaultStrategySupplier) {
+    private <STATE> TrackingContext<STATE> createTrackingContext(TrackerConfig<?, STATE> trackerConfig, StatusIndexServiceRegistry statusIndexServiceRegistry, Function<TrackerConfig<?, ?>, TrackerStrategy> defaultStrategySupplier) {
         List<String> trackerNames = trackerConfig.getConfig().getDependsOn();
         TrackerStrategy trackerStrategy;
         if (!trackerNames.isEmpty()) {
@@ -100,15 +101,9 @@ public class TrackerExecutorFactory {
             trackerStrategy = defaultStrategySupplier.apply(trackerConfig);
         }
 
-
         return new TrackingContext<>(trackerStrategy,
                 statusIndexServiceRegistry.getCommitTimeStatusIndex(trackerConfig),
-                MetricContextHolder.MetricContext.builder()
-                        .labelProgress(trackerConfig.getName() + "Progress")
-                        .descriptionProgress(trackerConfig.getName().toUpperCase() + "progress")
-                        .labelDelay(trackerConfig.getName() + "Delay")
-                        .descriptionDelay(trackerConfig.getName().toUpperCase() + " Delay in seconds")
-                        .build());
+                metricContextFactory.createMetric(trackerConfig.getName()));
     }
 
     @Bean

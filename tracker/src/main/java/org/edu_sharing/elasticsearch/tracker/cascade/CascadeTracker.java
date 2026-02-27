@@ -13,7 +13,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.SearchHitsRunner;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.model.ElasticNode;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
-import org.edu_sharing.elasticsearch.metric.MetricContextHolder;
+import org.edu_sharing.elasticsearch.metric.MetricContext;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractTrackerCoroutine;
 import org.edu_sharing.elasticsearch.tracker.core.TrackingContext;
@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.List;
 
-import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
+import static org.edu_sharing.elasticsearch.metric.MetricContext.PROGRESS_FACTOR;
 
 
 // TODO should be separted form the other trackers becaause it's an state independent post process
@@ -134,7 +134,7 @@ public class CascadeTracker extends AbstractTrackerCoroutine<BaseTrackerProperti
         calcMetric(trackingContext.metricContext());
     }
 
-    private void calcMetric(MetricContextHolder.MetricContext metricContext) throws IOException {
+    private void calcMetric(MetricContext metricContext) throws IOException {
         if (System.currentTimeMillis() - metricCalculated > 5000) {
             workspaceService.refreshWorkspace();
             long processed = workspaceService.search(processedCascadeQuery, 0, 0).total().value();
