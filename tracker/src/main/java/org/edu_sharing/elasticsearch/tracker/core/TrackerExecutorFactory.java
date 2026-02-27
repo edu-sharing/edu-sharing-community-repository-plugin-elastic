@@ -1,5 +1,7 @@
 package org.edu_sharing.elasticsearch.tracker.core;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
@@ -16,6 +18,8 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.edu_sharing.elasticsearch.metric.MetricContextHolder.MetricContext.PROGRESS_FACTOR;
+
 @Configuration
 @RequiredArgsConstructor
 public class TrackerExecutorFactory {
@@ -23,6 +27,7 @@ public class TrackerExecutorFactory {
 
     private final StatusIndexServiceFactory statusIndexServiceFactory;
     private final TrackerRegistry trackerRegistry;
+    private final MeterRegistry meterRegistry;
 
     private TrackerStrategy applyDefaultStrategy(TrackerConfig<?, ?> trackerConfig) {
         return new FixNumberOfTransactionStrategy();
@@ -101,7 +106,7 @@ public class TrackerExecutorFactory {
         }
 
 
-        return new TrackingContext<>(trackerStrategy,
+        TrackingContext<STATE> ctx = new TrackingContext<>(trackerStrategy,
                 statusIndexServiceRegistry.getCommitTimeStatusIndex(trackerConfig),
                 MetricContextHolder.MetricContext.builder()
                         .labelProgress(trackerConfig.getName() + "Progress")
@@ -109,6 +114,14 @@ public class TrackerExecutorFactory {
                         .labelDelay(trackerConfig.getName() + "Delay")
                         .descriptionDelay(trackerConfig.getName().toUpperCase() + " Delay in seconds")
                         .build());
+
+        Gauge.builder(ctx.metricContext().getLabelProgress(), ctx.metricContext().getProgress(),
+                (p) -> p.get() /((double) PROGRESS_FACTOR)).description(ctx.metricContext().getDescriptionProgress()).register(meterRegistry);
+        Gauge.builder(ctx.metricContext().getLabelDelay(),  ctx.metricContext().getTimestamp(),
+                p -> (System.currentTimeMillis() - p.get()) / 1000.
+        ).description(ctx.metricContext().getDescriptionDelay()).register(meterRegistry);
+
+        return ctx;
     }
 
     @Bean
