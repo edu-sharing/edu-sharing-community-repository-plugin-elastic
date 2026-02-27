@@ -92,8 +92,12 @@ public class AclTracker extends AbstractTracker<AclTrackerProperties, AclTx> {
 
 
             if (aclChangeSets.getAclChangeSets().isEmpty()) {
-                trackingContext.metricContext().getProgress().set(100 * PROGRESS_FACTOR);
-                trackingContext.metricContext().getTimestamp().set(System.currentTimeMillis());
+
+                boolean isBehindMainTracker = (trackingContext.strategy() instanceof DependentStatusIndexServiceStrategie && trackingContext.strategy().getLimit() < aclChangeSets.getMaxChangeSetCommitTime());
+                if (!isBehindMainTracker) {
+                    trackingContext.metricContext().getProgress().set(100 * PROGRESS_FACTOR);
+                    trackingContext.metricContext().getTimestamp().set(System.currentTimeMillis());
+                }
                 log.info("index is up to date:{} lastFromCommitTime:{}", nextACLChangeSetId, lastFromCommitTime);
                 return State.FINISHED;
             }
