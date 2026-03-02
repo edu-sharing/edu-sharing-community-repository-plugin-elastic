@@ -359,29 +359,24 @@ public class EduSharingClient {
 
     private NodeEntry getNode(String nodeId) {
         log.debug("calling getNode");
-        try {
-            String result = educlient.target(getUrl(URL_NODE.replace("${node}", nodeId))).
-                    request(MediaType.APPLICATION_JSON).
-                    accept(MediaType.APPLICATION_JSON).
-                    cookie(jsessionId.getName(), jsessionId.getValue()).
-                    get().readEntity(String.class);
-            log.debug(result);
-            return new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
-                @Override
-                public boolean shouldSkipField(FieldAttributes fieldAttributes) {
-                    return false;
-                }
+        String result = educlient.target(getUrl(URL_NODE.replace("${node}", nodeId))).
+                request(MediaType.APPLICATION_JSON).
+                accept(MediaType.APPLICATION_JSON).
+                cookie(jsessionId.getName(), jsessionId.getValue()).
+                get().readEntity(String.class);
+        log.debug(result);
+        return new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
+            @Override
+            public boolean shouldSkipField(FieldAttributes fieldAttributes) {
+                return false;
+            }
 
-                @Override
-                public boolean shouldSkipClass(Class<?> aClass) {
-                    return aClass.equals(OffsetDateTime.class)
-                            || aClass.equals(java.time.OffsetDateTime.class);
-                }
-            }).create().fromJson(result, NodeEntry.class);
-        } catch (Throwable e) {
-            log.info("Could not fetch node {}", nodeId, e);
-            return null;
-        }
+            @Override
+            public boolean shouldSkipClass(Class<?> aClass) {
+                return aClass.equals(OffsetDateTime.class)
+                        || aClass.equals(java.time.OffsetDateTime.class);
+            }
+        }).create().fromJson(result, NodeEntry.class);
     }
 
     public About getAbout() {
