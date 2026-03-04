@@ -43,6 +43,7 @@ public class PreviewTracker extends AbstractAlfTransactionTracker<AlfTransaction
                 threadUtil.getThreadPool().execute(() -> {
 
                     NodePreview previewData = eduSharingClient.getPreviewData(nodeMetadata);
+                    if(previewData == null) return;
                     DataBuilder builder = new DataBuilder();
 
                     builder.startObject()
