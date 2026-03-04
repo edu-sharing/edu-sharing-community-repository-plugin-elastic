@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
 import org.edu_sharing.elasticsearch.metric.MetricContextFactory;
-import org.edu_sharing.elasticsearch.tracker.strategy.CommiteTimeStatus;
+import org.edu_sharing.elasticsearch.tracker.strategy.CommitTimeStatus;
 import org.edu_sharing.elasticsearch.tracker.strategy.DependentStatusIndexServiceStrategie;
 import org.edu_sharing.elasticsearch.tracker.strategy.FixNumberOfTransactionStrategy;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;

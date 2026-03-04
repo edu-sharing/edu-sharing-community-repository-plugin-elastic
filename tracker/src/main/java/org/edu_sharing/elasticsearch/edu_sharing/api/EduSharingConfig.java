@@ -117,4 +117,9 @@ public class EduSharingConfig {
     public RelationV1Api relationV1Api(ApiClient apiClient){
         return new RelationV1Api(apiClient);
     }
+
+    @Bean
+    public SuggestionsV1Api suggestionsV1Api(ApiClient apiClient){
+        return new SuggestionsV1Api(apiClient);
+    }
 }

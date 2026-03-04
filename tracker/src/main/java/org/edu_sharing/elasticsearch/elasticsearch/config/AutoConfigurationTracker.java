@@ -421,11 +421,27 @@ public class AutoConfigurationTracker {
                                 .properties("toNode", prop -> prop.keyword(v -> v))
                                 .properties("type", prop -> prop.keyword(v -> v))
                                 .properties("createdBy", prop -> prop.keyword(v -> v))
+                                .properties("created", prop -> prop.date(v -> v))
                                 .properties("modifiedBy", prop -> prop.keyword(v -> v))
+                                .properties("modified", prop -> prop.date(v -> v))
                                 .properties("evaluation", evalProp -> evalProp
                                         .object(evalObj -> evalObj
                                                 .properties("approvedBy", prop -> prop.keyword(v -> v))
                                         ))
+                        ))
+                .properties("suggestions", relationProp -> relationProp
+                        .nested(nested -> nested
+                                .properties("createdBy", prop -> prop.keyword(v -> v))
+                                .properties("created", prop -> prop.date(v -> v))
+                                .properties("description", prop -> prop.keyword(v -> v))
+                                .properties("id", prop -> prop.keyword(v -> v))
+                                .properties("type", prop -> prop.keyword(v -> v))
+                                .properties("nodeId", prop -> prop.keyword(v -> v))
+                                .properties("propertyId", prop -> prop.keyword(v -> v))
+                                .properties("value", prop -> prop.keyword(v -> v))
+                                .properties("version", prop -> prop.keyword(v -> v))
+                                .properties("status", prop -> prop.keyword(v -> v))
+                                .properties("timestamp", prop -> prop.date(v -> v))
                         ));
     }
 

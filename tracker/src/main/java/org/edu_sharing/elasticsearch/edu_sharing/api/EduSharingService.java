@@ -38,6 +38,7 @@ public class EduSharingService {
     private final TrackingV1Api trackingV1Api;
     private final SharingV1Api sharingV1Api;
     private final RelationV1Api relationV1Api;
+    private final SuggestionsV1Api suggestionsV1Api;
 
     @Value("${valuespace.languages}")
     private String[] valuespaceLanguages;
@@ -313,6 +314,12 @@ public class EduSharingService {
                         .type(RelationData.TypeEnum.fromValue(x.getReverseType().getValue()))
                         .reverseType(RelationData.ReverseTypeEnum.fromValue(x.getType().getValue()))
                         .build()))
+                .collectList()
+                .block();
+    }
+
+    public List<PropertySuggestion> getSuggestionsSince(OffsetDateTime since, OffsetDateTime until, int batchSize, boolean deleted) {
+        return suggestionsV1Api.getTrackedRelation1(DEFAULT_REPOSITORY, since, until, batchSize, deleted)
                 .collectList()
                 .block();
     }

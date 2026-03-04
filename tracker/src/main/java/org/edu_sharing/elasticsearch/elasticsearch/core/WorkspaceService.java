@@ -15,7 +15,6 @@ import co.elastic.clients.util.ObjectBuilder;
 import com.google.gson.GsonBuilder;
 import com.google.gson.ToNumberPolicy;
 import lombok.NonNull;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import net.sourceforge.cardme.engine.VCardEngine;
 import net.sourceforge.cardme.vcard.VCard;
@@ -24,19 +23,19 @@ import net.sourceforge.cardme.vcard.types.ExtendedType;
 import net.sourceforge.cardme.vcard.types.NType;
 import org.apache.tomcat.util.buf.StringUtils;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
+import org.edu_sharing.elasticsearch.alfresco.client.Node;
+import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.model.ElasticNode;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
-import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilderSerializer;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.utils.NodeMetadataSimple;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.cascade.CascadeTracker;
 import org.edu_sharing.elasticsearch.tracker.utils.Partition;
-import org.edu_sharing.generated.repository.backend.services.rest.client.model.RelationData;
-import org.edu_sharing.generated.repository.backend.services.rest.client.model.ShareInfo;
-import org.edu_sharing.generated.repository.backend.services.rest.client.model.UserNodeActivity;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.*;
 import org.edu_sharing.repository.client.tools.CCConstants;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.BasicJsonParser;
 import org.springframework.boot.json.JsonParseException;
@@ -49,6 +48,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -1010,6 +1011,127 @@ public class WorkspaceService implements SearchHitsRunner {
         log.info("finished bulk delete shares");
     }
 
+    public void updateNodesWithSuggestions(String nodeId, @NotNull List<PropertySuggestion> suggestions) {
+        // language=groovy
+        final String SCRIPT_UPDATE_RELATIONS_BY_KEY = """
+                if (ctx._source.suggestions == null) {
+                    ctx._source.suggestions = new ArrayList();
+                }
+                
+                for (def incoming : params.suggestions) {
+                  boolean updated = false;
+                
+                  for (int i = 0; i < ctx._source.suggestions.size(); i++) {
+                    def existing = ctx._source.suggestions.get(i);
+                
+                    if (existing != null && existing.id == incoming.id) {
+                      // Replace the whole relation object (or change to partial field updates if desired)
+                      ctx._source.suggestions.set(i, incoming);
+                      updated = true;
+                      break;
+                    }
+                  }
+                
+                  if (!updated) {
+                    ctx._source.suggestions.add(incoming);
+                  }
+                }
+                """;
+
+        UpdateByQueryResponse bulkByScrollResponse;
+        try {
+            bulkByScrollResponse = client.updateByQuery(req -> req
+                    .index(index)
+                    .query(q -> q.bool(b -> b
+                            .should(s -> s.term(t -> t.field("_id").value(nodeId)))
+                            .should(s -> s.bool(b2 -> b2
+                                    .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
+                                    .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
+                            ))))
+                    .conflicts(Conflicts.Proceed)
+                    .refresh(true)
+                    .script(src -> src
+                            .source(SCRIPT_UPDATE_RELATIONS_BY_KEY)
+                            .params("suggestions", JsonData.of(suggestions)))
+            );
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        log.debug("updated: {}", bulkByScrollResponse.updated());
+        List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
+        for (BulkIndexByScrollFailure failure : bulkFailures) {
+            log.error(failure.cause().toString(), failure.cause());
+        }
+    }
+
+    public void removeSuggestionsFromNodes(String nodeId, @NotNull List<PropertySuggestion> suggestions) {
+        // language=groovy
+        final String SCRIPT_REMOVE_RELATIONS_BY_KEY = """
+                if (ctx._source.suggestions == null || ctx._source.suggestions.size() == 0) {
+                  ctx.op = 'noop';
+                  return;
+                }
+                
+                boolean changed = false;
+                
+                // remove all existing relations that match any relation in params.relations
+                for (int i = ctx._source.suggestions.size() - 1; i >= 0; i--) {
+                  def existing = ctx._source.suggestions.get(i);
+                  if (existing == null) {
+                    continue;
+                  }
+                
+                  boolean shouldRemove = false;
+                
+                  for (def incoming : params.suggestions) {
+                    if (incoming == null) {
+                      continue;
+                    }
+                
+                    if (existing.id == incoming.id) {
+                      shouldRemove = true;
+                      break;
+                    }
+                  }
+                
+                  if (shouldRemove) {
+                    ctx._source.suggestions.remove(i);
+                    changed = true;
+                  }
+                }
+                
+                if (!changed) {
+                  ctx.op = 'noop';
+                }
+                """;
+
+        UpdateByQueryResponse bulkByScrollResponse;
+        try {
+            bulkByScrollResponse = client.updateByQuery(req -> req
+                    .index(index)
+                    .query(q -> q.bool(b -> b
+                            .should(s -> s.term(t -> t.field("id").value(nodeId)))
+                            .should(s -> s.bool(b2 -> b2
+                                    .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
+                                    .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
+                            ))))
+                    .conflicts(Conflicts.Proceed)
+                    .refresh(true)
+                    .script(src -> src
+                            .source(SCRIPT_REMOVE_RELATIONS_BY_KEY)
+                            .params("suggestions", JsonData.of(suggestions)))
+            );
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        log.debug("updated: {}", bulkByScrollResponse.updated());
+        List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
+        for (BulkIndexByScrollFailure failure : bulkFailures) {
+            log.error(failure.cause().toString(), failure.cause());
+        }
+    }
 
     private record UsageDetails(String nodeIdCollection, String nodeIdIO) {
     }
