@@ -38,8 +38,8 @@ public class ElasticsearchConfig {
 
 
     @Bean
-    public RestClient restClient(){
-        return  RestClient.builder(new HttpHost(elasticHost, elasticPort, elasticProtocol))
+    public RestClient restClient() {
+        return RestClient.builder(new HttpHost(elasticHost, elasticPort, elasticProtocol))
                 .setRequestConfigCallback(requestConfigBuilder -> requestConfigBuilder
                         .setConnectTimeout(elasticConnectTimeout)
                         .setSocketTimeout(elasticSocketTimeout)
@@ -48,15 +48,17 @@ public class ElasticsearchConfig {
     }
 
 
-
     @Bean
-    public ElasticsearchTransport transport(RestClient restClient){
-        return new RestClientTransport(restClient, new JacksonJsonpMapper(new ObjectMapper()
+    public ElasticsearchTransport transport(RestClient restClient) {
+        ObjectMapper objectMapper = new ObjectMapper()
                 .configure(SerializationFeature.INDENT_OUTPUT, false)
                 .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-                .registerModule(new JavaTimeModule())));
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        return new RestClientTransport(restClient, new JacksonJsonpMapper(objectMapper));
     }
-    
+
     @Bean
     public ElasticsearchClient client(ElasticsearchTransport transport) {
         return new ElasticsearchClient(transport);
