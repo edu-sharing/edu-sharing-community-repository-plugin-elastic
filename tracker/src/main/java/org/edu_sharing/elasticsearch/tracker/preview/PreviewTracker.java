@@ -2,7 +2,9 @@ package org.edu_sharing.elasticsearch.tracker.preview;
 
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import lombok.extern.slf4j.Slf4j;
+import org.edu_sharing.elasticsearch.alfresco.client.GetNodeMetadataParam;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
+import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.alfresco.client.NodePreview;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractAlfTransactionTracker;
@@ -31,9 +33,16 @@ public class PreviewTracker extends AbstractAlfTransactionTracker<AlfTransaction
         Collection<List<Node>> partitions = Partition.getPartitions(nodes, this.props.getFetchSizeAlfresco());
         for (List<Node> partition : partitions) {
             List<BulkOperation> updates = Collections.synchronizedList(new ArrayList<>());
-            for (Node node : partition) {
+            GetNodeMetadataParam param = new GetNodeMetadataParam();
+            param.setIncludeChildAssociations(true);
+            param.setIncludeProperties(true);
+            log.info("fetching nodeMetadata");
+            List<NodeMetadata> nodeMetadatas = alfClient.getNodeMetadataByIds(partition.stream().map(Node::getId).toList(), param);
+            log.info("fetched nodeMetadata");
+            for (NodeMetadata nodeMetadata : nodeMetadatas) {
                 threadUtil.getThreadPool().execute(() -> {
-                    NodePreview previewData = eduSharingClient.getPreviewDataByNodeRef(node.getNodeRef());
+
+                    NodePreview previewData = eduSharingClient.getPreviewData(nodeMetadata);
                     DataBuilder builder = new DataBuilder();
 
                     builder.startObject()
@@ -47,7 +56,7 @@ public class PreviewTracker extends AbstractAlfTransactionTracker<AlfTransaction
                         .endObject();
                     BulkOperation bulkOp = BulkOperation.of(b -> b
                             .update(u -> u
-                                    .id(Long.valueOf(node.getId()).toString())
+                                    .id(Long.valueOf(nodeMetadata.getId()).toString())
                                     .action(a -> a
                                             .doc(builder.build())
                                     )
@@ -56,11 +65,14 @@ public class PreviewTracker extends AbstractAlfTransactionTracker<AlfTransaction
                     updates.add(bulkOp);
                 });
             }
+            log.info("fetching previewData");
             if (!threadUtil.getThreadPool().awaitQuiescence(10, TimeUnit.MINUTES)) {
                 log.error("Fatal error while processing nodes: timeout of preview and transform processing");
                 log.error(partition.stream().map(Node::getNodeRef).collect(Collectors.joining(", ")));
             }
+            log.info("elastic update");
             workspaceService.updateBulk(updates);
+            log.info("finished.");
         }
     }
 }

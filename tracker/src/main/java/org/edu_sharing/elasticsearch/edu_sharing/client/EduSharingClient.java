@@ -15,6 +15,7 @@ import jakarta.ws.rs.core.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
+import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.alfresco.client.NodePreview;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.Node;
@@ -299,6 +300,63 @@ public class EduSharingClient {
             }
         }
         return result;
+    }
+
+
+    @EduSharingAuthentication.ManageAuthentication
+    public NodePreview getPreviewData(NodeMetadata nodeMetadata) {
+        if (!fetchThumbnails) {
+            return null;
+        }
+        String nodeRef = nodeMetadata.getNodeRef();
+        String url = getUrl(URL_PREVIEW).
+                replace("${nodeId}", Tools.getUUID(nodeRef)).
+                replace("${storeProtocol}", Tools.getProtocol(nodeRef)).
+                replace("${storeId}", Tools.getIdentifier(nodeRef));
+
+        url += "&allowRedirect=false";
+
+        String urlSmall = url.replace("${width}", "400").
+                replace("${height}", "400").
+                replace("${quality}", "60");
+
+        NodePreview preview = new NodePreview();
+        preview.setIsIcon(false);
+        PreviewData previewSmall = getPreviewData(urlSmall);
+
+        String nodeType = nodeMetadata.getType();
+        if(nodeType.equals(CCConstants.CCM_TYPE_MAP)){
+            if(nodeMetadata.getProperties().containsKey(CCConstants.CCM_PROP_MAP_ICON)){
+                preview.setIsIcon(false);
+                //preview type is null for maps
+                preview.setType(null);
+            }else  preview.setIsIcon(false);
+        } else if (nodeType.equals(CCConstants.CCM_TYPE_IO)) {
+            if(nodeMetadata.getProperties().containsKey(CCConstants.CCM_PROP_IO_THUMBNAILURL)){
+                preview.setIsIcon(false);
+                preview.setType("TYPE_EXTERNAL");
+            }else if(nodeMetadata.getProperties().containsKey(CCConstants.CCM_PROP_IO_USERDEFINED_PREVIEW)){
+                preview.setIsIcon(false);
+                preview.setType("TYPE_USERDEFINED");
+            }else if (nodeMetadata.getChildAssocs() != null &&  nodeMetadata.getChildAssocs().stream().anyMatch(s -> s.contains("imgpreview"))) {
+                preview.setIsIcon(false);
+                preview.setType("TYPE_GENERATED");
+            }else{
+                preview.setType("TYPE_DEFAULT");
+                preview.setIsIcon(true);
+            }
+        }
+
+        if (previewSmall != null && !preview.isIcon()) {
+            if (previewSmall.getData() != null && (previewSmall.getData().length / 1024) > previewMaxKiloBytes) {
+                log.info("Skipping preview for {} cause size {}kb exceeds limit {}kb", nodeRef, previewSmall.getData().length / 1024, previewMaxKiloBytes);
+                return null;
+            }
+            preview.setMimetype(previewSmall.getMimetype());
+            preview.setSmall(previewSmall.getData());
+        }
+        return preview;
+
     }
 
     @EduSharingAuthentication.ManageAuthentication
