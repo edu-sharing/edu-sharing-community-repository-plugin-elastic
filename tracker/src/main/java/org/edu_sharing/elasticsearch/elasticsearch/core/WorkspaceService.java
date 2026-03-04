@@ -296,7 +296,7 @@ public class WorkspaceService implements SearchHitsRunner {
         NodeMetadata node = nodeData.getNodeMetadata();
         // check if a formally moved node was moved again
         if (nodeData.getNodeMetadata().getAspects().contains("sys:cascadeUpdate")) {
-            HitsMetadata<ElasticNode> hits = search(QueryBuilders.ids(i -> i.values(Long.toString(nodeData.getNodeMetadata().getId()))),
+            HitsMetadata<ElasticNode> hits = search(QueryBuilders.ids(i -> i.values(Tools.getUUID(nodeData.getNodeMetadata().getNodeRef()))),
                     0,
                     1,
                     null,
@@ -323,7 +323,7 @@ public class WorkspaceService implements SearchHitsRunner {
         Object data = builder.build();
         operations.add(BulkOperation.of(op -> op.update(iop -> iop
                 .index(index)
-                .id(Long.toString(node.getId()))
+                .id(Tools.getUUID(node.getNodeRef()))
                 .action(a -> a
                         .doc(data)
                         .docAsUpsert(true))
