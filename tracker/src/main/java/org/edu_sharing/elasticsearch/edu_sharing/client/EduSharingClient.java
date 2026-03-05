@@ -325,13 +325,13 @@ public class EduSharingClient {
         PreviewData previewSmall = getPreviewData(urlSmall);
 
         String nodeType = nodeMetadata.getType();
-        if(nodeType.equals(CCConstants.CCM_TYPE_MAP)){
+        if(nodeType.equals(CCConstants.getValidLocalName(CCConstants.CCM_TYPE_MAP))){
             if(nodeMetadata.getProperties().containsKey(CCConstants.CCM_PROP_MAP_ICON)){
                 preview.setIsIcon(false);
                 //preview type is null for maps
                 preview.setType(null);
             }else  preview.setIsIcon(false);
-        } else if (nodeType.equals(CCConstants.CCM_TYPE_IO)) {
+        } else if (nodeType.equals(CCConstants.getValidLocalName(CCConstants.CCM_TYPE_IO))) {
             if(nodeMetadata.getProperties().containsKey(CCConstants.CCM_PROP_IO_THUMBNAILURL)){
                 preview.setIsIcon(false);
                 preview.setType("TYPE_EXTERNAL");

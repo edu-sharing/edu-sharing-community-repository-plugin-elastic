@@ -14,7 +14,8 @@ public class GetNodeMetadataParam {
     private boolean includeOwner = true;
     private boolean includePaths = true;
     private boolean includeParentAssociations = true;
-    private boolean includeChildAssociations = true;
+    // instead of jsonignore use default = false
+    private boolean includeChildAssociations = false;
     private boolean includeNodeRef = true;
     private boolean includeChildIds = true;
     private boolean includeTxnId = true;

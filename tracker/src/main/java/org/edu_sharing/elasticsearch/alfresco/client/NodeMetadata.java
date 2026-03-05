@@ -51,7 +51,6 @@ public class NodeMetadata
     private long parentAssocsCrc;
     private List<String> parentAssocs;
 
-    @JsonIgnore
     private List<String> childAssocs;
     private List<Long> childIds;
     private String owner;

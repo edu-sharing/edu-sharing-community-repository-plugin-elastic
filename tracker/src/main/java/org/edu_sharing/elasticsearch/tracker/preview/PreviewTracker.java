@@ -36,6 +36,16 @@ public class PreviewTracker extends AbstractAlfTransactionTracker<AlfTransaction
             GetNodeMetadataParam param = new GetNodeMetadataParam();
             param.setIncludeChildAssociations(true);
             param.setIncludeProperties(true);
+            param.setIncludeNodeRef(true);
+            param.setIncludeType(true);
+            param.setIncludeChildIds(false);
+            param.setIncludeOwner(false);
+            param.setIncludeParentAssociations(false);
+            param.setIncludePaths(false);
+            param.setIncludeAclId(false);
+            param.setIncludeTxnId(false);
+            param.setIncludeAspects(false);
+
             log.info("fetching nodeMetadata");
             List<NodeMetadata> nodeMetadatas = alfClient.getNodeMetadataByIds(partition.stream().map(Node::getId).toList(), param);
             log.info("fetched nodeMetadata");
