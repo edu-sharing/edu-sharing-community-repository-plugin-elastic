@@ -215,8 +215,11 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
                 continue;
             }
             threadPool.execute(() -> {
+                logger.info("adding preview for {}",data);
                 eduSharingClient.addPreview(data);
+                logger.info("adding valuespace for {}",data);
                 eduSharingClient.translateValuespaceProps(data);
+                logger.info("finished {}",data);
             });
         }
 
