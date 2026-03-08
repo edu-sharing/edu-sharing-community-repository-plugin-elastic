@@ -203,7 +203,7 @@ public class WorkspaceService implements SearchHitsRunner {
             scriptParams.put("p_" + key, JsonData.of(value));
         });
 
-        List<String> checkForRemove = List.of("contributor","i18n","customProperties","children","collections");
+        List<String> checkForRemove = List.of("contributor","i18n","customProperties","children");
         checkForRemove.forEach(f ->  {
             if(!data.containsKey(f)) {
                 scriptSource.append("ctx._source.remove('").append(f).append("'); ");
