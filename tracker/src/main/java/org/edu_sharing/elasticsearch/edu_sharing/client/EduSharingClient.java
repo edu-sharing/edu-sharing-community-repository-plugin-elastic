@@ -302,13 +302,16 @@ public class EduSharingClient {
         return result;
     }
 
+    private Response getPreviewDataResponse(String url) {
+        return educlient.target(url).
+                request(MediaType.WILDCARD).
+                cookie(jsessionId.getName(), jsessionId.getValue()).
+                get();
+    }
 
-    @EduSharingAuthentication.ManageAuthentication
-    public NodePreview getPreviewData(NodeMetadata nodeMetadata) {
-        if (!fetchThumbnails) {
-            return null;
-        }
-        String nodeRef = nodeMetadata.getNodeRef();
+    public NodePreview getNodePreview(String nodeRef){
+        NodePreview preview = new NodePreview();
+
         String url = getUrl(URL_PREVIEW).
                 replace("${nodeId}", Tools.getUUID(nodeRef)).
                 replace("${storeProtocol}", Tools.getProtocol(nodeRef)).
@@ -320,100 +323,32 @@ public class EduSharingClient {
                 replace("${height}", "400").
                 replace("${quality}", "60");
 
-        NodePreview preview = new NodePreview();
-        preview.setIsIcon(false);
-        PreviewData previewSmall = getPreviewData(urlSmall);
-
-        String nodeType = nodeMetadata.getType();
-        if(nodeType.equals(CCConstants.getValidLocalName(CCConstants.CCM_TYPE_MAP))){
-            if(nodeMetadata.getProperties().containsKey(CCConstants.CCM_PROP_MAP_ICON)){
-                preview.setIsIcon(false);
-                //preview type is null for maps
-                preview.setType(null);
-            }else  preview.setIsIcon(false);
-        } else if (nodeType.equals(CCConstants.getValidLocalName(CCConstants.CCM_TYPE_IO))) {
-            if(nodeMetadata.getProperties().containsKey(CCConstants.CCM_PROP_IO_THUMBNAILURL)){
-                preview.setIsIcon(false);
-                preview.setType("TYPE_EXTERNAL");
-            }else if(nodeMetadata.getProperties().containsKey(CCConstants.CCM_PROP_IO_USERDEFINED_PREVIEW)){
-                preview.setIsIcon(false);
-                preview.setType("TYPE_USERDEFINED");
-            }else if (nodeMetadata.getChildAssocs() != null &&  nodeMetadata.getChildAssocs().stream().anyMatch(s -> s.contains("imgpreview"))) {
-                preview.setIsIcon(false);
-                preview.setType("TYPE_GENERATED");
-            }else{
-                preview.setType("TYPE_DEFAULT");
-                preview.setIsIcon(true);
-            }
-        }
-
-        if (previewSmall != null && !preview.isIcon()) {
-            if (previewSmall.getData() != null && (previewSmall.getData().length / 1024) > previewMaxKiloBytes) {
-                log.info("Skipping preview for {} cause size {}kb exceeds limit {}kb", nodeRef, previewSmall.getData().length / 1024, previewMaxKiloBytes);
-                return null;
-            }
-            preview.setMimetype(previewSmall.getMimetype());
-            preview.setSmall(previewSmall.getData());
-        }
-        return preview;
-
-    }
-
-    @EduSharingAuthentication.ManageAuthentication
-    public NodePreview getPreviewDataByNodeRef(String nodeRef) {
-        if (!fetchThumbnails) {
-            return null;
-        }
-        String url = getUrl(URL_PREVIEW).
-                replace("${nodeId}", Tools.getUUID(nodeRef)).
-                replace("${storeProtocol}", Tools.getProtocol(nodeRef)).
-                replace("${storeId}", Tools.getIdentifier(nodeRef));
-
-        url += "&allowRedirect=false";
-
-        String urlSmall = url.replace("${width}", "400").
-                replace("${height}", "400").
-                replace("${quality}", "60");
-//        String urlLarge = url.replace("${width}", "800").
-//                replace("${height}", "800").
-//                replace("${quality}", "70");
-
-        NodePreview preview = new NodePreview();
-        preview.setIsIcon(false);
-        PreviewData previewSmall = getPreviewData(urlSmall);
-        NodeEntry nodeEntry = getNode(Tools.getUUID(nodeRef));
-        if (nodeEntry != null) {
-            Node nodeData = nodeEntry.getNode();
-            if (nodeData != null && nodeData.getPreview() != null) {
-                preview.setIsIcon(nodeData.getPreview().getIsIcon());
-                preview.setType(nodeData.getPreview().getType());
-            }
-        }
-        //byte[] previewLarge=getPreviewData(urlSmall);
-
-        if (previewSmall != null && !preview.isIcon()) {
-            if (previewSmall.getData() != null && (previewSmall.getData().length / 1024) > previewMaxKiloBytes) {
-                log.info("Skipping preview for {} cause size {}kb exceeds limit {}kb", nodeRef, previewSmall.getData().length / 1024, previewMaxKiloBytes);
-                return null;
-            }
-            preview.setMimetype(previewSmall.getMimetype());
-            preview.setSmall(previewSmall.getData());
-        }
-        return preview;
-    }
-
-    private PreviewData getPreviewData(String url) {
-        log.debug("calling getPreviewData");
         try {
-            return educlient.target(url).
-                    request(MediaType.WILDCARD).
-                    cookie(jsessionId.getName(), jsessionId.getValue()).
-                    get().readEntity(PreviewData.class);
-        } catch (Exception e) {
+            Response previewDataResponse = getPreviewDataResponse(urlSmall);
+            String isIcon = previewDataResponse.getHeaderString("X-Edu-IsIcon");
+            if(isIcon == null){
+                preview.setIsIcon(true);
+            }else {
+                preview.setIsIcon(Boolean.parseBoolean(isIcon));
+            }
+            String type = previewDataResponse.getHeaderString("X-Edu-PreviewType");
+            preview.setType(type);
+            PreviewData previewSmall = previewDataResponse.readEntity(PreviewData.class);
+            if (previewSmall != null && !preview.isIcon()) {
+                if (previewSmall.getData() != null && (previewSmall.getData().length / 1024) > previewMaxKiloBytes) {
+                    log.info("Skipping preview for {} cause size {}kb exceeds limit {}kb", nodeRef, previewSmall.getData().length / 1024, previewMaxKiloBytes);
+                    return null;
+                }
+                preview.setMimetype(previewSmall.getMimetype());
+                preview.setSmall(previewSmall.getData());
+            }
+            return preview;
+        }catch (Exception e){
             log.info("Could not fetch preview from {}", url, e);
             return null;
         }
     }
+
 
     private NodeEntry getNode(String nodeId) {
         log.debug("calling getNode");
