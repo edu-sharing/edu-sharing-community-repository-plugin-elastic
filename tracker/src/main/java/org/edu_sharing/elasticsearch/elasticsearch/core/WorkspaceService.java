@@ -188,14 +188,42 @@ public class WorkspaceService implements SearchHitsRunner {
         }
         DataBuilder builder = new DataBuilder();
         fillData(nodeData, builder);
-        Object data = builder.build();
-        operations.add(BulkOperation.of(op -> op.update(iop -> iop
-                .index(index)
-                .id(Long.toString(node.getId()))
-                .action(a -> a
-                        .doc(data)
-                        .docAsUpsert(true))
-        )));
+        Object dataRaw = builder.build();
+        Map<String, Object> data = (Map<String, Object>)dataRaw;
+
+        // 2. Script und Parameter dynamisch aufbauen
+        StringBuilder scriptSource = new StringBuilder();
+        Map<String, JsonData> scriptParams = new HashMap<>();
+
+
+
+        data.forEach((key, value) -> {
+            // Erzeugt: ctx._source.preview = params.p_preview; ctx._source.properties = params.p_properties; ...
+            scriptSource.append("ctx._source.").append(key).append(" = params.p_").append(key).append("; ");
+            scriptParams.put("p_" + key, JsonData.of(value));
+        });
+
+        List<String> checkForRemove = List.of("contributor","i18n","customProperties","children","collections");
+        checkForRemove.forEach(f ->  {
+            if(!data.containsKey(f)) {
+                scriptSource.append("ctx._source.remove('").append(f).append("'); ");
+            }
+        });
+
+        // 3. BulkOperation mit Upsert zusammenbauen
+        BulkOperation bulkOp = BulkOperation.of(b -> b
+                .update(u -> u
+                        .id(Long.toString(node.getId()))
+                        .action(a -> a
+                                .script(s -> s
+                                        .source(scriptSource.toString().trim())
+                                        .params(scriptParams)
+                                )
+                                .upsert(JsonData.of(dataRaw)) // Wenn neu, dann das komplette Dokument
+                        )
+                )
+        );
+        operations.add(bulkOp);
 
         if (nodeCounter.addAndGet(1) % 100 == 0) {
             log.info("Processed {} nodes ({}ms per last 100 nodes)", nodeCounter.get(), System.currentTimeMillis() - lastNodeCount.get());
