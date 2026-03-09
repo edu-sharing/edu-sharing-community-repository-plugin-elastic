@@ -198,9 +198,15 @@ public class WorkspaceService implements SearchHitsRunner {
 
 
         data.forEach((key, value) -> {
-            // Erzeugt: ctx._source.preview = params.p_preview; ctx._source.properties = params.p_properties; ...
-            scriptSource.append("ctx._source.").append(key).append(" = params.p_").append(key).append("; ");
-            scriptParams.put("p_" + key, JsonData.of(value));
+            if(value == null){
+                scriptSource.append("ctx._source.")
+                        .append(key)
+                        .append(" = null; ");
+            }else {
+                // Erzeugt: ctx._source.preview = params.p_preview; ctx._source.properties = params.p_properties; ...
+                scriptSource.append("ctx._source.").append(key).append(" = params.p_").append(key).append("; ");
+                scriptParams.put("p_" + key, JsonData.of(value));
+            }
         });
 
         List<String> checkForRemove = List.of("contributor","i18n","customProperties","children");
