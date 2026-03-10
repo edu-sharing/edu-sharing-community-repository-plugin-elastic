@@ -328,7 +328,7 @@ public class EduSharingClient {
             String isIcon = previewDataResponse.getHeaderString("X-Edu-IsIcon");
             String type = previewDataResponse.getHeaderString("X-Edu-PreviewType");
             if(isIcon == null && type == null){
-                // when redirect no headers are set
+                // on PreviewServlet redirect no headers are set
                 preview.setIsIcon(true);
                 preview.setType("TYPE_DEFAULT");
             }else {
