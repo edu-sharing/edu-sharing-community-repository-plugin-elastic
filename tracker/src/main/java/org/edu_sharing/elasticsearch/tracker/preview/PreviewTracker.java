@@ -40,25 +40,7 @@ public class PreviewTracker extends AbstractAlfTransactionTracker<AlfTransaction
 
                     NodePreview previewData = eduSharingClient.getNodePreview(node.getNodeRef());
                     if(previewData == null) return;
-                    /*DataBuilder builder = new DataBuilder();
 
-                    builder.startObject()
-                            .startObject("preview").
-                            field("mimetype", previewData.getMimetype()).
-                            field("type", previewData.getType()).
-                            field("icon", previewData.isIcon()).
-                            field("small", previewData.getSmall()).
-                            //field("large", nodeData.getNodePreview().getLarge()).
-                            endObject()
-                        .endObject();
-                    BulkOperation bulkOp = BulkOperation.of(b -> b
-                            .update(u -> u
-                                    .id(Long.valueOf(node.getId()).toString())
-                                    .action(a -> a
-                                            .doc(builder.build())
-                                    )
-                            )
-                    );*/
                     DataBuilder builder = new DataBuilder();
 
                     builder.startObject().

@@ -327,7 +327,9 @@ public class EduSharingClient {
             Response previewDataResponse = getPreviewDataResponse(urlSmall);
             String isIcon = previewDataResponse.getHeaderString("X-Edu-IsIcon");
             if(isIcon == null){
+                // when redirect no headers are set
                 preview.setIsIcon(true);
+                preview.setType("TYPE_DEFAULT");
             }else {
                 preview.setIsIcon(Boolean.parseBoolean(isIcon));
             }
