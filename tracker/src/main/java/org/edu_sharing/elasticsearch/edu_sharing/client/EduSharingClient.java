@@ -326,15 +326,16 @@ public class EduSharingClient {
         try {
             Response previewDataResponse = getPreviewDataResponse(urlSmall);
             String isIcon = previewDataResponse.getHeaderString("X-Edu-IsIcon");
-            if(isIcon == null){
+            String type = previewDataResponse.getHeaderString("X-Edu-PreviewType");
+            if(isIcon == null && type == null){
                 // when redirect no headers are set
                 preview.setIsIcon(true);
                 preview.setType("TYPE_DEFAULT");
             }else {
                 preview.setIsIcon(Boolean.parseBoolean(isIcon));
+                preview.setType(type);
             }
-            String type = previewDataResponse.getHeaderString("X-Edu-PreviewType");
-            preview.setType(type);
+
             PreviewData previewSmall = previewDataResponse.readEntity(PreviewData.class);
             if (previewSmall != null && !preview.isIcon()) {
                 if (previewSmall.getData() != null && (previewSmall.getData().length / 1024) > previewMaxKiloBytes) {
