@@ -1,7 +1,9 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core.migration;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.Script;
 import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.json.JsonData;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
@@ -14,6 +16,7 @@ import org.edu_sharing.elasticsearch.tracker.core.TrackerConfig;
 import org.edu_sharing.elasticsearch.tracker.core.TrackerExecutorFactory;
 import org.edu_sharing.elasticsearch.tracker.core.TrackerRegistry;
 import org.edu_sharing.elasticsearch.tracker.strategy.CommitTimeStatus;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -75,6 +78,27 @@ public class MigrationService {
                 .filter(Objects::nonNull)
                 .toList();
 
+        Script workspaceMigrationScript = IntStream.range(startIndex, migrationInfos.size())
+                .mapToObj(migrationInfos::get)
+                .map(MigrationInfo::getWorkspaceMigrationScript)
+                .filter(Objects::nonNull)
+                .reduce(this::mergeScripts)
+                .orElse(null);
+
+        Script transactionMigrationScript = IntStream.range(startIndex, migrationInfos.size())
+                .mapToObj(migrationInfos::get)
+                .map(MigrationInfo::getTransactionsMigrationScript)
+                .filter(Objects::nonNull)
+                .reduce(this::mergeScripts)
+                .orElse(null);
+
+        Script authorityMigrationScript = IntStream.range(startIndex, migrationInfos.size())
+                .mapToObj(migrationInfos::get)
+                .map(MigrationInfo::getAuthoritiesMigrationScript)
+                .filter(Objects::nonNull)
+                .reduce(this::mergeScripts)
+                .orElse(null);
+
 
         String sourceWorkspaceIndex = currentVersion == null ? "workspace" : "workspace_" + currentVersion;
         String sourceAuthoritiesIndex = currentVersion == null ? "authorities" : "authorities_" + currentVersion;
@@ -95,7 +119,10 @@ public class MigrationService {
                     latestVersion,
                     migrationsIndex.getIndex(),
                     migrationTracker,
-                    migrationCallbacks);
+                    migrationCallbacks,
+                    workspaceMigrationScript,
+                    transactionMigrationScript,
+                    authorityMigrationScript);
             migrationJobRunner.run();
         }
 
@@ -203,6 +230,44 @@ public class MigrationService {
         }
     }
 
+    @NotNull
+    private Script mergeScripts(Script lhs, Script rhs) {
+        if (lhs.params().keySet().stream().anyMatch(key -> rhs.params().containsKey(key))) {
+            throw new IllegalArgumentException("Script params must not overlap");
+        }
+
+        if (lhs.options().keySet().stream().anyMatch(key -> rhs.options().containsKey(key))) {
+            throw new IllegalArgumentException("Script options must not overlap");
+        }
+
+        if (lhs.lang() != null && !lhs.lang().equals(rhs.lang())) {
+            throw new IllegalArgumentException("Script lang must be the same");
+        }
+
+        if (lhs.id() != null || rhs.id() != null) {
+            throw new IllegalArgumentException("Script id not supported");
+        }
+
+        if (lhs.source() == null || rhs.source() == null) {
+            throw new IllegalArgumentException("Script source must be set");
+        }
+
+        Script.Builder builder = new Script.Builder();
+        builder.lang(lhs.lang());
+        String lhsSource = lhs.source().trim().endsWith(";") ? lhs.source() : lhs.source() + ";";
+        String rhsSource = rhs.source().trim().endsWith(";") ? lhs.source() : lhs.source() + ";";
+        builder.source(String.join("\n", lhsSource, rhsSource));
+
+        Map<String, JsonData> params = new HashMap<>(lhs.params());
+        params.putAll(rhs.params());
+        builder.params(params);
+
+        Map<String, String> options = new HashMap<>(lhs.options());
+        options.putAll(rhs.options());
+        builder.options(options);
+
+        return builder.build();
+    }
 
     class MigrationJobRunner {
         private final List<MigrationJob> jobs;
@@ -217,8 +282,10 @@ public class MigrationService {
                 String toVersion,
                 String migrationsIndex,
                 Set<Class<? extends TrackerConfig<?, ? extends CommitTimeStatus>>> migrationTracker,
-                List<MigrationCallback> migrationCallbacks
-        ) {
+                List<MigrationCallback> migrationCallbacks,
+                Script workspaceMigrationScript,
+                Script transactionMigrationScript,
+                Script authorityMigrationScript) {
             this.context = new MigrationContext(
                     sourceWorkspaceIndex,
                     sourceTrackerStateIndex,
@@ -236,9 +303,9 @@ public class MigrationService {
             );
 
             jobs = List.of( // Jobs needs to be ordered by MigrationStep (see requires migration)
-                    new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex()),
-                    new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex()),
-                    new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex()),
+                    new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(), workspaceMigrationScript),
+                    new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(), authorityMigrationScript),
+                    new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(), transactionMigrationScript),
                     new CallbackMigrationJob(client, context.getMigrationCallbacks()),
                     new DocumentsMigrationJob(adminService, context.getMigrationTrackerStateIndex(), trackerRegistry, context.getMigrationTracker(), statusIndexServiceFactory, trackerExecutorFactory),
                     new CompleteMigrationJob()
@@ -273,7 +340,7 @@ public class MigrationService {
             migrationState = getMigrationState(context.getToVersion());
 
             MigrationStep migrationStep = MigrationStep.valueOf(migrationState.getProgressStep());
-            int startIndex = IntStream.of(0, jobs.size() - 1)
+            int startIndex = IntStream.range(0, jobs.size() - 1)
                     .filter(i -> jobs.get(i).getMigrationStep() == migrationStep)
                     .findFirst()
                     .orElseThrow(() -> new MigrationException("MigrationStep " + migrationStep + " not found in MigrationJobs"));

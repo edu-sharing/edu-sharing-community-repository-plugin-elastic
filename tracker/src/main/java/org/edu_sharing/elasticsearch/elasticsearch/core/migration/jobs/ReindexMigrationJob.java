@@ -2,6 +2,7 @@ package org.edu_sharing.elasticsearch.elasticsearch.core.migration.jobs;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Conflicts;
+import co.elastic.clients.elasticsearch._types.Script;
 import co.elastic.clients.elasticsearch.tasks.GetTasksResponse;
 import co.elastic.clients.elasticsearch.tasks.TaskInfo;
 import lombok.Getter;
@@ -24,6 +25,7 @@ public class ReindexMigrationJob implements MigrationJob {
     private final ElasticsearchClient client;
     private final String sourceIndex;
     private final String targetIndex;
+    private final Script migrationScript;
 
 
     private String taskId;
@@ -34,7 +36,7 @@ public class ReindexMigrationJob implements MigrationJob {
         Objects.requireNonNull(targetIndex, "sourceIndex must not be null");
 
         taskId = context.getMigrationContent();
-        if(StringUtils.isNotBlank(taskId)){
+        if (StringUtils.isNotBlank(taskId)) {
             return;
         }
 
@@ -43,17 +45,18 @@ public class ReindexMigrationJob implements MigrationJob {
                             .waitForCompletion(false)
                             .conflicts(Conflicts.Proceed)
                             .source(src -> src.index(sourceIndex))
-                            .dest(dest -> dest.index(targetIndex)))
+                            .dest(dest -> dest.index(targetIndex))
+                            .script(migrationScript))
                     .task();
             context.setMigrationContent(taskId);
-        }catch (IOException ex){
+        } catch (IOException ex) {
             throw new MigrationException(String.format("Failed to start reindex from %s to %s: %s", sourceIndex, targetIndex, ex.getMessage()), ex);
         }
     }
 
     @Override
     public void onProgressState(MigrationContext context) {
-        while(true) {
+        while (true) {
             try {
                 GetTasksResponse tasksResponse = client.tasks().get(req -> req.taskId(taskId));
                 TaskInfo task = tasksResponse.task();
