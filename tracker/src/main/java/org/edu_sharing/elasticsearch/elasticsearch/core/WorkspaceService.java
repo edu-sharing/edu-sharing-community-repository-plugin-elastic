@@ -883,6 +883,54 @@ public class WorkspaceService implements SearchHitsRunner {
         log.debug("returning");
     }
 
+    public void beforeDeleteCleanupChildrenReplicas(List<Node> nodes) throws IOException {
+        log.info("starting: {}", nodes.size());
+        if (nodes.isEmpty()) {
+            log.info("returning 0");
+        }
+
+        List<BulkOperation> updateRequests = new ArrayList<>();
+        for (Node node : nodes) {
+            Query query = InternalQueries.queryChildrenNodes(node.getId());
+            this.run(query, Map.class, hitIO -> {
+                Map<?,?> source = hitIO.source();
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> children = (List<Map<String, Object>>) source.get("children");
+                DataBuilder builder = new DataBuilder();
+                builder.startObject();
+                {
+                    builder.startArray("children");
+                    if (children != null && !children.isEmpty()) {
+                        for (Map<String, Object> child : children) {
+                            long childDbId = Long.parseLong(child.get("dbid").toString());
+                            if (node.getId() != childDbId) {
+                                builder.startObject();
+                                for (Map.Entry<String, Object> entry : child.entrySet()) {
+                                    builder.field(entry.getKey(), entry.getValue());
+                                }
+                                builder.endObject();
+                            }else{
+                                log.info("removing child {} form parent {}",childDbId,hitIO.id());
+                            }
+                        }
+                    }
+                    builder.endArray();
+                }
+                builder.endObject();
+                long parentId = Long.parseLong(hitIO.id());
+                updateRequests.add(BulkOperation.of(op -> op
+                        .update(up -> up.index(index)
+                                .id(Long.toString(parentId))
+                                .action(a -> a.doc(builder.build())))));
+            });
+        }
+        Collection<List<BulkOperation>> partitions = Partition.getPartitions(updateRequests, bulkSizeElastic);
+        for (List<BulkOperation> p : partitions) {
+            this.updateBulk(p);
+        }
+        log.info("finished:");
+    }
+
     public void syncCollectionReplicas(NodeMetadataSimple collection) throws IOException {
         log.info("starting for collection: {}", collection.getNodeRef());
         this.run(InternalQueries.queryCollectionNodes(collection.getId()), maxCollectionChildItemsUpdateSize, Map.class, (hit) -> {
