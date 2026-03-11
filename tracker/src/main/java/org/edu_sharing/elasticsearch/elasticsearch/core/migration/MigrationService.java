@@ -273,7 +273,7 @@ public class MigrationService {
             migrationState = getMigrationState(context.getToVersion());
 
             MigrationStep migrationStep = MigrationStep.valueOf(migrationState.getProgressStep());
-            int startIndex = IntStream.of(0, jobs.size() - 1)
+            int startIndex = IntStream.range(0, jobs.size() - 1)
                     .filter(i -> jobs.get(i).getMigrationStep() == migrationStep)
                     .findFirst()
                     .orElseThrow(() -> new MigrationException("MigrationStep " + migrationStep + " not found in MigrationJobs"));
