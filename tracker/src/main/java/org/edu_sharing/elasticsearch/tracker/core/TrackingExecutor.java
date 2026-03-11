@@ -5,7 +5,7 @@ import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCompletedAware;
+import org.edu_sharing.elasticsearch.elasticsearch.core.ApplicationState;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -14,19 +14,19 @@ import org.springframework.context.ConfigurableApplicationContext;
 
 @Slf4j
 @RequiredArgsConstructor
-public class TrackingExecutor<STATUS> implements MigrationCompletedAware, ApplicationContextAware {
+public class TrackingExecutor<STATUS> implements ApplicationContextAware {
     private final Tracker<STATUS> tracker;
     private final TrackingContext<STATUS> context;
+    private final ApplicationState applicationState;
 
     @Setter
     private ApplicationContext applicationContext;
 
     @Value("${tracker.shutdown.on.exception}")
     private boolean shutDownOnException = true;
-    private boolean migrationCompleted;
 
     public void track() {
-        if (!migrationCompleted) {
+        if (!applicationState.canTrack()) {
             return;
         }
 
@@ -49,10 +49,5 @@ public class TrackingExecutor<STATUS> implements MigrationCompletedAware, Applic
                 }
             }
         } while (transactionChanges);
-    }
-
-    @Override
-    public void migrationCompleted() {
-        migrationCompleted = true;
     }
 }
