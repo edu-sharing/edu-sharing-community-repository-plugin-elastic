@@ -1,6 +1,7 @@
 package org.edu_sharing.elasticsearch.elasticsearch.config.mode;
 
 import lombok.RequiredArgsConstructor;
+import org.edu_sharing.elasticsearch.elasticsearch.core.DefaultApplicationState;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.WaitForMigrationJob;
@@ -16,10 +17,17 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(name = "mode", havingValue = "default", matchIfMissing = true)
 public class DefaultConfiguration {
 
+
     @Bean
-    public WaitForMigrationJob waitForMigrationJob(MigrationService migrationService) {
-        return new WaitForMigrationJob(migrationService);
+    public DefaultApplicationState defaultApplicationState() {
+        return new DefaultApplicationState();
     }
+
+    @Bean
+    public WaitForMigrationJob waitForMigrationJob(MigrationService migrationService, DefaultApplicationState defaultApplicationState) {
+        return new WaitForMigrationJob(migrationService, defaultApplicationState);
+    }
+
 
     @Bean
     public TrackerScheduler trackerScheduler(TrackerRegistry trackerRegistry, IndexConfiguration trackerState, TrackerExecutorFactory trackerExecutorFactory) {

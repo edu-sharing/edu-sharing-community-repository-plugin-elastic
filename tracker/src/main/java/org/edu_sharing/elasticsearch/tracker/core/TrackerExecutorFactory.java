@@ -1,6 +1,7 @@
 package org.edu_sharing.elasticsearch.tracker.core;
 
 import lombok.RequiredArgsConstructor;
+import org.edu_sharing.elasticsearch.elasticsearch.core.ApplicationState;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
 import org.edu_sharing.elasticsearch.metric.MetricContextFactory;
@@ -24,6 +25,7 @@ public class TrackerExecutorFactory {
     private final StatusIndexServiceFactory statusIndexServiceFactory;
     private final TrackerRegistry trackerRegistry;
     private final MetricContextFactory metricContextFactory;
+    private final ApplicationState applicationState;
 
     private TrackerStrategy applyDefaultStrategy(TrackerConfig<?, ?> trackerConfig) {
         return new FixNumberOfTransactionStrategy();
@@ -109,8 +111,7 @@ public class TrackerExecutorFactory {
     @Bean
     @Scope("prototype")
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    public <
-            StATUS> TrackingExecutor<StATUS> createTrackerExecutor(Tracker<StATUS> tracker, TrackingContext<StATUS> trackingContext) {
-        return new TrackingExecutor<>(tracker, trackingContext);
+    public <STATUS> TrackingExecutor<STATUS> createTrackerExecutor(Tracker<STATUS> tracker, TrackingContext<STATUS> trackingContext) {
+        return new TrackingExecutor<>(tracker, trackingContext, applicationState);
     }
 }

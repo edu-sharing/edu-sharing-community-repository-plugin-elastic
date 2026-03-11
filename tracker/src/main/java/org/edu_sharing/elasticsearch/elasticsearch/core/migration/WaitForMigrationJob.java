@@ -1,31 +1,24 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core.migration;
 
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.edu_sharing.elasticsearch.elasticsearch.core.ApplicationStatePublisher;
+import org.edu_sharing.elasticsearch.elasticsearch.core.DefaultApplicationState;
 import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @RequiredArgsConstructor
-public class WaitForMigrationJob implements ApplicationContextAware, SmartInitializingSingleton {
+public class WaitForMigrationJob implements SmartInitializingSingleton {
 
     private final MigrationService migrationService;
+    private final ApplicationStatePublisher applicationState;
 
-    @Setter
-    private ApplicationContext applicationContext;
     private ScheduledFuture<?> scheduledFuture;
-
-
-    private final AtomicBoolean migrationCompleted = new AtomicBoolean(false);
 
     @Override
     public void afterSingletonsInstantiated() {
@@ -55,14 +48,6 @@ public class WaitForMigrationJob implements ApplicationContextAware, SmartInitia
 
     private void invokeMigrationCompleted() {
         log.info("invoke migration completed");
-        migrationCompleted.set(true);
-        Map<String, MigrationCompletedAware> results = applicationContext.getBeansOfType(MigrationCompletedAware.class, false, false);
-        for (MigrationCompletedAware invoker : results.values()) {
-            invoker.migrationCompleted();
-        }
-    }
-
-    public boolean isMigrationCompleted() {
-        return migrationCompleted.get();
+        applicationState.markMigrationCompleted();
     }
 }

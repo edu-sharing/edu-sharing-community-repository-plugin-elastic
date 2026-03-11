@@ -137,7 +137,6 @@ public class DocumentsMigrationJob implements MigrationJob {
                 return t;
             });
 
-            trackingExecutor.migrationCompleted(); // we don't need to wait for completion here
             Future<?> submit = executorService.submit(trackingExecutor::track);
             futures.add(submit);
         });
