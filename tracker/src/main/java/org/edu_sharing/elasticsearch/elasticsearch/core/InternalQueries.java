@@ -19,6 +19,10 @@ public class InternalQueries {
         return Query.of(q -> q.nested(n -> n.path("collections").query(Query.of(qi -> qi.term(t -> t.field("collections.dbid").value(collectionDbid))))));
     }
 
+    public static Query queryChildrenNodes(Long childDbid) {
+        return Query.of(q -> q.nested(n -> n.path("children").query(Query.of(qi -> qi.term(t -> t.field("children.dbid").value(childDbid))))));
+    }
+
     public static Query queryCollectionNodesViaUsage(Node node) {
         return Query.of(q -> q.nested(n -> n.path("collections").query(Query.of(qi -> qi.term(t -> t.field("collections.relation.dbid").value(node.getId()))))));
     }

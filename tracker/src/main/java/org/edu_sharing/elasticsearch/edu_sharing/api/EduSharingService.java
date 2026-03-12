@@ -46,9 +46,6 @@ public class EduSharingService {
     @Value("${valuespace.cache.check.after.ms : 120000}")
     private long valuespaceCacheCheckAfterMs = 120000;
 
-    @Value("${tracker.fetchThumbnails}")
-    boolean fetchThumbnails;
-
     @Value("${preview.maxKiloBytes : 100}")
     long previewMaxKiloBytes;
 
@@ -236,10 +233,6 @@ public class EduSharingService {
     }
 
     public NodePreview getPreviewDataByNodeRef(String nodeRef) {
-        if (!fetchThumbnails) {
-            return null;
-        }
-
         String nodeId = Tools.getUUID(nodeRef);
         String storeProtocol = Tools.getProtocol(nodeRef);
         String storeId = Tools.getIdentifier(nodeRef);
@@ -252,8 +245,19 @@ public class EduSharingService {
         if (nodeEntry != null) {
             Node nodeData = nodeEntry.getNode();
             if (nodeData.getPreview() != null) {
-                preview.setIsIcon(nodeData.getPreview().getIsIcon());
-                preview.setType(nodeData.getPreview().getType());
+
+                Boolean isIcon = nodeData.getPreview().getIsIcon();
+                String type = nodeData.getPreview().getType();
+                // TODO Null check required? Api says non null...
+                if(isIcon == null && type == null) {
+                    // when redirect no headers are set
+                    // on PreviewServlet redirect no headers are set
+                    preview.setIsIcon(true);
+                    preview.setType("TYPE_DEFAULT");
+                }else {
+                    preview.setIsIcon(isIcon);
+                    preview.setType(type);
+                }
             }
         }
 

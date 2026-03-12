@@ -55,6 +55,7 @@ public class MainTracker extends AbstractAlfTransactionTracker<AlfTransactionTra
                 .collect(Collectors.toList());
 
         workspaceService.beforeDeleteCleanupCollectionReplicas(toDelete);
+        workspaceService.beforeDeleteCleanupChildrenReplicas(toDelete);
         workspaceService.delete(toDelete);
 
         // index nodes

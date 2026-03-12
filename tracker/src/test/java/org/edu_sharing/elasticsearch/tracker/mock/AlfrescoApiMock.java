@@ -64,4 +64,9 @@ public class AlfrescoApiMock implements AlfrescoApi {
     public List<NodeData> getNodeData(List<NodeMetadata> nodes, FetchParameters parameters) {
         return List.of();
     }
+
+    @Override
+    public List<NodeMetadata> getNodeMetadataByIds(List<Long> dbNodeIds, GetNodeMetadataParam getNodeMetadataParam) {
+        return List.of();
+    }
 }

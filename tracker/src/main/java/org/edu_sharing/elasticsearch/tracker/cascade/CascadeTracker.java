@@ -18,6 +18,7 @@ import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractTrackerCoroutine;
 import org.edu_sharing.elasticsearch.tracker.core.TrackingContext;
 import org.edu_sharing.elasticsearch.tracker.core.config.BaseTrackerProperties;
+import org.edu_sharing.elasticsearch.tracker.core.config.TrackerScheduleProperties;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.stereotype.Component;
 
@@ -30,7 +31,7 @@ import static org.edu_sharing.elasticsearch.metric.MetricContext.PROGRESS_FACTOR
 // TODO should be separted form the other trackers becaause it's an state independent post process
 @Slf4j
 @Component
-public class CascadeTracker extends AbstractTrackerCoroutine<BaseTrackerProperties> {
+public class CascadeTracker extends AbstractTrackerCoroutine<TrackerScheduleProperties> {
 
     public final static String propCascadeTx = "sys:cascadeTx";
     public final static String propDbid = "sys:node-dbid";

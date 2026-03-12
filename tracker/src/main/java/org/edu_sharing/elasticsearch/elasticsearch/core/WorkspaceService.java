@@ -321,14 +321,48 @@ public class WorkspaceService implements SearchHitsRunner {
         }
         DataBuilder builder = new DataBuilder();
         fillData(nodeData, builder);
-        Object data = builder.build();
-        operations.add(BulkOperation.of(op -> op.update(iop -> iop
-                .index(index)
-                .id(Tools.getUUID(node.getNodeRef()))
-                .action(a -> a
-                        .doc(data)
-                        .docAsUpsert(true))
-        )));
+        Object dataRaw = builder.build();
+        Map<String, Object> data = (Map<String, Object>)dataRaw;
+
+        // 2. Script und Parameter dynamisch aufbauen
+        StringBuilder scriptSource = new StringBuilder();
+        Map<String, JsonData> scriptParams = new HashMap<>();
+
+
+
+        data.forEach((key, value) -> {
+            if(value == null){
+                scriptSource.append("ctx._source.")
+                        .append(key)
+                        .append(" = null; ");
+            }else {
+                // Erzeugt: ctx._source.preview = params.p_preview; ctx._source.properties = params.p_properties; ...
+                scriptSource.append("ctx._source.").append(key).append(" = params.p_").append(key).append("; ");
+                scriptParams.put("p_" + key, JsonData.of(value));
+            }
+        });
+
+        List<String> checkForRemove = List.of("contributor","i18n","customProperties","children");
+        checkForRemove.forEach(f ->  {
+            if(!data.containsKey(f)) {
+                scriptSource.append("ctx._source.remove('").append(f).append("'); ");
+            }
+        });
+
+        // 3. BulkOperation mit Upsert zusammenbauen
+        BulkOperation bulkOp = BulkOperation.of(b -> b
+                .update(u -> u
+                        .id(Tools.getUUID(node.getNodeRef()))
+                        .action(a -> a
+                                .script(s -> s
+                                        .source(scriptSource.toString().trim())
+                                        .params(scriptParams)
+                                )
+                                .upsert(JsonData.of(dataRaw)) // Wenn neu, dann das komplette Dokument
+                        )
+                )
+        );
+        operations.add(bulkOp);
 
         if (nodeCounter.addAndGet(1) % 100 == 0) {
             log.info("Processed {} nodes ({}ms per last 100 nodes)", nodeCounter.get(), System.currentTimeMillis() - lastNodeCount.get());
@@ -1224,6 +1258,54 @@ public class WorkspaceService implements SearchHitsRunner {
             this.updateBulk(p);
         }
         log.debug("returning");
+    }
+
+    public void beforeDeleteCleanupChildrenReplicas(List<Node> nodes) throws IOException {
+        log.info("starting: {}", nodes.size());
+        if (nodes.isEmpty()) {
+            log.info("returning 0");
+        }
+
+        List<BulkOperation> updateRequests = new ArrayList<>();
+        for (Node node : nodes) {
+            Query query = InternalQueries.queryChildrenNodes(node.getId());
+            this.run(query, Map.class, hitIO -> {
+                Map<?,?> source = hitIO.source();
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> children = (List<Map<String, Object>>) source.get("children");
+                DataBuilder builder = new DataBuilder();
+                builder.startObject();
+                {
+                    builder.startArray("children");
+                    if (children != null && !children.isEmpty()) {
+                        for (Map<String, Object> child : children) {
+                            long childDbId = Long.parseLong(child.get("dbid").toString());
+                            if (node.getId() != childDbId) {
+                                builder.startObject();
+                                for (Map.Entry<String, Object> entry : child.entrySet()) {
+                                    builder.field(entry.getKey(), entry.getValue());
+                                }
+                                builder.endObject();
+                            }else{
+                                log.info("removing child {} form parent {}",childDbId,hitIO.id());
+                            }
+                        }
+                    }
+                    builder.endArray();
+                }
+                builder.endObject();
+                long parentId = Long.parseLong(hitIO.id());
+                updateRequests.add(BulkOperation.of(op -> op
+                        .update(up -> up.index(index)
+                                .id(Long.toString(parentId))
+                                .action(a -> a.doc(builder.build())))));
+            });
+        }
+        Collection<List<BulkOperation>> partitions = Partition.getPartitions(updateRequests, bulkSizeElastic);
+        for (List<BulkOperation> p : partitions) {
+            this.updateBulk(p);
+        }
+        log.info("finished:");
     }
 
     public void syncCollectionReplicas(NodeMetadataSimple collection) throws IOException {

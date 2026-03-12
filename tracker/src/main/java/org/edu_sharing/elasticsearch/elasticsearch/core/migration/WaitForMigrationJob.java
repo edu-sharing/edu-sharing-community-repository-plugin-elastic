@@ -3,7 +3,6 @@ package org.edu_sharing.elasticsearch.elasticsearch.core.migration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.elasticsearch.core.ApplicationStatePublisher;
-import org.edu_sharing.elasticsearch.elasticsearch.core.DefaultApplicationState;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 
 import java.io.IOException;

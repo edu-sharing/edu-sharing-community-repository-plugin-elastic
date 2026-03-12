@@ -1,13 +1,12 @@
 package org.edu_sharing.elasticsearch.tracker.core.config;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-import java.time.Duration;
 import java.util.List;
 
 @Data
-public class BaseTrackerProperties {
-    private boolean enabled = true;
-    private TrackerSchedulerSettings scheduler = new TrackerSchedulerSettings();
+@EqualsAndHashCode(callSuper = true)
+public class BaseTrackerProperties extends TrackerScheduleProperties {
     private List<String> dependsOn = List.of();
 }
