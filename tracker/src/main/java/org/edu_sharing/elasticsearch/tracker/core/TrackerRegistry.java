@@ -15,6 +15,8 @@ public class TrackerRegistry {
 
     private final List<TrackerConfig<?, ?>> allTrackerConfigs;
 
+    private final List<TrackerCoroutineConfig> allTrackerCoroutineConfigs;
+
     /**
      * Retrieves a set of active tracker configurations from the list of all tracker configurations.
      * A tracker configuration is considered active if its associated properties indicate it is enabled.
@@ -25,6 +27,18 @@ public class TrackerRegistry {
         return allTrackerConfigs.stream()
                 .filter(x -> x.getConfig().isEnabled())
                 .collect(Collectors.toSet());
+    }
+
+    /**
+     * Retrieves a list of active tracker coroutine configurations from the collection of all tracker coroutine configurations.
+     * A tracker coroutine configuration is considered active if its associated properties indicate it is enabled.
+     *
+     * @return a list of {@link TrackerCoroutineConfig} instances where the corresponding property is enabled
+     */
+    public List<TrackerCoroutineConfig> getActiveTrackerCoroutineConfigs() {
+        return allTrackerCoroutineConfigs.stream()
+                .filter(x -> x.getConfig().isEnabled())
+                .collect(Collectors.toList());
     }
 
     /**

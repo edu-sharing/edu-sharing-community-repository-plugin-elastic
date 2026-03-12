@@ -12,7 +12,7 @@ public class TrackerBeanPostProcessor implements BeanPostProcessor {
 
     @Override
     public Object postProcessAfterInitialization(@NotNull Object bean, @NotNull String beanName) throws BeansException {
-        if (bean instanceof TrackerConfig<?, ?> tracker) {
+        if (bean instanceof TrackerScheduleConfig<?, ?> tracker) {
             if (tracker.getName() == null) {
                 tracker.setName(beanName);
             }

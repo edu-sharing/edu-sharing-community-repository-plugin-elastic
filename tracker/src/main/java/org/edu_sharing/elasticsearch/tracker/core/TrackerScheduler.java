@@ -3,7 +3,7 @@ package org.edu_sharing.elasticsearch.tracker.core;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
-import org.edu_sharing.elasticsearch.tracker.core.config.BaseTrackerProperties;
+import org.edu_sharing.elasticsearch.tracker.core.config.TrackerScheduleProperties;
 import org.edu_sharing.elasticsearch.tracker.core.config.TrackerSchedulerSettings;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.core.annotation.Order;
@@ -35,26 +35,37 @@ public class TrackerScheduler implements SmartInitializingSingleton {
         Set<TrackerConfig<?, ?>> activeTrackerConfigs = trackerRegistry.getActiveTrackerConfigs();
         Map<TrackerConfig<?, ?>, TrackingExecutor<?>> trackerExecutors = trackerExecutorFactory.createTrackerExecutors(activeTrackerConfigs, trackerStateIndex.getIndex());
         trackerExecutors.forEach((trackerConfig, trackingExecutor) -> {
-
-            BaseTrackerProperties config = trackerConfig.getConfig();
-            TaskScheduler taskScheduler = new ConcurrentTaskScheduler(Executors.newSingleThreadScheduledExecutor(r -> {
-                Thread t = new Thread(r);
-                t.setName(trackerConfig.getName()); // Threadname aus Config-Key
-                t.setDaemon(true);
-                return t;
-            }));
-
+            TaskScheduler taskScheduler = scheduleTracker(trackerConfig, trackingExecutor);
             executors.add(taskScheduler);
-
-            TrackerSchedulerSettings schedulerConfig = config.getScheduler();
-            if (schedulerConfig.getCron() != null) {
-                taskScheduler.schedule(trackingExecutor::track, new CronTrigger(schedulerConfig.getCron()));
-            } else {
-                taskScheduler.scheduleWithFixedDelay(trackingExecutor::track,
-                        Instant.now().plusMillis(schedulerConfig.getDelay().toMillis()),
-                        schedulerConfig.getInterval());
-            }
         });
+
+        List<TrackerCoroutineConfig> activeTrackerCoroutineConfigs = trackerRegistry.getActiveTrackerCoroutineConfigs();
+        Map<TrackerCoroutineConfig, TrackingExecutor<?>> coroutineTrackerExecutors = trackerExecutorFactory.createTrackerExecutor(activeTrackerCoroutineConfigs);
+        coroutineTrackerExecutors.forEach((trackerCoroutineConfig, trackingExecutor) -> {
+            TaskScheduler taskScheduler = scheduleTracker(trackerCoroutineConfig, trackingExecutor);
+            executors.add(taskScheduler);
+        });
+    }
+
+    private TaskScheduler scheduleTracker(TrackerScheduleConfig<?,?> trackerScheduleConfig, TrackingExecutor<?> trackingExecutor) {
+        TrackerScheduleProperties config = trackerScheduleConfig.getConfig();
+        TaskScheduler taskScheduler = new ConcurrentTaskScheduler(Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r);
+            t.setName(trackerScheduleConfig.getName()); // Threadname aus Config-Key
+            t.setDaemon(true);
+            return t;
+        }));
+
+
+        TrackerSchedulerSettings schedulerConfig = config.getScheduler();
+        if (schedulerConfig.getCron() != null) {
+            taskScheduler.schedule(trackingExecutor::track, new CronTrigger(schedulerConfig.getCron()));
+        } else {
+            taskScheduler.scheduleWithFixedDelay(trackingExecutor::track,
+                    Instant.now().plusMillis(schedulerConfig.getDelay().toMillis()),
+                    schedulerConfig.getInterval());
+        }
+        return taskScheduler;
     }
 
 

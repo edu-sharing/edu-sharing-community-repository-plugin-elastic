@@ -1,15 +1,21 @@
 package org.edu_sharing.elasticsearch.tracker.core;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.edu_sharing.elasticsearch.tracker.core.config.BaseTrackerProperties;
+import lombok.Setter;
+import org.edu_sharing.elasticsearch.tracker.core.config.TrackerScheduleProperties;
 
 @RequiredArgsConstructor
-public abstract class AbstractTrackerCoroutine<PROPS extends BaseTrackerProperties> implements Tracker<Void>, TrackerCoroutineConfig {
+public abstract class AbstractTrackerCoroutine<PROPS extends TrackerScheduleProperties> implements Tracker<Void>, TrackerCoroutineConfig {
 
     protected final PROPS props;
 
+    @Getter
+    @Setter
+    protected String name;
+
     @Override
-    public BaseTrackerProperties getConfig() {
+    public TrackerScheduleProperties getConfig() {
         return props;
     }
 

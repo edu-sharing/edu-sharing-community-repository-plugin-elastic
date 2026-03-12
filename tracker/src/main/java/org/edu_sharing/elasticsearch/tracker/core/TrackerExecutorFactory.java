@@ -31,7 +31,6 @@ public class TrackerExecutorFactory {
         return new FixNumberOfTransactionStrategy();
     }
 
-
     private final class StatusIndexServiceRegistry {
         Map<String, StatusIndexServiceInterface<?>> indexMap;
 
@@ -67,6 +66,8 @@ public class TrackerExecutorFactory {
         }
     }
 
+
+
     public Map<TrackerConfig<?, ?>, TrackingExecutor<?>> createTrackerExecutors(Collection<TrackerConfig<?, ?>> trackerConfigs, String index) {
         return createTrackerExecutors(trackerConfigs, index, this::applyDefaultStrategy);
     }
@@ -79,6 +80,19 @@ public class TrackerExecutorFactory {
             TrackingExecutor<?> trackingExecutor = createTrackerExecutor(trackerConfig, statusIndexServiceRegistry, defaultStrategySupplier);
             result.put(trackerConfig, trackingExecutor);
         }
+        return result;
+    }
+
+    public Map<TrackerCoroutineConfig, TrackingExecutor<?>> createTrackerExecutor(List<TrackerCoroutineConfig> tackerCoroutineConfigs) {
+        Map<TrackerCoroutineConfig, TrackingExecutor<?>> result = new LinkedHashMap<>();
+        for (TrackerCoroutineConfig tackerCoroutineConfig : tackerCoroutineConfigs) {
+            TrackingExecutor<?> trackingExecutor = createTrackerExecutor(tackerCoroutineConfig.getTracker(),
+                    new TrackingContext<>(null,
+                    null,
+                    metricContextFactory.createMetric(tackerCoroutineConfig.getName())) );
+            result.put(tackerCoroutineConfig, trackingExecutor);
+        }
+
         return result;
     }
 
@@ -107,6 +121,7 @@ public class TrackerExecutorFactory {
                 statusIndexServiceRegistry.getCommitTimeStatusIndex(trackerConfig),
                 metricContextFactory.createMetric(trackerConfig.getName()));
     }
+
 
     @Bean
     @Scope("prototype")
