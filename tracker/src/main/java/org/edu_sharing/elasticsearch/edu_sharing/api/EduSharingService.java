@@ -9,6 +9,7 @@ import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewApi;
 import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewData;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.generated.repository.backend.services.rest.client.api.*;
+import org.edu_sharing.generated.repository.backend.services.rest.client.handler.ApiClient;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.*;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.jetbrains.annotations.Nullable;
@@ -189,11 +190,16 @@ public class EduSharingService {
         }
 
         SuggestionParam suggestionParam = SuggestionParam.builder()
-                .valueParameters(ValueParameters.builder().query("ngsearch").build())
+                .valueParameters(ValueParameters.builder().query("ngsearch").property(property).build())
                 .build();
+        // @TODO can we provide the header directly to the request?
+        synchronized (mdsV1Api) {
+            mdsV1Api.getApiClient().addDefaultHeader("locale", language);
+            entries = mdsV1Api.getValues(DEFAULT_REPOSITORY, mds, suggestionParam).block();
+            mdsV1Api.getApiClient().addDefaultHeader("locale", null);
+        }
+            addValuespaceToCache(mds, language, property, entries);
 
-        entries = mdsV1Api.getValues(DEFAULT_REPOSITORY, mds, suggestionParam).block();
-        addValuespaceToCache(mds, language, property, entries);
         return entries;
     }
 
