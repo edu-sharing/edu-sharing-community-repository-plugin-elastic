@@ -6,4 +6,6 @@ import lombok.Data;
 public class PreviewData {
     private String mimetype;
     private byte[] data;
+    private boolean isIcon;
+    private String type;
 }

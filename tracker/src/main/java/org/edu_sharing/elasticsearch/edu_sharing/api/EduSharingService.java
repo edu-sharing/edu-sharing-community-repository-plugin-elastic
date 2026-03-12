@@ -238,35 +238,17 @@ public class EduSharingService {
         String storeId = Tools.getIdentifier(nodeRef);
 
         NodePreview preview = new NodePreview();
-        preview.setIsIcon(false);
         PreviewData previewSmall = previewApi.getPreviewData(storeProtocol, storeId, nodeId, 400, 400, 60);
-
-        NodeEntry nodeEntry = nodeV1Api.getMetadata(DEFAULT_REPOSITORY, nodeId, null, null).block();
-        if (nodeEntry != null) {
-            Node nodeData = nodeEntry.getNode();
-            if (nodeData.getPreview() != null) {
-
-                Boolean isIcon = nodeData.getPreview().getIsIcon();
-                String type = nodeData.getPreview().getType();
-                // TODO Null check required? Api says non null...
-                if(isIcon == null && type == null) {
-                    // when redirect no headers are set
-                    // on PreviewServlet redirect no headers are set
-                    preview.setIsIcon(true);
-                    preview.setType("TYPE_DEFAULT");
-                }else {
-                    preview.setIsIcon(isIcon);
-                    preview.setType(type);
-                }
-            }
-        }
 
         if (previewSmall != null && !preview.isIcon()) {
             if (previewSmall.getData() != null && (previewSmall.getData().length / 1024) > previewMaxKiloBytes) {
+                log.info("Skipping preview for {} cause size {}kb exceeds limit {}kb", nodeRef, previewSmall.getData().length / 1024, previewMaxKiloBytes);
                 return null;
             }
             preview.setMimetype(previewSmall.getMimetype());
             preview.setSmall(previewSmall.getData());
+            preview.setIcon(previewSmall.isIcon());
+            preview.setType(previewSmall.getType());
         }
 
         return preview;

@@ -1,8 +1,10 @@
 package org.edu_sharing.elasticsearch.edu_sharing.api.preview;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.reactive.function.client.WebClient;
 
+@Slf4j
 @RequiredArgsConstructor
 public class PreviewApi {
 
@@ -23,8 +25,27 @@ public class PreviewApi {
                         .build()
                 )
                 .header("Accept", "*/*")
+                .exchangeToMono(response -> {
+                    String isIcon = response.headers().asHttpHeaders().getFirst("X-Edu-IsIcon");
+                    String type = response.headers().asHttpHeaders().getFirst("X-Edu-PreviewType");
 
-                .retrieve().bodyToMono(PreviewData.class).block();
+                    if(isIcon == null && type == null){
+                        // on PreviewServlet redirect no headers are set
+                        isIcon = String.valueOf(true);
+                        type = "TYPE_DEFAULT";
+                    }
+
+                    boolean finalIsIcon = Boolean.parseBoolean(isIcon);
+                    String finalType = type;
+                    return response.bodyToMono(PreviewData.class)
+                            .map(previewData -> {
+                                previewData.setIcon(finalIsIcon);
+                                previewData.setType(finalType);
+                                return previewData;
+                            });
+                })
+                .doOnError(e -> log.error("Error fetching preview for nodeId: {}", nodeId, e))
+                .block();
     }
 
     ;
