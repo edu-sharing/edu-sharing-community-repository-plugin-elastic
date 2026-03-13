@@ -9,7 +9,6 @@ import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewApi;
 import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewData;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.generated.repository.backend.services.rest.client.api.*;
-import org.edu_sharing.generated.repository.backend.services.rest.client.handler.ApiClient;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.*;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.jetbrains.annotations.Nullable;
@@ -35,7 +34,6 @@ public class EduSharingService {
     private final MdsV1Api mdsV1Api;
     private final AboutApi aboutApi;
     private final PreviewApi previewApi;
-    private final NodeV1Api nodeV1Api;
     private final TrackingV1Api trackingV1Api;
     private final SharingV1Api sharingV1Api;
     private final RelationV1Api relationV1Api;
@@ -170,7 +168,7 @@ public class EduSharingService {
         return result;
     }
 
-        /**
+    /**
      * Retrieves the valuespace entries for the specified metadata set, language, and property.
      * If the entries are available in the cache, they are returned directly.
      * Otherwise, the method requests the data from a remote service, updates the cache, and returns the result.
@@ -178,7 +176,7 @@ public class EduSharingService {
      * @param mds      The metadata set identifier for which the valuespace entries are requested.
      * @param language The language for which the valuespace entries are requested.
      * @param property The specific property within the metadata set for which the valuespace entries are requested.
-     * @return The {@link ValuespaceEntries} object representing the retrieved valuespace data.
+     * @return The {@link Suggestions} object representing the retrieved valuespace data.
      */
     public Suggestions getValuespace(String mds, String language, String property) {
 
@@ -192,13 +190,8 @@ public class EduSharingService {
         SuggestionParam suggestionParam = SuggestionParam.builder()
                 .valueParameters(ValueParameters.builder().query("ngsearch").property(property).build())
                 .build();
-        // @TODO can we provide the header directly to the request?
-        synchronized (mdsV1Api) {
-            mdsV1Api.getApiClient().addDefaultHeader("locale", language);
-            entries = mdsV1Api.getValues(DEFAULT_REPOSITORY, mds, suggestionParam).block();
-            mdsV1Api.getApiClient().addDefaultHeader("locale", null);
-        }
-            addValuespaceToCache(mds, language, property, entries);
+        entries = mdsV1Api.getValues(DEFAULT_REPOSITORY, mds, language, suggestionParam).block();
+        addValuespaceToCache(mds, language, property, entries);
 
         return entries;
     }
@@ -282,7 +275,7 @@ public class EduSharingService {
                 .block();
     }
 
-    public List<UserNodeActivity> getUserActivitiesSince(OffsetDateTime since,OffsetDateTime until, int maxItems) {
+    public List<UserNodeActivity> getUserActivitiesSince(OffsetDateTime since, OffsetDateTime until, int maxItems) {
         return trackingV1Api.getAllUserNodeActivities(DEFAULT_REPOSITORY, since, until, maxItems).collectList().block();
     }
 
