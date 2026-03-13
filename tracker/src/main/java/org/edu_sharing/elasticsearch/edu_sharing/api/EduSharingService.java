@@ -88,7 +88,7 @@ public class EduSharingService {
                         .stream()
                         .filter(y -> Boolean.TRUE.equals(y.getIsHomeRepo()))
                         .findFirst()
-                        .orElse(null))
+                        .orElseThrow(() -> new RuntimeException("Home repository not found")))
                 .block();
     }
 
