@@ -1,6 +1,7 @@
 package org.edu_sharing.elasticsearch.alfresco.client;
 
 import com.fasterxml.jackson.jakarta.rs.json.JacksonJsonProvider;
+import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -175,7 +176,7 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
         try {
             nmds = getNodeMetadata(getNodeMetadataParam);
             return (nmds == null) ? new ArrayList<>() : nmds.getNodes();
-        } catch (ResponseProcessingException e) {
+        } catch (ProcessingException e) {
             List<NodeMetadata> fallbackResult = new ArrayList<>();
             for (Long dbid : dbNodeIds) {
                 getNodeMetadataParam.setNodeIds(Collections.singletonList(dbid));
@@ -183,7 +184,7 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
                     NodeMetadatas nmdsSingle = getNodeMetadata(getNodeMetadataParam);
                     if (nmdsSingle != null) fallbackResult.addAll(nmdsSingle.getNodes());
                     //finally log the broken node
-                } catch (ResponseProcessingException e2) {
+                } catch (ProcessingException e2) {
                     String url = getUrl(URL_NODE_METADATA);
                     try(Response resp = client.target(url)
                             .request(MediaType.APPLICATION_JSON)
