@@ -36,7 +36,7 @@ public class MdsService {
                 .stream()
                 .filter(Objects::nonNull)
                 .filter(x -> x.getIndex() != null)
-                .filter(x -> x.getIndex().getType() == MdsIndex.TypeEnum.JSON_DATA)
+                .filter(x -> x.getIndex().getDataType() == MdsIndex.DataTypeEnum.JSON_DATA)
                 .map(MdsWidget::getId)
                 .collect(Collectors.toSet());
     }
