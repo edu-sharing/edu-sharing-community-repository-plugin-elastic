@@ -10,6 +10,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
+import org.edu_sharing.elasticsearch.tools.Tools;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -44,7 +45,7 @@ public class AuthorityService {
             Object data = builder.build();
             operations.add(BulkOperation.of(op -> op.index(iop -> iop
                     .index(index)
-                    .id(Long.toString(node.getId()))
+                    .id(Tools.getUUID(node.getNodeRef()))
                     .document(data))));
         }
 
@@ -74,7 +75,7 @@ public class AuthorityService {
     public void delete(List<Node> nodes) throws IOException {
         nodes = nodes.stream().filter(n -> {
             try {
-                return workspaceService.exists(n.getId()+"",index);
+                return workspaceService.exists(Tools.getUUID(n.getNodeRef()),index);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
