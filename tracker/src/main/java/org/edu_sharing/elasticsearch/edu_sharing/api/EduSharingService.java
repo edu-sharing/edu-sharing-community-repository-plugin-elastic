@@ -86,19 +86,18 @@ public class EduSharingService {
 
         Set<String> jsonDataPropertyIds = mdsService.getJsonDataPropertyIds(mds);
         if (jsonDataPropertyIds.contains(key)) {
-            translateJsonDataProperty(nodeData, mds, prop, key);
+            translateJsonDataProperty(nodeData, prop, key);
         }
     }
 
-    private void translateJsonDataProperty(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData, String mds, Map.Entry<String, Serializable> prop, String key) {
+    private void translateJsonDataProperty(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData, Map.Entry<String, Serializable> prop, String key) {
         if(prop.getValue() instanceof String stringValue) {
             try {
                 Map<?,?> map = objectMapper.readValue(stringValue, Map.class);
                 Map<String, Map<?, ?>> extendedData = nodeData.getExtendedData();
                 extendedData.put(key, map);
-                //properties.put(prop.getKey(), map);
             } catch (JsonProcessingException e) {
-                log.error("error reading ", e.getMessage());
+                log.error("error reading {}", e.getMessage(), e);
             }
         }
 
