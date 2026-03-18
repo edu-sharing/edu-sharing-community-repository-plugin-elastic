@@ -1,7 +1,7 @@
 package org.edu_sharing.elasticsearch.edu_sharing.api;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
 import io.netty.handler.logging.LogLevel;
+import org.edu_sharing.elasticsearch.cache.OutdatedCheckingCacheManager;
 import org.edu_sharing.elasticsearch.edu_sharing.api.authorization.AuthorizationClient;
 import org.edu_sharing.elasticsearch.edu_sharing.api.authorization.AuthorizationFilterFunction;
 import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewApi;
@@ -10,7 +10,7 @@ import org.edu_sharing.generated.repository.backend.services.rest.client.api.*;
 import org.edu_sharing.generated.repository.backend.services.rest.client.handler.ApiClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -20,7 +20,6 @@ import reactor.netty.http.client.HttpClient;
 import reactor.netty.transport.logging.AdvancedByteBufFormat;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class EduSharingConfig {
@@ -48,12 +47,8 @@ public class EduSharingConfig {
     private long mdsCacheExpireAfter;
 
     @Bean
-    public CacheManager mdsCacheManager() {
-        CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCaffeine(
-                Caffeine.newBuilder()
-                        .expireAfterWrite(mdsCacheExpireAfter, TimeUnit.MILLISECONDS));
-        return caffeineCacheManager;
+    public CacheManager mdsCacheManager(AboutApi aboutApi) {
+        return new OutdatedCheckingCacheManager(new ConcurrentMapCacheManager(), aboutApi, mdsCacheExpireAfter);
     }
 
 
