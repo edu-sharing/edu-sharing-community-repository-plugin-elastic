@@ -8,6 +8,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.alfresco.client.NodePreview;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
+import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractAlfTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.core.config.AlfTransactionTrackerProperties;
 import org.edu_sharing.elasticsearch.tracker.utils.Partition;
@@ -52,7 +53,7 @@ public class PreviewTracker extends AbstractAlfTransactionTracker<AlfTransaction
                     .endObject();
                     BulkOperation bulkOp = BulkOperation.of(b -> b
                         .update(u -> u
-                            .id(Long.valueOf(node.getId()).toString())
+                            .id(Tools.getUUID(node.getNodeRef()))
                             .action(a -> a.script(
                                     s -> s
                                     .source("ctx._source.preview = params.new_preview")
