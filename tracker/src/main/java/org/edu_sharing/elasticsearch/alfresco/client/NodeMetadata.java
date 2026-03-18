@@ -25,7 +25,7 @@
  */
 package org.edu_sharing.elasticsearch.alfresco.client;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.util.List;
@@ -38,6 +38,7 @@ import java.util.Set;
  * 
  * @since 4.0
  */
+@Data
 public class NodeMetadata
 {
     private long id;
@@ -58,149 +59,4 @@ public class NodeMetadata
     private Set<String> ancestors;
     private String tenantDomain;
 	private List<String> ancestorPaths;
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public String getNodeRef() {
-        return nodeRef;
-    }
-
-    public void setNodeRef(String nodeRef) {
-        this.nodeRef = nodeRef;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public long getAclId() {
-        return aclId;
-    }
-
-    public void setAclId(long aclId) {
-        this.aclId = aclId;
-    }
-
-    public Map<String, Serializable> getProperties() {
-        return properties;
-    }
-
-    public void setProperties(Map<String, Serializable> properties) {
-        this.properties = properties;
-    }
-
-    public Set<String> getAspects() {
-        return aspects;
-    }
-
-    public void setAspects(Set<String> aspects) {
-        this.aspects = aspects;
-    }
-
-    public List<Path> getPaths() {
-        return paths;
-    }
-
-    public void setPaths(List<Path> paths) {
-        this.paths = paths;
-    }
-
-    public List<NamePath> getNamePaths() {
-        return namePaths;
-    }
-
-    public void setNamePaths(List<NamePath> namePaths) {
-        this.namePaths = namePaths;
-    }
-
-    public long getParentAssocsCrc() {
-        return parentAssocsCrc;
-    }
-
-    public void setParentAssocsCrc(long parentAssocsCrc) {
-        this.parentAssocsCrc = parentAssocsCrc;
-    }
-
-    public List<String> getParentAssocs() {
-        return parentAssocs;
-    }
-
-    public void setParentAssocs(List<String> parentAssocs) {
-        this.parentAssocs = parentAssocs;
-    }
-
-    public List<String> getChildAssocs() {
-        return childAssocs;
-    }
-
-    public void setChildAssocs(List<String> childAssocs) {
-        this.childAssocs = childAssocs;
-    }
-
-    public List<Long> getChildIds() {
-        return childIds;
-    }
-
-    public void setChildIds(List<Long> childIds) {
-        this.childIds = childIds;
-    }
-
-    public String getOwner() {
-        return owner;
-    }
-
-    public void setOwner(String owner) {
-        this.owner = owner;
-    }
-
-    public long getTxnId() {
-        return txnId;
-    }
-
-    public void setTxnId(long txnId) {
-        this.txnId = txnId;
-    }
-
-    public Set<String> getAncestors() {
-        return ancestors;
-    }
-
-    public void setAncestors(Set<String> ancestors) {
-        this.ancestors = ancestors;
-    }
-
-    public String getTenantDomain() {
-        return tenantDomain;
-    }
-
-    public void setTenantDomain(String tenantDomain) {
-        this.tenantDomain = tenantDomain;
-    }
-
-    public List<String> getAncestorPaths() {
-        return ancestorPaths;
-    }
-
-    public void setAncestorPaths(List<String> ancestorPaths) {
-        this.ancestorPaths = ancestorPaths;
-    }
-
-    @Override
-    public String toString()
-    {
-        return "NodeMetadata [id="
-                + id + ", nodeRef=" + nodeRef + ", type=" + type + ", aclId=" + aclId + ", properties=" + properties + ", aspects=" + aspects + ", paths=" + paths
-                + ", parentAssocsCrc=" + parentAssocsCrc + ", parentAssocs=" + parentAssocs + ", childAssocs=" + childAssocs + ", childIds=" + childIds + ", owner=" + owner
-                + ", txnId=" + txnId + ", ancestors=" + ancestors + ", tenantDomain=" + tenantDomain + "]";
-    }
 }

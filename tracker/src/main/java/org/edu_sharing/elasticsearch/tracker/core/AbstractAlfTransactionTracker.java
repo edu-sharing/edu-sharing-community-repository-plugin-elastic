@@ -47,7 +47,6 @@ public abstract class AbstractAlfTransactionTracker<PROPS extends AlfTransaction
     @Override
     public State track(TrackingContext<Tx> trackingContext) {
         try {
-            eduSharingService.refreshValuespaceCache();
             Tx txn = trackingContext.statusIndexService().getState();
             if (txn == null) {
                 log.info("no transaction processed");
@@ -145,8 +144,6 @@ public abstract class AbstractAlfTransactionTracker<PROPS extends AlfTransaction
             getNodeParam.setTxnIds(transactionIds);
             List<Node> nodes = alfClient.getNodes(getNodeParam);
             log.info("got {} nodes", nodes.size());
-
-            eduSharingService.refreshValuespaceCache();
 
             // index nodes
             trackNodes(nodes);

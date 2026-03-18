@@ -21,6 +21,7 @@ public class NodeData {
     private Map<String,List<String>> permissions;
     private List<NodeData> children = new ArrayList<>();
     private Map<String, Map<String, List<String>>> valueSpaces = new HashMap<>();
+    private Map<String, Map<?, ?>> extendedData = new HashMap<>();
 
     public void setAccessControlList(AccessControlList accessControlList) {
         permissions = new HashMap<>();

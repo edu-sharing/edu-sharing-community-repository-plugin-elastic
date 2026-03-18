@@ -85,7 +85,6 @@ public class TrackerTest {
         strategy = new MaxCommitTimeStrategy(maxCommitTime);
         TrackingContext<Tx> trackingContext = new TrackingContext<>(strategy, statusIndexService, MetricContext.builder().build());
 
-        doNothing().when(eduSharingService).refreshValuespaceCache();
         Tracker.State state;
         do{
             state = tracker.track(trackingContext);

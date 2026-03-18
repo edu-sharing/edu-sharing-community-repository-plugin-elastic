@@ -322,29 +322,28 @@ public class WorkspaceService implements SearchHitsRunner {
         DataBuilder builder = new DataBuilder();
         fillData(nodeData, builder);
         Object dataRaw = builder.build();
-        Map<String, Object> data = (Map<String, Object>)dataRaw;
+        Map<String, Object> data = (Map<String, Object>) dataRaw;
 
         // 2. Script und Parameter dynamisch aufbauen
         StringBuilder scriptSource = new StringBuilder();
         Map<String, JsonData> scriptParams = new HashMap<>();
 
 
-
         data.forEach((key, value) -> {
-            if(value == null){
+            if (value == null) {
                 scriptSource.append("ctx._source.")
                         .append(key)
                         .append(" = null; ");
-            }else {
+            } else {
                 // Erzeugt: ctx._source.preview = params.p_preview; ctx._source.properties = params.p_properties; ...
                 scriptSource.append("ctx._source.").append(key).append(" = params.p_").append(key).append("; ");
                 scriptParams.put("p_" + key, JsonData.of(value));
             }
         });
 
-        List<String> checkForRemove = List.of("contributor","i18n","customProperties","children");
-        checkForRemove.forEach(f ->  {
-            if(!data.containsKey(f)) {
+        List<String> checkForRemove = List.of("contributor", "i18n", "customProperties", "children");
+        checkForRemove.forEach(f -> {
+            if (!data.containsKey(f)) {
                 scriptSource.append("ctx._source.remove('").append(f).append("'); ");
             }
         });
@@ -443,6 +442,11 @@ public class WorkspaceService implements SearchHitsRunner {
                 builder.endObject();
             }
 
+            //extendedData
+            if (!nodeData.getExtendedData().isEmpty()) {
+                builder.field("extendedData", nodeData.getExtendedData());
+            }
+
             if (node.getPaths() != null && !node.getPaths().isEmpty()) {
                 addNodePath(builder, node);
             }
@@ -487,7 +491,7 @@ public class WorkspaceService implements SearchHitsRunner {
             }
 
 
-            Map<String, Serializable> contributorProperties = new HashMap<>();
+            Map<String, Object> contributorProperties = new HashMap<>();
             builder.startObject("properties");
             for (Map.Entry<String, Serializable> prop : node.getProperties().entrySet()) {
 
@@ -497,15 +501,14 @@ public class WorkspaceService implements SearchHitsRunner {
                     continue;
                 }
 
-                Serializable value = prop.getValue();
+                Object value = prop.getValue();
                 if (key.matches(CONTRIBUTOR_REGEX)) {
                     if (value != null) {
                         contributorProperties.put(key, value);
                     }
                 }
 
-                if (prop.getValue() instanceof List) {
-                    List<?> listvalue = (List<?>) prop.getValue();
+                if (prop.getValue() instanceof List<?> listvalue) {
 
                     //i.e. cm:title
                     if (!listvalue.isEmpty() && listvalue.get(0) instanceof Map) {
@@ -588,7 +591,7 @@ public class WorkspaceService implements SearchHitsRunner {
                     try {
                         builder.field(key, value);
                     } catch (Exception e) {
-                        log.warn("error parsing value field:" + key + "v" + value, e);
+                        log.warn("error parsing value field:{}v{}", key, value, e);
                     }
                 }
             }
@@ -603,7 +606,7 @@ public class WorkspaceService implements SearchHitsRunner {
             if (!contributorProperties.isEmpty()) {
                 VCardEngine vcardEngine = new VCardEngine();
                 builder.startArray("contributor");
-                for (Map.Entry<String, Serializable> entry : contributorProperties.entrySet()) {
+                for (Map.Entry<String, Object> entry : contributorProperties.entrySet()) {
                     if (entry.getValue() instanceof List) {
                         @SuppressWarnings("unchecked")
                         List<String> val = (List<String>) entry.getValue();
@@ -718,7 +721,7 @@ public class WorkspaceService implements SearchHitsRunner {
         builder.endObject();
     }
 
-    public void mapWorkflowProtocol(Serializable value, @NonNull DataBuilder builder) {
+    public void mapWorkflowProtocol(Object value, @NonNull DataBuilder builder) {
         Collection<String> protocol;
         if (value instanceof Collection) {
             protocol = (Collection<String>) value;
@@ -909,7 +912,7 @@ public class WorkspaceService implements SearchHitsRunner {
         if (usageOrProposal.getType().equals("ccm:collection_proposal")) {
             List<String> parentUuids = Arrays.asList(usageOrProposal.getPaths().get(0).getApath().split("/"));
             nodeIdCollection = parentUuids.stream().skip(parentUuids.size() - 1).findFirst().get();
-            Serializable ioNodeRef = usageOrProposal.getProperties().get("{http://www.campuscontent.de/model/1.0}collection_proposal_target");
+            Object ioNodeRef = usageOrProposal.getProperties().get("{http://www.campuscontent.de/model/1.0}collection_proposal_target");
             if (ioNodeRef == null) {
                 log.warn("no proposal target found for: {}", usageOrProposal.getNodeRef());
                 return null;
@@ -1210,7 +1213,7 @@ public class WorkspaceService implements SearchHitsRunner {
             log.info("cleanup collection cause {}", collectionDeleted ? "collection deleted" : "usage/proposal deleted");
 
             this.run(collectionCheckQuery, Map.class, hitIO -> {
-                Map<?,?> source = hitIO.source();
+                Map<?, ?> source = hitIO.source();
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> collections = (List<Map<String, Object>>) source.get("collections");
                 DataBuilder builder = new DataBuilder();
@@ -1270,7 +1273,7 @@ public class WorkspaceService implements SearchHitsRunner {
         for (Node node : nodes) {
             Query query = InternalQueries.queryChildrenNodes(node.getId());
             this.run(query, Map.class, hitIO -> {
-                Map<?,?> source = hitIO.source();
+                Map<?, ?> source = hitIO.source();
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> children = (List<Map<String, Object>>) source.get("children");
                 DataBuilder builder = new DataBuilder();
@@ -1286,8 +1289,8 @@ public class WorkspaceService implements SearchHitsRunner {
                                     builder.field(entry.getKey(), entry.getValue());
                                 }
                                 builder.endObject();
-                            }else{
-                                log.info("removing child {} form parent {}",childDbId,hitIO.id());
+                            } else {
+                                log.info("removing child {} form parent {}", childDbId, hitIO.id());
                             }
                         }
                     }

@@ -1,6 +1,7 @@
 package org.edu_sharing.elasticsearch.edu_sharing.api;
 
-import jakarta.annotation.PostConstruct;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -11,7 +12,6 @@ import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.generated.repository.backend.services.rest.client.api.*;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.*;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -28,59 +28,25 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class EduSharingService {
     public static final String DEFAULT_REPOSITORY = "-home-";
+    public static final String DEFAULT_MDS_ID = "-default-";
 
     private final NetworkV1Api networkV1Api;
     private final StatisticV1Api statisticV1Api;
-    private final MdsV1Api mdsV1Api;
-    private final AboutApi aboutApi;
     private final PreviewApi previewApi;
     private final TrackingV1Api trackingV1Api;
     private final SharingV1Api sharingV1Api;
     private final RelationV1Api relationV1Api;
     private final SuggestionsV1Api suggestionsV1Api;
+    private final MdsService mdsService;
+    private final ObjectMapper objectMapper;
+
 
     @Value("${valuespace.languages}")
     private String[] valuespaceLanguages;
 
-    @Value("${valuespace.cache.check.after.ms : 120000}")
-    private long valuespaceCacheCheckAfterMs = 120000;
 
     @Value("${preview.maxKiloBytes : 100}")
     long previewMaxKiloBytes;
-
-
-    private final Map<String, Set<String>> valuespaceProps = new HashMap<>();
-    Map<String, Map<String, Map<String, Suggestions>>> cache = new HashMap<>();
-    long valuespaceCacheLastChecked = -1;
-    long valuespaceCacheLastModified = -1;
-
-    @PostConstruct
-    public void init() {
-        MdsEntries metadataSets = getMetadataSets();
-        if (metadataSets != null) {
-            for (MetadataSetInfo metadataSet : metadataSets.getMetadatasets()) {
-                Set<String> valueSpacePropsTmp = new HashSet<>(getValuespaceProperties(metadataSet.getId()));
-                valuespaceProps.put(metadataSet.getId(), valueSpacePropsTmp);
-                log.info("added {} i18n props for mds: {}", valueSpacePropsTmp.size(), metadataSet.getId());
-            }
-        }
-    }
-
-    @Nullable
-    public MdsEntries getMetadataSets() {
-        return mdsV1Api.getMetadataSets(DEFAULT_REPOSITORY).block();
-    }
-
-    public List<String> getValuespaceProperties(String mdsId) {
-        return mdsV1Api.getMetadataSet(DEFAULT_REPOSITORY, mdsId)
-                .map(x -> x.getWidgets()
-                        .stream()
-                        .filter(Objects::nonNull)
-                        .filter(y -> Boolean.TRUE.equals(y.getHasValues()))
-                        .map(MdsWidget::getId)
-                        .toList())
-                .block();
-    }
 
     public Repo getHomeRepository() {
         return networkV1Api.getRepositories()
@@ -101,134 +67,86 @@ public class EduSharingService {
     public String getMdsId(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData) {
         String mds = (String) nodeData.getNodeMetadata().getProperties().get(CCConstants.CM_PROP_METADATASET_EDU_METADATASET);
         if (mds == null) {
-            mds = "default";
+            mds = mdsService.getMetadataSet(DEFAULT_MDS_ID).getId();
         }
-
-        if (mds.equals("default")) {
-            mds = valuespaceProps.keySet().stream().findFirst().orElse(null);
-        }
-
         return mds;
     }
 
-    public void translateProperty(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData, String mds, Set<String> valueSpacePropsMds, Map.Entry<String, Serializable> prop) {
-        if (valueSpacePropsMds == null) {
-            valueSpacePropsMds = getPropsMdsList(mds);
-        }
+    public void translateProperty(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData, String mds, Map.Entry<String, Serializable> prop) {
 
         String key = CCConstants.getValidLocalName(prop.getKey());
         if (key == null) {
             key = prop.getKey();
         }
 
+        Set<String> valueSpacePropsMds = mdsService.getValueSpaceProbertyIds(mds);
         if (valueSpacePropsMds.contains(key)) {
-            for (String language : valuespaceLanguages) {
-                if (prop.getValue() == null) {
-                    continue;
-                }
+            translateValuespaceProperty(nodeData, mds, prop, key);
+        }
 
-                Map<String, List<String>> valuespacesForLanguage = nodeData.getValueSpaces().computeIfAbsent(language, k -> new ConcurrentHashMap<>());
-                if (prop.getValue() instanceof List) {
-                    ArrayList<String> translatedList = new ArrayList<>();
-                    for (Object value : (List<?>) prop.getValue()) {
-                        if (value instanceof String) {
-                            String translatedVal = translate(mds, language, key, (String) value);
-                            if (StringUtils.isNotBlank(translatedVal)) {
-                                translatedList.add(translatedVal);
-                            }
-                        } else {
-                            log.warn("Can't translate value for field {} of type {} at node {}", key, value.getClass(), nodeData.getNodeMetadata().getNodeRef());
-                        }
-                    }
-                    if (!translatedList.isEmpty()) {
-                        valuespacesForLanguage.put(prop.getKey(), translatedList);
-                    }
-                } else {
-                    String translatedVal = translate(mds, language, key, prop.getValue().toString());
-                    if (translatedVal != null) {
-                        valuespacesForLanguage.put(prop.getKey(), Collections.singletonList(translatedVal));
-                    }
-                }
-            }
+        Set<String> jsonDataPropertyIds = mdsService.getJsonDataPropertyIds(mds);
+        if (jsonDataPropertyIds.contains(key)) {
+            translateJsonDataProperty(nodeData, mds, prop, key);
         }
     }
 
-    private Set<String> getPropsMdsList(String mds) {
-        return valuespaceProps.get(mds);
+    private void translateJsonDataProperty(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData, String mds, Map.Entry<String, Serializable> prop, String key) {
+        if(prop.getValue() instanceof String stringValue) {
+            try {
+                Map<?,?> map = objectMapper.readValue(stringValue, Map.class);
+                Map<String, Map<?, ?>> extendedData = nodeData.getExtendedData();
+                extendedData.put(key, map);
+                //properties.put(prop.getKey(), map);
+            } catch (JsonProcessingException e) {
+                log.error("error reading ", e.getMessage());
+            }
+        }
+
+    }
+
+
+    private void translateValuespaceProperty(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData, String mds, Map.Entry<String, Serializable> prop, String key) {
+        if (prop.getValue() == null) {
+            return;
+        }
+
+        for (String language : valuespaceLanguages) {
+            Map<String, List<String>> valuespacesForLanguage = nodeData
+                    .getValueSpaces()
+                    .computeIfAbsent(language, k -> new ConcurrentHashMap<>());
+
+            if (prop.getValue() instanceof List<?> listValues) {
+                ArrayList<String> translatedList = new ArrayList<>();
+                for (Object value : listValues) {
+                    if (value instanceof String stringValue) {
+                        String translatedVal = translate(mds, language, key, stringValue);
+                        if (StringUtils.isNotBlank(translatedVal)) {
+                            translatedList.add(translatedVal);
+                        }
+                    } else {
+                        log.warn("Can't translate value for field {} of type {} at node {}", key, value.getClass(), nodeData.getNodeMetadata().getNodeRef());
+                    }
+                }
+                if (!translatedList.isEmpty()) {
+                    valuespacesForLanguage.put(prop.getKey(), translatedList);
+                }
+            } else {
+                String translatedVal = translate(mds, language, key, prop.getValue().toString());
+                if (translatedVal != null) {
+                    valuespacesForLanguage.put(prop.getKey(), Collections.singletonList(translatedVal));
+                }
+            }
+        }
     }
 
     public String translate(String mds, String language, String property, String key) {
-        Suggestions entries = getValuespace(mds, language, property);
-        String result = null;
-        for (Suggestion entry : entries.getValues()) {
-            if (key.equals(entry.getKey())) {
-                result = entry.getDisplayString();
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Retrieves the valuespace entries for the specified metadata set, language, and property.
-     * If the entries are available in the cache, they are returned directly.
-     * Otherwise, the method requests the data from a remote service, updates the cache, and returns the result.
-     *
-     * @param mds      The metadata set identifier for which the valuespace entries are requested.
-     * @param language The language for which the valuespace entries are requested.
-     * @param property The specific property within the metadata set for which the valuespace entries are requested.
-     * @return The {@link Suggestions} object representing the retrieved valuespace data.
-     */
-    public Suggestions getValuespace(String mds, String language, String property) {
-
-        Suggestions entries = getValuespaceFromCache(mds, language, property);
-
-        if (entries != null) {
-            log.debug("got valuespace entries from cache");
-            return entries;
-        }
-
-        SuggestionParam suggestionParam = SuggestionParam.builder()
-                .valueParameters(ValueParameters.builder().query("ngsearch").property(property).build())
-                .build();
-        entries = mdsV1Api.getValues(DEFAULT_REPOSITORY, mds, language, suggestionParam).block();
-        addValuespaceToCache(mds, language, property, entries);
-
-        return entries;
-    }
-
-    private Suggestions getValuespaceFromCache(String mds, String language, String property) {
-
-        Map<String, Map<String, Suggestions>> mdsMap = cache.get(mds);
-        if (mdsMap == null) {
-            return null;
-        }
-
-        Map<String, Suggestions> propMap = mdsMap.get(language);
-        if (propMap == null) {
-            return null;
-        }
-        return propMap.get(property);
-    }
-
-    private void addValuespaceToCache(String mds, String language, String property, Suggestions entries) {
-
-        Map<String, Map<String, Suggestions>> mdsMap = cache.computeIfAbsent(mds, k -> new HashMap<>());
-        Map<String, Suggestions> propMap = mdsMap.computeIfAbsent(language, k -> new HashMap<>());
-        propMap.put(property, entries);
-    }
-
-    public void refreshValuespaceCache() {
-        if (valuespaceCacheLastChecked == -1
-                || valuespaceCacheLastChecked < (System.currentTimeMillis() - valuespaceCacheCheckAfterMs)) {
-            log.info("will check if cache in edu-sharing changed");
-            About about = aboutApi.about().block();
-            if (about != null && about.getLastCacheUpdate() != null && about.getLastCacheUpdate() > valuespaceCacheLastModified) {
-                log.info("repos last cache updated{}: force valuespace cache refresh", new Date(about.getLastCacheUpdate()));
-                cache.clear();
-                valuespaceCacheLastModified = about.getLastCacheUpdate();
-            }
-            valuespaceCacheLastChecked = System.currentTimeMillis();
-        }
+        return mdsService.getValuespace(mds, language, property)
+                .getValues()
+                .stream()
+                .filter(entry -> key.equals(entry.getKey()))
+                .map(Suggestion::getDisplayString)
+                .findFirst()
+                .orElse(null);
     }
 
     public NodePreview getPreviewDataByNodeRef(String nodeRef) {
@@ -259,14 +177,14 @@ public class EduSharingService {
 
         String mds = getMdsId(data);
 
-        Set<String> valueSpacePropsMds = getPropsMdsList(mds);
+        Set<String> valueSpacePropsMds = mdsService.getValueSpaceProbertyIds(mds);
         if (valueSpacePropsMds == null) {
             log.warn("no i18n props found for mds:{}", mds);
             return;
         }
 
         for (Map.Entry<String, Serializable> prop : properties.entrySet()) {
-            translateProperty(data, mds, valueSpacePropsMds, prop);
+            translateProperty(data, mds, prop);
         }
     }
 

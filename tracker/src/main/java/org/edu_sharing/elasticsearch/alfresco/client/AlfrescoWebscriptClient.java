@@ -79,9 +79,9 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
     public List<Node> getNodes(GetNodeParam p) {
 
         String url = getUrl(URL_NODES_TRANSACTION);
-        try(Response resp = client.target(url)
-                    .request(MediaType.APPLICATION_JSON)
-                    .post(Entity.json(p))) {
+        try (Response resp = client.target(url)
+                .request(MediaType.APPLICATION_JSON)
+                .post(Entity.json(p))) {
             Nodes node = resp.readEntity(Nodes.class);
             return node.getNodes();
         } catch (ResponseProcessingException e) {
@@ -90,8 +90,8 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
             for (Long transactionId : p.getTxnIds()) {
 
                 p.setTxnIds(Collections.singletonList(transactionId));
-                try(Response resp = client.target(url)
-                            .request(MediaType.APPLICATION_JSON)
+                try (Response resp = client.target(url)
+                        .request(MediaType.APPLICATION_JSON)
                         .post(Entity.json(p))) {
                     Nodes node = resp.readEntity(Nodes.class);
                     result.addAll(node.getNodes());
@@ -117,7 +117,7 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
 
     public NodeMetadatas getNodeMetadata(GetNodeMetadataParam param, boolean debug) throws ResponseProcessingException {
         String url = getUrl(URL_NODE_METADATA);
-        try(Response resp = client.target(url)
+        try (Response resp = client.target(url)
                 .request(MediaType.APPLICATION_JSON)
                 .post(Entity.json(param))) {
 
@@ -186,7 +186,7 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
                     //finally log the broken node
                 } catch (ProcessingException e2) {
                     String url = getUrl(URL_NODE_METADATA);
-                    try(Response resp = client.target(url)
+                    try (Response resp = client.target(url)
                             .request(MediaType.APPLICATION_JSON)
                             .post(Entity.json(getNodeMetadataParam))) {
                         String valueAsString = resp.readEntity(String.class);
@@ -304,7 +304,7 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
                     nodeData.setNodeMetadata(nodeMetadata);
                     nodeData.setReader(reader);
                     nodeData.setAccessControlList(permissionsMap.get(nodeMetadata.getAclId()));
-            result.add(nodeData);
+                    result.add(nodeData);
                 }
             }
 
@@ -384,14 +384,14 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
 
     public ReadersACL getReader(GetPermissionsParam param) {
         String url = getUrl(URL_ACL_READERS);
-        try(Response resp = client.target(url)
+        try (Response resp = client.target(url)
                 .request(MediaType.APPLICATION_JSON)
-                .post(Entity.json(param))){
+                .post(Entity.json(param))) {
             return resp.readEntity(ReadersACL.class);
         }
     }
 
-    public NextCommitTime getNextCommitTime(long fromCommitTime){
+    public NextCommitTime getNextCommitTime(long fromCommitTime) {
         String url = getUrl(URL_NEXT_TX_COMMIT_TIME);
         String fromParam = "fromCommitTime";
         return client
@@ -439,7 +439,7 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
         if (fromTime != null) {
             webTarget = webTarget.queryParam("fromTime", fromTime);
         }
-        if(fromTime != null) {
+        if (fromTime != null) {
             webTarget = webTarget.queryParam("toTime", toTime);
         }
         return webTarget
@@ -451,9 +451,9 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
         // prevent maxResults to be cut by the default value of alfresco
         // see AclsGet: int maxResults = maxResultsParam == null ? 1024 : Integer.valueOf(maxResultsParam);
         String url = getUrl(URL_ACLS + "?maxResults=" + Integer.MAX_VALUE);
-        try(Response resp =  client.target(url)
+        try (Response resp = client.target(url)
                 .request(MediaType.APPLICATION_JSON)
-                .post(Entity.json(param))){
+                .post(Entity.json(param))) {
             return resp.readEntity(Acls.class);
         }
     }
@@ -461,8 +461,8 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
 
     public AccessControlLists getAccessControlLists(GetPermissionsParam param) {
         String url = getUrl(URL_PERMISSIONS);
-        try(Response resp = client.target(url)
-                    .request(MediaType.APPLICATION_JSON).post(Entity.json(param))){
+        try (Response resp = client.target(url)
+                .request(MediaType.APPLICATION_JSON).post(Entity.json(param))) {
             return resp.readEntity(AccessControlLists.class);
         }
     }
