@@ -1297,10 +1297,10 @@ public class WorkspaceService implements SearchHitsRunner {
                     builder.endArray();
                 }
                 builder.endObject();
-                long parentId = Long.parseLong(hitIO.id());
+                String parentId = hitIO.id();
                 updateRequests.add(BulkOperation.of(op -> op
                         .update(up -> up.index(index)
-                                .id(Long.toString(parentId))
+                                .id(parentId)
                                 .action(a -> a.doc(builder.build())))));
             });
         }
