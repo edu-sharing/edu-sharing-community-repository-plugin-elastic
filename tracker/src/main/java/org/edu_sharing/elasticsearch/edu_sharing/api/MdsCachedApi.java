@@ -23,7 +23,7 @@ public class MdsCachedApi {
                 .block();
     }
 
-    @Cacheable(key = "#mds-#language-#property", cacheNames = "mdsValuespace", sync = true, cacheManager = "mdsCacheManager")
+    @Cacheable(key = "T(String).join('-', #mds, #language, #property)", cacheNames = "mdsValuespace", sync = true, cacheManager = "mdsCacheManager")
     public Suggestions getValuespace(String mds, String language, String property) {
         SuggestionParam suggestionParam = SuggestionParam.builder()
                 .valueParameters(ValueParameters.builder()
