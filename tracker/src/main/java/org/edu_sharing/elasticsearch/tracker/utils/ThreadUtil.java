@@ -39,7 +39,9 @@ public class ThreadUtil {
             if(throwOnTimeout) throw new RuntimeException(msg);
         }
         if(!errors.isEmpty()){
-            log.error("Fatal error while processing data: {}", errors);
+            for(Throwable e: errors){
+                log.error("Fatal error while processing data: {}", e.getMessage(),e);
+            }
             if(reThrow){
                 if(errors.get(0) instanceof IOException){
                     throw (IOException) errors.get(0);
