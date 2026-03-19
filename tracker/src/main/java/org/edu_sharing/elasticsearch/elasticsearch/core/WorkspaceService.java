@@ -443,7 +443,7 @@ public class WorkspaceService implements SearchHitsRunner {
             }
 
             //extendedData
-            if (!nodeData.getExtendedData().isEmpty()) {
+            if (nodeData.getExtendedData() != null && !nodeData.getExtendedData().isEmpty()) {
                 builder.field("extendedData", nodeData.getExtendedData());
             }
 
@@ -1331,11 +1331,11 @@ public class WorkspaceService implements SearchHitsRunner {
             query = "properties.ccm:usageparentnodeid.keyword";
             queryProposal = "properties.ccm:collection_proposal_target.keyword";
         } else {
-            log.info("can not handle collections for type:" + node.getType());
+            log.info("can not handle collections for type:{}", node.getType());
             return;
         }
         AtomicBoolean hasCollections = new AtomicBoolean(false);
-        log.info("updating collections for " + node.getType() + " " + node.getId());
+        log.info("updating collections for {} {}", node.getType(), node.getId());
         DataBuilder builder = new DataBuilder();
         builder.startObject();
         builder.startArray("collections");
