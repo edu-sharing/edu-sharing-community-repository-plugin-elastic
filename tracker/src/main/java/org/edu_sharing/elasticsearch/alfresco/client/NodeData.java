@@ -1,7 +1,6 @@
 package org.edu_sharing.elasticsearch.alfresco.client;
 
 import lombok.*;
-import org.edu_sharing.generated.repository.backend.services.rest.client.model.RelationData;
 
 import java.util.ArrayList;
 import java.util.HashMap;

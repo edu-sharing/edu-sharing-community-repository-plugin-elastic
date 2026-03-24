@@ -14,13 +14,10 @@ import org.edu_sharing.generated.repository.backend.services.rest.client.model.*
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
 
 import java.io.Serializable;
 import java.time.OffsetDateTime;
 import java.util.*;
-import java.util.Collections;
-import java.util.concurrent.ConcurrentHashMap;
 
 
 @Slf4j
@@ -72,17 +69,24 @@ public class EduSharingService {
         return mds;
     }
 
-    public void translateProperty(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData, String mds, Map.Entry<String, Serializable> prop) {
+    public void translateProperties(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData, String mds, Map.Entry<String, Serializable> prop) {
 
         String key = CCConstants.getValidLocalName(prop.getKey());
         if (key == null) {
             key = prop.getKey();
         }
 
-        Set<String> valueSpacePropsMds = mdsService.getValueSpaceProbertyIds(mds);
-        if (valueSpacePropsMds.contains(key)) {
-            translateValuespaceProperty(nodeData, mds, prop, key);
+        Map<String, List<String>> translations =  translateValuespaceProperty(Tools.getUUID(nodeData.getNodeMetadata().getNodeRef()), mds, key, prop.getValue());
+        if(translations != null) {
+            Map<String, Map<String, List<String>>> valueSpaces = nodeData.getValueSpaces();
+            translations.forEach((language, translatedList) -> {
+                if (!translatedList.isEmpty()) {
+                    Map<String, List<String>> propMap = valueSpaces.computeIfAbsent(language, (k) -> new HashMap<>());
+                    propMap.put(prop.getKey(), translatedList);
+                }
+            });
         }
+
 
         Set<String> jsonDataPropertyIds = mdsService.getJsonDataPropertyIds(mds);
         if (jsonDataPropertyIds.contains(key)) {
@@ -91,9 +95,9 @@ public class EduSharingService {
     }
 
     private void translateJsonDataProperty(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData, Map.Entry<String, Serializable> prop, String key) {
-        if(prop.getValue() instanceof String stringValue) {
+        if (prop.getValue() instanceof String stringValue) {
             try {
-                Map<?,?> map = objectMapper.readValue(stringValue, Map.class);
+                Map<?, ?> map = objectMapper.readValue(stringValue, Map.class);
                 Map<String, Map<?, ?>> extendedData = nodeData.getExtendedData();
                 extendedData.put(key, map);
             } catch (JsonProcessingException e) {
@@ -104,38 +108,47 @@ public class EduSharingService {
     }
 
 
-    private void translateValuespaceProperty(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData, String mds, Map.Entry<String, Serializable> prop, String key) {
-        if (prop.getValue() == null) {
-            return;
+    public Map<String, List<String>> translateValuespaceProperty(String nodeId, String mds, String key, Object value) {
+        if (value == null) {
+            return null;
         }
 
-        for (String language : valuespaceLanguages) {
-            Map<String, List<String>> valuespacesForLanguage = nodeData
-                    .getValueSpaces()
-                    .computeIfAbsent(language, k -> new ConcurrentHashMap<>());
+        Set<String> valueSpacePropsMds = mdsService.getValueSpaceProbertyIds(mds);
+        if (!valueSpacePropsMds.contains(key)) {
+            return null;
+        }
 
-            if (prop.getValue() instanceof List<?> listValues) {
-                ArrayList<String> translatedList = new ArrayList<>();
-                for (Object value : listValues) {
-                    if (value instanceof String stringValue) {
+        Map<String, List<String>> valuespacesForLanguage = new HashMap<>();
+        for (String language : valuespaceLanguages) {
+            ArrayList<String> translatedList = new ArrayList<>();
+            if (value instanceof List<?> listValues) {
+                for (Object entry : listValues) {
+                    if (entry instanceof String stringValue) {
                         String translatedVal = translate(mds, language, key, stringValue);
                         if (StringUtils.isNotBlank(translatedVal)) {
                             translatedList.add(translatedVal);
                         }
                     } else {
-                        log.warn("Can't translate value for field {} of type {} at node {}", key, value.getClass(), nodeData.getNodeMetadata().getNodeRef());
+                        log.warn("Can't translate value for field {} of type {} at node {}", key, entry.getClass(), nodeId);
                     }
                 }
-                if (!translatedList.isEmpty()) {
-                    valuespacesForLanguage.put(prop.getKey(), translatedList);
-                }
             } else {
-                String translatedVal = translate(mds, language, key, prop.getValue().toString());
+                String translatedVal = translate(mds, language, key, value.toString());
                 if (translatedVal != null) {
-                    valuespacesForLanguage.put(prop.getKey(), Collections.singletonList(translatedVal));
+                    translatedList.add(translatedVal);
+                } else {
+                    log.warn("Can't translate value for field {} of type {} at node {}", key, value.getClass(), nodeId);
                 }
             }
+
+            if (!translatedList.isEmpty()) {
+                valuespacesForLanguage.put(language, translatedList);
+            }
         }
+
+
+
+        return valuespacesForLanguage;
     }
 
     public String translate(String mds, String language, String property, String key) {
@@ -183,7 +196,7 @@ public class EduSharingService {
         }
 
         for (Map.Entry<String, Serializable> prop : properties.entrySet()) {
-            translateProperty(data, mds, prop);
+            translateProperties(data, mds, prop);
         }
     }
 
@@ -204,24 +217,11 @@ public class EduSharingService {
         return sharingV1Api.getShares1(DEFAULT_REPOSITORY, shareIds).collectList().block();
     }
 
-    public List<NodeRelationData> getRelations(String nodeId) {
-        return relationV1Api.getRelations(DEFAULT_REPOSITORY, nodeId).collectList().block();
+    public List<RelationData> getRelations(String nodeId) {
+        return relationV1Api.getRawRelations(DEFAULT_REPOSITORY, nodeId).collectList().block();
     }
-
-    public List<RelationData> getRelationsSince(OffsetDateTime since, OffsetDateTime until, int batchSize, boolean deleted) {
-        return relationV1Api.getTrackedRelation(DEFAULT_REPOSITORY, since, until, batchSize, deleted)
-                .flatMap(x -> Flux.just(x, x.toBuilder()
-                        .fromNode(x.getToNode())
-                        .toNode(x.getFromNode())
-                        .type(RelationData.TypeEnum.fromValue(x.getReverseType().getValue()))
-                        .reverseType(RelationData.ReverseTypeEnum.fromValue(x.getType().getValue()))
-                        .build()))
-                .collectList()
-                .block();
-    }
-
-    public List<PropertySuggestion> getSuggestionsSince(OffsetDateTime since, OffsetDateTime until, int batchSize, boolean deleted) {
-        return suggestionsV1Api.getTrackedRelation1(DEFAULT_REPOSITORY, since, until, batchSize, deleted)
+    public List<PropertySuggestion> getSuggestions(String nodeId) {
+        return suggestionsV1Api.getRawSuggestionsByNodeId(DEFAULT_REPOSITORY, nodeId, null)
                 .collectList()
                 .block();
     }

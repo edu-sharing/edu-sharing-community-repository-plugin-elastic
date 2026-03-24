@@ -7,7 +7,6 @@ import org.edu_sharing.elasticsearch.tracker.core.TrackingContext;
 import org.edu_sharing.elasticsearch.tracker.strategy.CommitTimeStatus;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -67,7 +66,7 @@ public class GenericTimebaseTracker<PROPS extends GenericTimebaseTrackerProperti
                 context.statusIndexService().setState(new TimeBasedStatus(lastTimestampDate.toInstant().toEpochMilli()));
             } while (i++ < props.getMaxIterations());
             log.info("finished {} until: {}", getName(), dateFormat.format(lastTimestampDate));
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Error tracking {}: {}", getName(), e.getMessage(), e);
             return State.EXCEPTION;
         }

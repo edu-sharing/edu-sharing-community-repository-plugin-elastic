@@ -6,6 +6,7 @@ import org.springframework.util.function.ThrowingConsumer;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
@@ -22,7 +23,7 @@ public class ThreadUtil {
     }
 
 
-    public <T> void runThreaded(List<T> data, ThrowingConsumer<T> worker, boolean throwOnTimeout, boolean reThrow) throws IOException {
+    public <T> void runThreaded(Collection<T> data, ThrowingConsumer<T> worker, boolean throwOnTimeout, boolean reThrow) throws IOException {
         List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
         for(T d : data){
             threadPool.execute(() -> {
@@ -40,7 +41,7 @@ public class ThreadUtil {
         }
         if(!errors.isEmpty()){
             for(Throwable e: errors){
-                log.error("Fatal error while processing data: "+e.getMessage() ,e);
+                log.error("Fatal error while processing data: {}", e.getMessage(), e);
             }
             if(reThrow){
                 if(errors.get(0) instanceof IOException){
