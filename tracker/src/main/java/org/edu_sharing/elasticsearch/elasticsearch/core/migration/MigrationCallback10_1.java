@@ -14,7 +14,6 @@ import org.edu_sharing.elasticsearch.tracker.core.TrackerRegistry;
 import org.edu_sharing.elasticsearch.tracker.main.MainTracker;
 import org.edu_sharing.elasticsearch.tracker.preview.PreviewTracker;
 import org.edu_sharing.elasticsearch.tracker.statistics.StatisticsTracker;
-import org.edu_sharing.elasticsearch.tracker.usage.UsageSyncTracker;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -35,7 +34,6 @@ public class MigrationCallback10_1 implements MigrationCallback {
             new TrackerMigrationInfo<>(AuthoritiesTracker.class, "1"),
             new TrackerMigrationInfo<>(CollectionSyncTracker.class, "1"),
             new TrackerMigrationInfo<>(PreviewTracker.class, "1"),
-            new TrackerMigrationInfo<>(UsageSyncTracker.class, "1"),
             new TrackerMigrationInfo<>(AclTracker.class, "2"),
             new TrackerMigrationInfo<>(StatisticsTracker.class, "3")
     );

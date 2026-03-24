@@ -943,7 +943,7 @@ public class WorkspaceService implements SearchHitsRunner {
         log.info("finished for collection: " + collection.getNodeRef());
     }
 
-    private void onUpdateRefreshUsageCollectionReplicas(NodeMetadataSimple node, boolean update, boolean resyncIndex) throws IOException {
+    public void onUpdateRefreshUsageCollectionReplicas(NodeMetadataSimple node, boolean update, boolean resyncIndex) throws IOException {
         final String query, queryProposal;
         // collect already written collections
         Set<String> collections = new HashSet<>();

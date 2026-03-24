@@ -8,7 +8,6 @@ import org.edu_sharing.elasticsearch.tracker.collection.CollectionSyncTracker;
 import org.edu_sharing.elasticsearch.tracker.main.MainTracker;
 import org.edu_sharing.elasticsearch.tracker.preview.PreviewTracker;
 import org.edu_sharing.elasticsearch.tracker.statistics.StatisticsTracker;
-import org.edu_sharing.elasticsearch.tracker.usage.UsageSyncTracker;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,8 +34,7 @@ public class Migrations {
                         MainTracker.class,
                         CollectionSyncTracker.class,
                         PreviewTracker.class,
-                        StatisticsTracker.class,
-                        UsageSyncTracker.class
+                        StatisticsTracker.class
                 ), null);
     }
 
@@ -56,7 +54,6 @@ public class Migrations {
                         CollectionSyncTracker.class,
                         PreviewTracker.class,
                         StatisticsTracker.class,
-                        UsageSyncTracker.class,
                         AuthoritiesTracker.class
                 ), null);
     }
