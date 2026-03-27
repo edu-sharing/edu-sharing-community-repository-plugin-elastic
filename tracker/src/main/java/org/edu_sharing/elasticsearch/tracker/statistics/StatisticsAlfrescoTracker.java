@@ -2,15 +2,15 @@ package org.edu_sharing.elasticsearch.tracker.statistics;
 
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
-import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
-import org.edu_sharing.elasticsearch.edu_sharing.client.NodeStatistic;
+import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractAlfTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.core.config.AlfTransactionTrackerProperties;
 import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeData;
 
 import java.io.IOException;
 import java.util.*;
@@ -22,8 +22,12 @@ public class StatisticsAlfrescoTracker extends AbstractAlfTransactionTracker<Alf
     @Value("${statistic.historyInDays}")
     long historyInDays;
 
-    public StatisticsAlfrescoTracker(AlfTransactionTrackerProperties statisticsAlfrescoTrackerProperties) {
+    private final EduSharingService eduSharingService;
+
+    public StatisticsAlfrescoTracker(AlfTransactionTrackerProperties statisticsAlfrescoTrackerProperties,
+                                     EduSharingService eduSharingService) {
         super(statisticsAlfrescoTrackerProperties);
+        this.eduSharingService = eduSharingService;
     }
 
 
@@ -38,13 +42,13 @@ public class StatisticsAlfrescoTracker extends AbstractAlfTransactionTracker<Alf
                 p -> nodeData.addAll(alfClient.getNodeMetadata(p)),
                 true,
                 true);
-        Map<String, List<NodeStatistic>> updateNodeStatistics = new HashMap<>();
+        Map<String, List<NodeData>> updateNodeStatistics = new HashMap<>();
         for (NodeMetadata nodeDataStat : nodeData) {
             String nodeId = Tools.getUUID(nodeDataStat.getNodeRef());
             log.info("track statistics for node {}", nodeId);
             long trackTs = System.currentTimeMillis();
             long trackFromTime = trackTs - (historyInDays * 24L * 60L * 60L * 1000L);
-            List<NodeStatistic> statisticsForNode = eduSharingClient.getStatisticsForNode(nodeId, trackFromTime);
+            List<NodeData> statisticsForNode = eduSharingService.getStatisticsForNode(nodeId, trackFromTime);
             updateNodeStatistics.put(nodeId, statisticsForNode);
             //we don't need cleanup cause former elasticClient.index(..) call removes all statistic data
             //elasticClient.cleanUpNodeStatistics(nodeDataStat);
