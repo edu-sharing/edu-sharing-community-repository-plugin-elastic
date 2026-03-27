@@ -72,7 +72,7 @@ public class Migrations {
     @Order(3)
     public MigrationInfo migration11_0() {
         //language=groovy
-        String script = """
+        String workspaceScript = """
                     if (ctx._source.nodeRef != null && ctx._source.nodeRef.id != null) {
                       ctx._id = ctx._source.nodeRef.id
                     }
@@ -81,14 +81,21 @@ public class Migrations {
                     }
                 """;
 
+        //language=groovy
+        String authorityScript = """
+                    if (ctx._source.nodeRef != null && ctx._source.nodeRef.id != null) {
+                      ctx._id = ctx._source.nodeRef.id
+                    }
+                """;
+
         return MigrationInfo.builder()
                 .version("11.0")
                 .workspaceMigrationScript(Script.of(s -> s
                         .lang("painless")
-                        .source(script)))
+                        .source(workspaceScript)))
+                .authoritiesMigrationScript(Script.of(s -> s
+                        .lang("painless")
+                        .source(authorityScript)))
                 .build();
     }
 }
-
-
-//
