@@ -59,7 +59,7 @@ public class ElasticIndexContentComparator {
     // === Main ===
     public static void main(String[] args) throws IOException {
         String indexA = "workspace_10.0_bak";
-        String indexB = "workspace_10.0";
+        String indexB = "workspace_10.1";
         String type = "ccm:io";
 
         // Elasticsearch client

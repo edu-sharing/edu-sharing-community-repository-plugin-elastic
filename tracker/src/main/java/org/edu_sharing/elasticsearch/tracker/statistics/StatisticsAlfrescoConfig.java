@@ -1,4 +1,4 @@
-package org.edu_sharing.elasticsearch.tracker.usage;
+package org.edu_sharing.elasticsearch.tracker.statistics;
 
 import org.edu_sharing.elasticsearch.tracker.core.config.AlfTransactionTrackerProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -6,10 +6,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class UsageTrackerConfig {
+public class StatisticsAlfrescoConfig {
+
     @Bean
-    @ConfigurationProperties(prefix = "tracker.usage")
-    public AlfTransactionTrackerProperties usageTrackerProps() {
+    @ConfigurationProperties(prefix = "tracker.statisticsalfresco")
+    public AlfTransactionTrackerProperties statisticsAlfrescoTrackerProperties() {
         return new AlfTransactionTrackerProperties();
     }
 }
