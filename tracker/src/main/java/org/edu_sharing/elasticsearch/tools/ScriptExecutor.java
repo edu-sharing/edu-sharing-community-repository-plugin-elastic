@@ -6,8 +6,6 @@ import groovy.lang.Script;
 import lombok.extern.slf4j.Slf4j;
 import net.sourceforge.cardme.engine.VCardEngine;
 import net.sourceforge.cardme.vcard.VCard;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
@@ -62,7 +60,7 @@ public class ScriptExecutor {
                         Serializable value = entry.getValue();
                         builder.field(key, value);
                         log.debug("Script: {}, key: {}, value: {}", script.getName(), key, value);
-                        eduSharingService.translateProperty(nodeData, mds, new AbstractMap.SimpleEntry<>(
+                        eduSharingService.translateProperties(nodeData, mds, new AbstractMap.SimpleEntry<>(
                                 "customProperties." + entry.getKey(), entry.getValue()
                         ));
                     }
@@ -108,7 +106,7 @@ public class ScriptExecutor {
 
     private void init(){
         try {
-            File[] scripts = scriptLoaderService.getFiles();
+            File[] scripts = scriptLoaderService.files();
             if (scripts == null) {
                 scripts = new File[0];
             }

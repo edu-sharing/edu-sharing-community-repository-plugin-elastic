@@ -36,16 +36,7 @@ class ScriptLoaderConfiguration {
 //    }
 
 
-    static class ScriptLoaderService {
-        private final File[] files;
-
-        public ScriptLoaderService(File[] files) {
-            this.files = files;
-        }
-
-        public File[] getFiles() {
-            return this.files;
-        }
+    public record ScriptLoaderService(File[] files) {
     }
 
 }

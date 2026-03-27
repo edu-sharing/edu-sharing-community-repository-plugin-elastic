@@ -75,7 +75,7 @@ public class ShareTrackerConfig {
     }
 
     @Bean
-    public GenericTimebaseTracker<GenericTimebaseTrackerProperties, ShareInfoOplog> shareTracker(GenericTimebaseTrackerProperties relationTrackerProperties, GenericTrackingSupport<ShareInfoOplog> shareTrackerSupport) {
-        return new GenericTimebaseTracker<>(relationTrackerProperties, shareTrackerSupport);
+    public GenericTimebaseTracker<GenericTimebaseTrackerProperties, ShareInfoOplog> shareTracker(GenericTimebaseTrackerProperties shareTrackerProperties, GenericTrackingSupport<ShareInfoOplog> shareTrackerSupport) {
+        return new GenericTimebaseTracker<>(shareTrackerProperties, shareTrackerSupport);
     }
 }

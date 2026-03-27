@@ -118,34 +118,9 @@ public class WorkspaceService implements SearchHitsRunner {
     }
 
     public void updateNodesWithRelations(final String nodeId, final List<RelationData> relationData) {
-        // language=painless
-        final String SCRIPT_UPDATE_RELATIONS_BY_KEY = """
-                if (ctx._source.relations == null) {
-                    ctx._source.relations = new ArrayList();
-                }
-                
-                for (def incoming : params.relations) {
-                  boolean updated = false;
-                
-                  for (int i = 0; i < ctx._source.relations.size(); i++) {
-                    def existing = ctx._source.relations.get(i);
-                
-                    if (existing != null
-                        && existing.fromNode == incoming.fromNode
-                        && existing.toNode == incoming.toNode
-                        && existing.type == incoming.type) {
-                
-                      // Replace the whole relation object (or change to partial field updates if desired)
-                      ctx._source.relations.set(i, incoming);
-                      updated = true;
-                      break;
-                    }
-                  }
-                
-                  if (!updated) {
-                    ctx._source.relations.add(incoming);
-                  }
-                }
+        // language=groovy
+        final String SCRIPT_UPDATE_RELATIONS = """
+                ctx._source.relations = params.relations;
                 """;
 
         UpdateByQueryResponse bulkByScrollResponse;
@@ -156,82 +131,12 @@ public class WorkspaceService implements SearchHitsRunner {
                             .should(s -> s.term(t -> t.field("_id").value(nodeId)))
                             .should(s -> s.bool(b2 -> b2
                                     .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
-                                    .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
+                                    .must(m -> m.term(t -> t.field("properties." + CCConstants.getValidLocalName(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL)).value(nodeId)))
                             ))))
                     .conflicts(Conflicts.Proceed)
                     .refresh(true)
                     .script(src -> src
-                            .source(SCRIPT_UPDATE_RELATIONS_BY_KEY)
-                            .params("relations", JsonData.of(relationData)))
-            );
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        log.debug("updated: {}", bulkByScrollResponse.updated());
-        List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
-        for (BulkIndexByScrollFailure failure : bulkFailures) {
-            log.error(failure.cause().toString(), failure.cause());
-        }
-    }
-
-    public void removeRelationsFromNodes(final String nodeId, final List<RelationData> relationData) {
-        // language=painless
-        final String SCRIPT_REMOVE_RELATIONS_BY_KEY = """
-                if (ctx._source.relations == null || ctx._source.relations.size() == 0) {
-                  ctx.op = 'noop';
-                  return;
-                }
-                
-                boolean changed = false;
-                
-                // remove all existing relations that match any relation in params.relations
-                for (int i = ctx._source.relations.size() - 1; i >= 0; i--) {
-                  def existing = ctx._source.relations.get(i);
-                  if (existing == null) {
-                    continue;
-                  }
-                
-                  boolean shouldRemove = false;
-                
-                  for (def incoming : params.relations) {
-                    if (incoming == null) {
-                      continue;
-                    }
-                
-                    if (existing.fromNode == incoming.fromNode
-                        && existing.toNode == incoming.toNode
-                        && existing.type == incoming.type) {
-                      shouldRemove = true;
-                      break;
-                    }
-                  }
-                
-                  if (shouldRemove) {
-                    ctx._source.relations.remove(i);
-                    changed = true;
-                  }
-                }
-                
-                if (!changed) {
-                  ctx.op = 'noop';
-                }
-                """;
-
-        UpdateByQueryResponse bulkByScrollResponse = null;
-        try {
-            bulkByScrollResponse = client.updateByQuery(req -> req
-                    .index(index)
-                    .query(q -> q.bool(b -> b
-                            .should(s -> s.term(t -> t.field("id").value(nodeId)))
-                            .should(s -> s.bool(b2 -> b2
-                                    .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
-                                    .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
-                            ))))
-                    .conflicts(Conflicts.Proceed)
-                    .refresh(true)
-                    .script(src -> src
-                            .source(SCRIPT_REMOVE_RELATIONS_BY_KEY)
+                            .source(SCRIPT_UPDATE_RELATIONS)
                             .params("relations", JsonData.of(relationData)))
             );
         } catch (IOException e) {
@@ -1048,31 +953,11 @@ public class WorkspaceService implements SearchHitsRunner {
         log.info("finished bulk delete shares");
     }
 
-    public void updateNodesWithSuggestions(String nodeId, @NotNull List<PropertySuggestion> suggestions) {
+
+    public void updateNodesWithSuggestions(String nodeId, @NotNull Collection<Map<String, Object>> suggestions) {
         // language=groovy
-        final String SCRIPT_UPDATE_RELATIONS_BY_KEY = """
-                if (ctx._source.suggestions == null) {
-                    ctx._source.suggestions = new ArrayList();
-                }
-                
-                for (def incoming : params.suggestions) {
-                  boolean updated = false;
-                
-                  for (int i = 0; i < ctx._source.suggestions.size(); i++) {
-                    def existing = ctx._source.suggestions.get(i);
-                
-                    if (existing != null && existing.id == incoming.id) {
-                      // Replace the whole relation object (or change to partial field updates if desired)
-                      ctx._source.suggestions.set(i, incoming);
-                      updated = true;
-                      break;
-                    }
-                  }
-                
-                  if (!updated) {
-                    ctx._source.suggestions.add(incoming);
-                  }
-                }
+        final String SCRIPT_UPDATE_SUGGESTIONS = """
+                ctx._source.suggestions = params.suggestions;
                 """;
 
         UpdateByQueryResponse bulkByScrollResponse;
@@ -1083,80 +968,12 @@ public class WorkspaceService implements SearchHitsRunner {
                             .should(s -> s.term(t -> t.field("_id").value(nodeId)))
                             .should(s -> s.bool(b2 -> b2
                                     .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
-                                    .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
+                                    .must(m -> m.term(t -> t.field("properties."+CCConstants.getValidLocalName(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL)).value(nodeId)))
                             ))))
                     .conflicts(Conflicts.Proceed)
                     .refresh(true)
                     .script(src -> src
-                            .source(SCRIPT_UPDATE_RELATIONS_BY_KEY)
-                            .params("suggestions", JsonData.of(suggestions)))
-            );
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        log.debug("updated: {}", bulkByScrollResponse.updated());
-        List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
-        for (BulkIndexByScrollFailure failure : bulkFailures) {
-            log.error(failure.cause().toString(), failure.cause());
-        }
-    }
-
-    public void removeSuggestionsFromNodes(String nodeId, @NotNull List<PropertySuggestion> suggestions) {
-        // language=groovy
-        final String SCRIPT_REMOVE_RELATIONS_BY_KEY = """
-                if (ctx._source.suggestions == null || ctx._source.suggestions.size() == 0) {
-                  ctx.op = 'noop';
-                  return;
-                }
-                
-                boolean changed = false;
-                
-                // remove all existing relations that match any relation in params.relations
-                for (int i = ctx._source.suggestions.size() - 1; i >= 0; i--) {
-                  def existing = ctx._source.suggestions.get(i);
-                  if (existing == null) {
-                    continue;
-                  }
-                
-                  boolean shouldRemove = false;
-                
-                  for (def incoming : params.suggestions) {
-                    if (incoming == null) {
-                      continue;
-                    }
-                
-                    if (existing.id == incoming.id) {
-                      shouldRemove = true;
-                      break;
-                    }
-                  }
-                
-                  if (shouldRemove) {
-                    ctx._source.suggestions.remove(i);
-                    changed = true;
-                  }
-                }
-                
-                if (!changed) {
-                  ctx.op = 'noop';
-                }
-                """;
-
-        UpdateByQueryResponse bulkByScrollResponse;
-        try {
-            bulkByScrollResponse = client.updateByQuery(req -> req
-                    .index(index)
-                    .query(q -> q.bool(b -> b
-                            .should(s -> s.term(t -> t.field("id").value(nodeId)))
-                            .should(s -> s.bool(b2 -> b2
-                                    .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
-                                    .must(m -> m.term(t -> t.field(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL).value(nodeId)))
-                            ))))
-                    .conflicts(Conflicts.Proceed)
-                    .refresh(true)
-                    .script(src -> src
-                            .source(SCRIPT_REMOVE_RELATIONS_BY_KEY)
+                            .source(SCRIPT_UPDATE_SUGGESTIONS)
                             .params("suggestions", JsonData.of(suggestions)))
             );
         } catch (IOException e) {
@@ -1323,7 +1140,7 @@ public class WorkspaceService implements SearchHitsRunner {
         log.info("finished for collection: " + collection.getNodeRef());
     }
 
-    private void onUpdateRefreshUsageCollectionReplicas(NodeMetadataSimple node, boolean update, boolean resyncIndex) throws IOException {
+    public void onUpdateRefreshUsageCollectionReplicas(NodeMetadataSimple node, boolean update, boolean resyncIndex) throws IOException {
         final String query, queryProposal;
         // collect already written collections
         Set<String> collections = new HashSet<>();

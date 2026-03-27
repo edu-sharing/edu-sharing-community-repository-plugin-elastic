@@ -441,7 +441,6 @@ public class AutoConfigurationTracker {
                                 .properties("value", prop -> prop.keyword(v -> v))
                                 .properties("version", prop -> prop.keyword(v -> v))
                                 .properties("status", prop -> prop.keyword(v -> v))
-                                .properties("timestamp", prop -> prop.date(v -> v))
                         ))
                 .properties("extendedData", prop -> prop.nested(nested -> nested));
     }

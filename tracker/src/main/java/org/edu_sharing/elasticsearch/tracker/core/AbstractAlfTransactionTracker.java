@@ -136,9 +136,12 @@ public abstract class AbstractAlfTransactionTracker<PROPS extends AlfTransaction
                 if (!list.isEmpty()) getNodeParam.setExcludeAspects(list);
             }
 
-            if (!StringUtils.isEmpty(this.props.getStoreIdentifier()) && !StringUtils.isEmpty(this.props.getStoreProtocol())) {
-                getNodeParam.setStoreProtocol(props.getStoreProtocol());
+            if (!StringUtils.isEmpty(this.props.getStoreIdentifier())) {
                 getNodeParam.setStoreIdentifier(props.getStoreIdentifier());
+            }
+
+            if(!StringUtils.isEmpty(this.props.getStoreProtocol())){
+                getNodeParam.setStoreProtocol(props.getStoreProtocol());
             }
 
             getNodeParam.setTxnIds(transactionIds);

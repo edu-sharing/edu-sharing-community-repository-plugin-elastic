@@ -26,7 +26,7 @@ public class ElasticIndexCountComparator {
     public static void main(String[] args) throws IOException {
 
         String index1 = "workspace_10.0_bak";
-        String index2 = "workspace_10.0";
+        String index2 = "workspace_10.1";
 
         RestClient restClient = RestClient.builder(
                 new HttpHost("localhost", 9200)

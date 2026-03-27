@@ -86,7 +86,7 @@ public class StatisticsTracker extends AbstractTracker<BaseTrackerProperties, St
 
                 log.info("found {} statistic changes", statistics.size());
                 for (String nodeId : statistics) {
-                    log.debug("track statistics for node {}", nodeId);
+                    log.info("track statistics for node {}", nodeId);
                     try {
                         List<NodeData> statisticsForNode = eduSharingService.getStatisticsForNode(nodeId, trackFromTimeFull);
                         nodeStatistics.put(nodeId, statisticsForNode);
