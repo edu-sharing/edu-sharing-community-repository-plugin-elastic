@@ -60,7 +60,7 @@ public class Migrations {
 
     @Bean
     @Order(3)
-    public MigrationInfo migration10_1(ObjectProvider<MigrationCallback10_1> migrationCallback) {
-        return new MigrationInfo("10.1", Set.of(), migrationCallback::getObject);
+    public MigrationInfo migration10_0_1(ObjectProvider<MigrationCallback10_1> migrationCallback) {
+        return new MigrationInfo("10.0.1", Set.of(), migrationCallback::getObject);
     }
 }
