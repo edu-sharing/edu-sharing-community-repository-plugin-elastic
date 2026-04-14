@@ -2,10 +2,9 @@ package org.edu_sharing.elasticsearch.elasticsearch.core;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import lombok.RequiredArgsConstructor;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.StatisticTimestamp;
-import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
 import org.springframework.context.annotation.Configuration;
+
+import java.lang.reflect.Constructor;
 
 @Configuration
 @RequiredArgsConstructor
@@ -13,15 +12,14 @@ public class StatusIndexServiceFactory {
 
     private final ElasticsearchClient client;
 
-    public StatusIndexService<Tx> createTransactionStateService(String index){
-        return new StatusIndexService<>(index, client, Tx::new, "1", Tx.class);
-    }
+    public <T> StatusIndexServiceInterface<T> createStateService(Class<T> statusClass, String documentId, String index) {
+        Constructor<T> defaultConstructor;
+        try {
+            defaultConstructor = statusClass.getConstructor();
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("No default constructor found for status class " + statusClass.getName());
+        }
 
-    public StatusIndexService<AclTx> createAclStateService(String index){
-        return new StatusIndexService<>(index, client, AclTx::new, "2", AclTx.class);
-    }
-
-    public StatusIndexService<StatisticTimestamp> createStatisticTimestampStateService(String index){
-        return new StatusIndexService<>(index, client, StatisticTimestamp::new, "3", StatisticTimestamp.class);
+        return new StatusIndexService<>(index, client, defaultConstructor::newInstance, documentId, statusClass);
     }
 }

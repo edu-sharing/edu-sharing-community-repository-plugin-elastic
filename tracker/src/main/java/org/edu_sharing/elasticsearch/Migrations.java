@@ -1,31 +1,66 @@
 package org.edu_sharing.elasticsearch;
 
+import lombok.RequiredArgsConstructor;
+import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCallback10_1;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationInfo;
+import org.edu_sharing.elasticsearch.tracker.auth.AuthoritiesTracker;
+import org.edu_sharing.elasticsearch.tracker.collection.CollectionSyncTracker;
+import org.edu_sharing.elasticsearch.tracker.main.MainTracker;
+import org.edu_sharing.elasticsearch.tracker.preview.PreviewTracker;
+import org.edu_sharing.elasticsearch.tracker.statistics.StatisticsTracker;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 
+import java.util.Set;
+
 @Configuration
+@RequiredArgsConstructor
 public class Migrations {
+
+    /**
+     * Configuration for migration beans.
+     * Don't inject other beans directly here, because of circular dependencies.
+     * This Bean is injecte by AutoConfigurationTracker!!!
+     * Use ObjectProvider instead.
+     */
 
     @Bean
     @Order(0)
     public MigrationInfo migration9_0() {
-        return new MigrationInfo("9.0", true, false);
+        return new MigrationInfo("9.0",
+                Set.of(
+                        MainTracker.class,
+                        CollectionSyncTracker.class,
+                        PreviewTracker.class,
+                        StatisticsTracker.class
+                ), null);
     }
 
     @Bean
     @Order(1)
     public MigrationInfo migration9_1() {
-        return new MigrationInfo("9.1", false, false);
+        return new MigrationInfo("9.1", Set.of(), null);
     }
 
     @Bean
     @Order(2)
     public MigrationInfo migration10_0() {
-        /**
-         * required cause old tracker did not map workflow object correctly
-         */
-        return new MigrationInfo("10.0", true,true);
+        // required cause old tracker did not map workflow object correctly
+        return new MigrationInfo("10.0",
+                Set.of(
+                        MainTracker.class,
+                        CollectionSyncTracker.class,
+                        PreviewTracker.class,
+                        StatisticsTracker.class,
+                        AuthoritiesTracker.class
+                ), null);
+    }
+
+    @Bean
+    @Order(3)
+    public MigrationInfo migration10_0_1(ObjectProvider<MigrationCallback10_1> migrationCallback) {
+        return new MigrationInfo("10.0.1", Set.of(), migrationCallback::getObject);
     }
 }

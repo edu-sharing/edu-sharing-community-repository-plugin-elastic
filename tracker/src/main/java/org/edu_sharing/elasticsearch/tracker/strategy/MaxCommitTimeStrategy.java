@@ -11,7 +11,6 @@ public class MaxCommitTimeStrategy implements TrackerStrategy {
 
     @Override
     public Long getLimit() {
-        // select_Txns ibatis template does < #{toCommitTimeExclusive} but we want it to be included
-        return maxCommitTime + 1L;
+        return maxCommitTime;
     }
 }
