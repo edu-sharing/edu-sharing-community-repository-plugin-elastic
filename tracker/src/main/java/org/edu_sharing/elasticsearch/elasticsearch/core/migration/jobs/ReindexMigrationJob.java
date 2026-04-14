@@ -44,8 +44,10 @@ public class ReindexMigrationJob implements MigrationJob {
                             .conflicts(Conflicts.Proceed)
                             .source(src -> src
                                             .index(sourceIndex)
-                                            .size(1000))
-                            .dest(dest -> dest.index(targetIndex)))
+                                            .size(200))
+                            .dest(dest -> dest.index(targetIndex))
+                            .requestsPerSecond(100F)
+                    )
                     .task();
             context.setMigrationContent(taskId);
         }catch (IOException ex){
