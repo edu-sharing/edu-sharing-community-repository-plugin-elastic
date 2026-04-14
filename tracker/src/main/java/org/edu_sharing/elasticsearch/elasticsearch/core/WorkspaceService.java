@@ -1381,7 +1381,7 @@ public class WorkspaceService implements SearchHitsRunner {
      * for that node. The map will not include entries for nodes where the specified property is null or absent.
      * @throws IOException if an error occurs during the retrieval process.
      */
-    public Map<String, Serializable> getProperty(List<String> nodeRefs, String property) throws IOException {
+    public Map<String, Serializable> getProperty(Collection<String> nodeRefs, String property) throws IOException {
         List<String> excludes = new ArrayList<>();
         excludes.add("preview");
         excludes.add("content");

@@ -73,17 +73,9 @@ public class MainTracker extends AbstractAlfTransactionTracker<AlfTransactionTra
     }
 
     private void indexNodesMetadata(List<NodeMetadata> nodeMetadata) throws IOException {
-        // filter not allowed types:
-        log.info("filter disallowed types");
-        nodeMetadata = nodeMetadata.stream()
-                .peek(d -> {
-                    if (!isAllowedType(d)) log.info("ignoring type: {}", d.getType());
-                })
-                .filter(this::isAllowedType)
-                .toList();
 
-        log.info("find and add nodes with subobject changes");
-        nodeMetadata = addNodesWithSubobjectChanges(nodeMetadata);
+        log.info("find and add nodes with subobject changes and filter disallowed type");
+        nodeMetadata = addNodesWithSubobjectChangesAndFilterDisallowedTypes(nodeMetadata);
         log.info("transform to NodeData");
         List<NodeData> toIndex = getNodeData(nodeMetadata);
         log.info("translate i18n");
@@ -136,9 +128,9 @@ public class MainTracker extends AbstractAlfTransactionTracker<AlfTransactionTra
     }
 
     @NotNull
-    private List<NodeMetadata> addNodesWithSubobjectChanges(List<NodeMetadata> nodeData) throws IOException {
+    private List<NodeMetadata> addNodesWithSubobjectChangesAndFilterDisallowedTypes(List<NodeMetadata> nodeData) throws IOException {
         List<NodeMetadata> toIndexMd = new ArrayList<>();
-        List<Node> ioSubobjectChange = new ArrayList<>();
+        Set<String> parentIds = new HashSet<>();
 
         for (NodeMetadata data : nodeData) {
 
@@ -150,19 +142,15 @@ public class MainTracker extends AbstractAlfTransactionTracker<AlfTransactionTra
                     && CCConstants.STORE_WORKSPACES_SPACES.equals(Tools.getStoreRef(data.getNodeRef()))
                     && reindexParentConfig.filter().match(data)) {
 
-                  List<String> paths = Arrays.stream(data.getPaths().get(0).getApath().split("/")).collect(Collectors.toList());
+                List<String> paths = Arrays.stream(data.getPaths().get(0).getApath().split("/")).collect(Collectors.toList());
                 Collections.reverse(paths);
-                List<String> parentIds = paths.stream().limit(reindexParentConfig.maxLookAHead()).map(x -> CCConstants.STORE_WORKSPACES_SPACES + "/" + x).toList();
-                Map<String, Serializable> values = workspaceService.getProperty(parentIds, "dbid");
-
-                ioSubobjectChange.addAll(values.values().stream()
-                        .map(serializable -> (Number) serializable)
-                        .map(Number::longValue)
-                        .map(x->Node.builder().id(x).build())
+                parentIds.addAll(paths.stream()
+                        .limit(reindexParentConfig.maxLookAHead())
+                        .map(x -> CCConstants.STORE_WORKSPACES_SPACES + "/" + x)
                         .toList());
             }
 
-              if (!typeConfig.index()) {
+            if (!typeConfig.index()) {
                 log.debug("ignoring type: {}", data.getType());
                 continue;
             }
@@ -170,15 +158,26 @@ public class MainTracker extends AbstractAlfTransactionTracker<AlfTransactionTra
             toIndexMd.add(data);
         }
 
-        if (!ioSubobjectChange.isEmpty()) {
-            toIndexMd.addAll(alfClient.getNodeMetadata(ioSubobjectChange));
+        if (!parentIds.isEmpty()) {
+            Set<Long> knownDBIds = toIndexMd.stream().map(NodeMetadata::getId).collect(Collectors.toSet());
+            Map<String, Serializable> values = workspaceService.getProperty(parentIds, "dbid");
+            List<Node> parentNodes = values.values().stream()
+                    .map(serializable -> (Number) serializable)
+                    .map(Number::longValue)
+                    .map(x -> Node.builder().id(x).build())
+                    .filter(x -> !knownDBIds.contains(x.getId()))
+                    .toList();
+
+            if (!parentNodes.isEmpty()) {
+                List<NodeMetadata> parentNodeMetadata = alfClient.getNodeMetadata(parentNodes)
+                        .stream()
+                        .filter(x -> typesConfig.getTypeConfig(x.getType()).index())
+                        .toList();
+
+                toIndexMd.addAll(parentNodeMetadata);
+            }
         }
         return toIndexMd;
-    }
-
-    private boolean isAllowedType(NodeMetadata nodeMetadata) {
-        TypesConfigItem typeConfig = typesConfig.getTypeConfig(nodeMetadata.getType());
-        return typeConfig.index();
     }
 }
 
