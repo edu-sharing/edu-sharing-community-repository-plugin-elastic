@@ -42,8 +42,9 @@ public class ReindexMigrationJob implements MigrationJob {
             taskId = client.reindex(req -> req
                             .waitForCompletion(false)
                             .conflicts(Conflicts.Proceed)
-                            .source(src -> src.index(sourceIndex)
-                            .size(1000))
+                            .source(src -> src
+                                            .index(sourceIndex)
+                                            .size(1000))
                             .dest(dest -> dest.index(targetIndex)))
                     .task();
             context.setMigrationContent(taskId);
