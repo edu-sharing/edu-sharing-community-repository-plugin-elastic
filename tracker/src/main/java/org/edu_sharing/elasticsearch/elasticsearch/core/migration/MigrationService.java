@@ -126,7 +126,7 @@ public class MigrationService {
             return true;
         } else {
             // no migration required we should set the appInfo
-            log.info("Plain elastic search detected, no migration required");
+            log.info("Plain elastic search detected, no migration required (version {})", currentVersion);
             appInfo.setTrackerVersion(latestVersion);
             appInfoStatusService.setState(appInfo);
             return false;
