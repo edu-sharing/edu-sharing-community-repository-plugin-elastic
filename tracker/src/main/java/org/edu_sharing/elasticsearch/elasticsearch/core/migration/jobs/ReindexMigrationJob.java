@@ -11,6 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationContext;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationException;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationStep;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -28,6 +29,12 @@ public class ReindexMigrationJob implements MigrationJob {
 
     private String taskId;
 
+    @Value("${migration.reindex.size}")
+    Integer reindexBatchSize;
+
+    @Value("${migration.reindex.requestsPerSecond}")
+    Float requestsPerSecond;
+
     @Override
     public void onEnterState(MigrationContext context) {
         Objects.requireNonNull(sourceIndex, "sourceIndex must not be null");
@@ -44,9 +51,9 @@ public class ReindexMigrationJob implements MigrationJob {
                             .conflicts(Conflicts.Proceed)
                             .source(src -> src
                                             .index(sourceIndex)
-                                            .size(200))
+                                            .size(reindexBatchSize))
                             .dest(dest -> dest.index(targetIndex))
-                            .requestsPerSecond(100F)
+                            .requestsPerSecond(requestsPerSecond)
                     )
                     .task();
             context.setMigrationContent(taskId);
