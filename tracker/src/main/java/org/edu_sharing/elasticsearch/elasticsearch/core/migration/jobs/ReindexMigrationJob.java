@@ -26,14 +26,10 @@ public class ReindexMigrationJob implements MigrationJob {
     private final String sourceIndex;
     private final String targetIndex;
 
-
     private String taskId;
 
-    @Value("${migration.reindex.size}")
-    Integer reindexBatchSize;
-
-    @Value("${migration.reindex.requestsPerSecond}")
-    Float requestsPerSecond;
+    private final Integer reindexBatchSize;
+    private final Float requestsPerSecond;
 
     @Override
     public void onEnterState(MigrationContext context) {
