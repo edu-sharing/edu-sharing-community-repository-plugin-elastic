@@ -42,6 +42,9 @@ public class MigrationService {
     @Value("${migration.reindex.requestsPerSecond}")
     Float requestsPerSecond;
 
+    @Value("${migration.reindex.slices}")
+    Integer reindexSlices;
+
     public void runMigration() throws IOException, InterruptedException {
         AppInfo appInfo = getAppInfo();
 
@@ -244,9 +247,9 @@ public class MigrationService {
             );
 
             jobs = List.of( // Jobs needs to be ordered by MigrationStep (see requires migration)
-                    new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(),reindexBatchSize,requestsPerSecond),
-                    new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),reindexBatchSize,requestsPerSecond),
-                    new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(),reindexBatchSize,requestsPerSecond),
+                    new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(),reindexBatchSize,requestsPerSecond,reindexSlices),
+                    new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),reindexBatchSize,requestsPerSecond,reindexSlices),
+                    new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(),reindexBatchSize,requestsPerSecond,reindexSlices),
                     new CallbackMigrationJob(client, context.getMigrationCallbacks()),
                     new DocumentsMigrationJob(adminService, context.getMigrationTrackerStateIndex(), trackerRegistry, context.getMigrationTracker(), statusIndexServiceFactory, trackerExecutorFactory),
                     new CompleteMigrationJob()

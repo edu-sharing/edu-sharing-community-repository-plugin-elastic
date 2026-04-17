@@ -2,6 +2,7 @@ package org.edu_sharing.elasticsearch.elasticsearch.core.migration.jobs;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Conflicts;
+import co.elastic.clients.elasticsearch._types.SlicesCalculation;
 import co.elastic.clients.elasticsearch.tasks.GetTasksResponse;
 import co.elastic.clients.elasticsearch.tasks.TaskInfo;
 import lombok.Getter;
@@ -30,6 +31,7 @@ public class ReindexMigrationJob implements MigrationJob {
 
     private final Integer reindexBatchSize;
     private final Float requestsPerSecond;
+    private final Integer slices;
 
     @Override
     public void onEnterState(MigrationContext context) {
@@ -48,6 +50,7 @@ public class ReindexMigrationJob implements MigrationJob {
                             .source(src -> src
                                             .index(sourceIndex)
                                             .size(reindexBatchSize))
+                            .slices(s -> s.value(slices))
                             .dest(dest -> dest.index(targetIndex))
                             .requestsPerSecond(requestsPerSecond)
                     )
