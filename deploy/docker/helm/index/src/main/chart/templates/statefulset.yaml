@@ -223,8 +223,13 @@ spec:
               - "/bin/bash"
               - "-ec"
               - |
-                [[ -f /run/lock/velero.lock ]] && exit 1
-                curl -s --fail localhost:9200/_cluster/health?local=true&timeout={{ .timeoutSeconds }}s
+                BACKUP_ROOT="/usr/share/elasticsearch/share/${HOSTNAME%-*}"
+                if [[ -f "${BACKUP_ROOT}/velero.restore.required" ]]; then
+                  [[ -f "${BACKUP_ROOT}/velero.restore.completed" ]] || exit 1
+                  rm -f "${BACKUP_ROOT}/velero.restore.required"
+                  rm -f "${BACKUP_ROOT}/velero.restore.completed"
+                fi
+                curl -fsS "http://localhost:9200/_cluster/health?local=true&timeout={{ .timeoutSeconds }}s" >/dev/null
           failureThreshold: {{ .failureThreshold }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
           periodSeconds: {{ .periodSeconds }}
@@ -594,8 +599,13 @@ spec:
               - "/bin/bash"
               - "-ec"
               - |
-                [[ -f /run/lock/velero.lock ]] && exit 1
-                curl -s --fail localhost:9200/_cluster/health?local=true&timeout={{ .timeoutSeconds }}s
+                BACKUP_ROOT="/usr/share/elasticsearch/share/${HOSTNAME%-*}"
+                if [[ -f "${BACKUP_ROOT}/velero.restore.required" ]]; then
+                  [[ -f "${BACKUP_ROOT}/velero.restore.completed" ]] || exit 1
+                  rm -f "${BACKUP_ROOT}/velero.restore.required"
+                  rm -f "${BACKUP_ROOT}/velero.restore.completed"
+                fi
+                curl -fsS "http://localhost:9200/_cluster/health?local=true&timeout={{ .timeoutSeconds }}s" >/dev/null
           failureThreshold: {{ .failureThreshold }}
           initialDelaySeconds: {{ .initialDelaySeconds }}
           periodSeconds: {{ .periodSeconds }}
