@@ -253,7 +253,7 @@ startupProbe:
   ## @param startupProbe.failureThreshold Failure threshold for startupProbe
   failureThreshold: 30
   ## @param startupProbe.initialDelaySeconds Initial delay seconds for startupProbe
-  initialDelaySeconds: 20
+  initialDelaySeconds: 0
   ## @param startupProbe.periodSeconds Period seconds for startupProbe
   periodSeconds: 20
   ## @param startupProbe.successThreshold Success threshold for startupProbe
