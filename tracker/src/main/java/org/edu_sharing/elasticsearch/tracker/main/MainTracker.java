@@ -56,6 +56,7 @@ public class MainTracker extends AbstractAlfTransactionTracker<AlfTransactionTra
 
         workspaceService.beforeDeleteCleanupChildrenReplicas(toDelete);
         workspaceService.delete(toDelete);
+        authorityService.delete(toDelete);
 
         // index nodes
         //some transactions can have a lot of Nodes which can cause trouble on alfresco so use partitioning
