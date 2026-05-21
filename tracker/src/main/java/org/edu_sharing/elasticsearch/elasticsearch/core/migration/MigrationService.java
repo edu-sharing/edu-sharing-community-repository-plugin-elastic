@@ -15,9 +15,9 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.state.AppInfo;
 import org.edu_sharing.elasticsearch.tracker.core.TrackerConfig;
 import org.edu_sharing.elasticsearch.tracker.core.TrackerExecutorFactory;
 import org.edu_sharing.elasticsearch.tracker.core.TrackerRegistry;
-import org.edu_sharing.elasticsearch.tracker.strategy.CommiteTimeStatus;
-import org.springframework.beans.factory.annotation.Value;
+import org.edu_sharing.elasticsearch.tracker.strategy.CommitTimeStatus;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -311,9 +311,9 @@ public class MigrationService {
             );
 
             jobs = List.of( // Jobs needs to be ordered by MigrationStep (see requires migration)
-                    new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(),reindexBatchSize,requestsPerSecond),
-                    new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),reindexBatchSize,requestsPerSecond),
-                    new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(),reindexBatchSize,requestsPerSecond),
+                    new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(),workspaceMigrationScript,reindexBatchSize,requestsPerSecond),
+                    new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),authorityMigrationScript,reindexBatchSize,requestsPerSecond),
+                    new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(),transactionMigrationScript,reindexBatchSize,requestsPerSecond),
                     new CallbackMigrationJob(client, context.getMigrationCallbacks()),
                     new DocumentsMigrationJob(adminService, context.getMigrationTrackerStateIndex(), trackerRegistry, context.getMigrationTracker(), statusIndexServiceFactory, trackerExecutorFactory),
                     new CompleteMigrationJob()
