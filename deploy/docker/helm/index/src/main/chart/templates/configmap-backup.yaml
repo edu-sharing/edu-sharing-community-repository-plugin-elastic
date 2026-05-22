@@ -17,7 +17,7 @@ data:
     set -x
 
     ES_URL="http://localhost:9200"
-    REPO="backup"
+    REPO="${HOSTNAME%-*}"
     SNAPSHOT="snapshot_$(date +%Y%m%d%H%M%S)"
 
     echo "waiting for elasticsearch"
@@ -52,7 +52,7 @@ data:
     set -x
 
     ES_URL="http://localhost:9200"
-    REPO="backup"
+    REPO="${HOSTNAME%-*}"
     CUTOFF="$(date -d "30 days ago" +%Y%m%d%H%M%S)"
 
     echo "waiting for elasticsearch"
@@ -79,7 +79,7 @@ data:
     set -x
 
     ES_URL="http://localhost:9200"
-    REPO="backup"
+    REPO="${HOSTNAME%-*}"
 
     echo "waiting for elasticsearch"
     until curl -fsS "${ES_URL}/_cluster/health?wait_for_status=green"; do echo -n "."; sleep 5 ; done
