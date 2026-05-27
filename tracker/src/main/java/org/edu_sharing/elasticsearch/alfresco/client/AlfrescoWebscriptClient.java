@@ -38,9 +38,6 @@ public class AlfrescoWebscriptClient implements AlfrescoApi{
     @Value("${alfresco.readTimeout}")
     long alfrescoReadTimeout;
 
-    @Value("${trackContent}")
-    boolean trackContent;
-
     String URL_TRANSACTIONS = "/alfresco/service/api/solr/transactions";
 
     String URL_NODES_TRANSACTION = "/alfresco/s/api/solr/nodes";
@@ -314,16 +311,6 @@ public class AlfrescoWebscriptClient implements AlfrescoApi{
 
 
         for (NodeData nodeData : result) {
-            if (parameters.content && trackContent) {
-                String fullText = null;
-                try {
-                    fullText = getTextContent(nodeData.getNodeMetadata().getId());
-                }catch(Throwable t) {
-                    logger.warn("Error while fetching text content for " + nodeData.getNodeMetadata().getNodeRef(), t);
-                }
-                if (fullText != null) nodeData.setFullText(fullText);
-            }
-
             if(parameters.children) {
                 List<String> allowedChildTypes = new ArrayList<>();
                 if ("ccm:io".equals(nodeData.getNodeMetadata().getType())) {
