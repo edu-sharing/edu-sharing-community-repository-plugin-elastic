@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.cxf.common.util.StringUtils;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
+import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
@@ -29,6 +30,10 @@ public abstract class AbstractAlfTransactionTracker<PROPS extends AlfTransaction
     protected AlfrescoApi alfClient;
     @Setter(onMethod_ = @Autowired)
     protected WorkspaceService workspaceService;
+    @Setter(onMethod_ = @Autowired)
+    protected AuthorityService authorityService;
+
+
     @Setter(onMethod_ = @Autowired)
     protected EduSharingClient eduSharingClient;
 

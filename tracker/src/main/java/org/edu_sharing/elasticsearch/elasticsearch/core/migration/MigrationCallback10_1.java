@@ -9,6 +9,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterf
 import org.edu_sharing.elasticsearch.tracker.acl.AclTracker;
 import org.edu_sharing.elasticsearch.tracker.auth.AuthoritiesTracker;
 import org.edu_sharing.elasticsearch.tracker.collection.CollectionSyncTracker;
+import org.edu_sharing.elasticsearch.tracker.content.ContentTracker;
 import org.edu_sharing.elasticsearch.tracker.core.TrackerConfig;
 import org.edu_sharing.elasticsearch.tracker.core.TrackerRegistry;
 import org.edu_sharing.elasticsearch.tracker.main.MainTracker;
@@ -35,6 +36,7 @@ public class MigrationCallback10_1 implements MigrationCallback {
             new TrackerMigrationInfo<>(AuthoritiesTracker.class, "1"),
             new TrackerMigrationInfo<>(CollectionSyncTracker.class, "1"),
             new TrackerMigrationInfo<>(PreviewTracker.class, "1"),
+            new TrackerMigrationInfo<>(ContentTracker.class, "1"),
             new TrackerMigrationInfo<>(StatisticsAlfrescoTracker.class, "1"),
             new TrackerMigrationInfo<>(AclTracker.class, "2"),
             new TrackerMigrationInfo<>(StatisticsTracker.class, "3")

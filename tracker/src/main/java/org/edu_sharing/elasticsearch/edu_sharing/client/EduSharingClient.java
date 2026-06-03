@@ -101,6 +101,8 @@ public class EduSharingClient {
 
     String URL_GET_USER = "/edu-sharing/rest/iam/v1/people/-home-/${user}";
 
+    String URL_GET_TEXT = "/edu-sharing/rest/node/v1/nodes/-home-/${uuid}/textContent";
+
     NewCookie jsessionId = null;
 
     Map<String, Map<String, Map<String, ValuespaceEntries>>> cache = new HashMap<>();
@@ -521,6 +523,16 @@ public class EduSharingClient {
                 cookie(jsessionId.getName(), jsessionId.getValue()).
                 get().readEntity(new GenericType<List<NodeStatistic>>() {
                 });
+    }
+
+    @EduSharingAuthentication.ManageAuthentication
+    public String getTextContent(String uuid){
+        String url = URL_GET_TEXT.replace("${uuid}", uuid);
+        url = getUrl(url);
+        return educlient
+                .target(url)
+                .request(MediaType.APPLICATION_JSON)
+                .cookie(jsessionId.getName(), jsessionId.getValue()).get().readEntity(Text.class).getText();
     }
 
 

@@ -6,9 +6,7 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class FetchParameters {
-    boolean content = true;
     boolean children = true;
-
-    public static FetchParameters MINIMAL = new FetchParameters(false,false);
-    public static FetchParameters ALL = new FetchParameters(true, true);
+    public static FetchParameters MINIMAL = new FetchParameters(false);
+    public static FetchParameters ALL = new FetchParameters(true);
 }
