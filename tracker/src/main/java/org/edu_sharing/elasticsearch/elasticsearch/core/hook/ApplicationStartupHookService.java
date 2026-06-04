@@ -5,21 +5,19 @@ import co.elastic.clients.elasticsearch.core.SearchResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.elasticsearch.core.ApplicationStatePublisher;
-import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
 
 /**
  * Service that manages and executes application startup hooks.
  * Runs after all beans are initialized but before TrackerScheduler starts scheduling trackers.
  */
 @Slf4j
-@Component
 @Order(-100) // Execute before TrackerScheduler (which has @Order(0))
 @RequiredArgsConstructor
 public class ApplicationStartupHookService implements SmartInitializingSingleton {
@@ -40,7 +38,7 @@ public class ApplicationStartupHookService implements SmartInitializingSingleton
             // Sort hooks by order
             List<ApplicationStartupHook> sortedHooks = hooks.stream()
                     .sorted(Comparator.comparingInt(ApplicationStartupHook::getOrder))
-                    .collect(Collectors.toList());
+                    .toList();
 
             for (ApplicationStartupHook hook : sortedHooks) {
                 String hookName = hook.getName();
