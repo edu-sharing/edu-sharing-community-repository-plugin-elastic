@@ -29,7 +29,7 @@ public class DefaultConfiguration {
     }
 
     @Bean
-    public ApplicationStartupHookService defaultApplicationState(ElasticsearchClient elasticsearchClient, List<ApplicationStartupHook> hooks) {
+    public ApplicationStartupHookService applicationStartupHookService(ElasticsearchClient elasticsearchClient, List<ApplicationStartupHook> hooks) {
         return new ApplicationStartupHookService(elasticsearchClient,hooks, defaultApplicationState());
     }
 
