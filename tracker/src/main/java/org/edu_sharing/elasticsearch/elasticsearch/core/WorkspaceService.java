@@ -67,9 +67,6 @@ public class WorkspaceService implements SearchHitsRunner {
     @Value("${statistic.historyInDays}")
     int statisticHistoryInDays;
 
-    @Value("${maxContentLength}")
-    int maxContentLength;
-
     @Value("${elastic.maxCollectionChildItemsUpdateSize}")
     int maxCollectionChildItemsUpdateSize;
 
@@ -364,37 +361,6 @@ public class WorkspaceService implements SearchHitsRunner {
                 }
                 builder.endObject();
             }
-            //content
-            /*
-             *     "{http://www.alfresco.org/model/content/1.0}content": {
-             *    "contentId": "279",
-             *    "encoding": "UTF-8",
-             *    "locale": "de_DE_",
-             *    "mimetype": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-             *    "size": "8385"
-             * },
-             */
-            @SuppressWarnings("unchecked")
-            Map<String, Object> content = (Map<String, Object>) node.getProperties().get("{http://www.alfresco.org/model/content/1.0}content");
-            if (content != null) {
-
-                builder.startObject("content");
-                builder.field("contentId", content.get("contentId"));
-                builder.field("encoding", content.get("encoding"));
-                builder.field("locale", content.get("locale"));
-                builder.field("mimetype", content.get("mimetype"));
-                builder.field("size", content.get("size"));
-                if (nodeData.getFullText() != null) {
-                    if (maxContentLength > 0 && nodeData.getFullText().length() > maxContentLength) {
-                        log.info("Node {} has too large fulltext: {}. Will be truncated to {}", node.getNodeRef(), nodeData.getFullText().length(), maxContentLength);
-                        builder.field("fulltext", nodeData.getFullText().substring(0, maxContentLength));
-                    } else {
-                        builder.field("fulltext", nodeData.getFullText());
-                    }
-                }
-                builder.endObject();
-            }
-
 
             Map<String, Object> contributorProperties = new HashMap<>();
             builder.startObject("properties");
