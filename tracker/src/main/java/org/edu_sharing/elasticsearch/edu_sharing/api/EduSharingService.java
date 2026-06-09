@@ -9,6 +9,8 @@ import org.edu_sharing.elasticsearch.alfresco.client.NodePreview;
 import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewApi;
 import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewData;
 import org.edu_sharing.elasticsearch.tools.Tools;
+import org.edu_sharing.generated.repository.backend.services.rest.client.api.*;
+import org.edu_sharing.generated.repository.backend.services.rest.client.model.*;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -29,7 +31,7 @@ public class EduSharingService {
     private final StatisticV1Api statisticV1Api;
     private final PreviewApi previewApi;
     private final TrackingV1Api trackingV1Api;
-    private final NodesV1Api nodesV1Api;
+    private final NodeV1Api nodeV1Api;
     private final SharingV1Api sharingV1Api;
     private final RelationV1Api relationV1Api;
     private final SuggestionsV1Api suggestionsV1Api;
@@ -225,7 +227,11 @@ public class EduSharingService {
                 .block();
     }
 
-    public List<RelationData> getRelations(String nodeId) {
-        return nodes.getRawRelations(DEFAULT_REPOSITORY, nodeId).collectList().block();
+    public String getTextContent(String nodeId) {
+        NodeText text = nodeV1Api.getTextContent(DEFAULT_REPOSITORY, nodeId, false).block();
+        if(text == null) {
+            return null;
+        }
+        return text.getText();
     }
 }
