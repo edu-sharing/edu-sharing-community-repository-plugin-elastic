@@ -4,7 +4,10 @@ import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.json.JsonData;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.edu_sharing.elasticsearch.alfresco.client.*;
+import org.edu_sharing.elasticsearch.alfresco.client.FetchParameters;
+import org.edu_sharing.elasticsearch.alfresco.client.Node;
+import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
+import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractAlfTransactionTracker;
@@ -124,7 +127,7 @@ public class ContentTracker extends AbstractAlfTransactionTracker<ContentTracker
                     if(ContentTrackerProperties.Api.Alfresco.equals(this.props.getApi())) {
                         fullText = this.alfClient.getTextContent(nd.getNodeMetadata().getId());
                     }else if(ContentTrackerProperties.Api.EduSharing.equals(this.props.getApi())){
-                        fullText = this.eduSharingClient.getTextContent(Tools.getUUID(nd.getNodeMetadata().getNodeRef()));
+                        fullText = this.eduSharingService.getTextContent(Tools.getUUID(nd.getNodeMetadata().getNodeRef()));
                     }else log.warn("Unknown FullTextApi: " + this.props.getApi());
                 }catch(Throwable t) {
                     log.warn("Error while fetching text content for " + nd.getNodeMetadata().getNodeRef(), t);
