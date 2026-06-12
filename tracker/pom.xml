@@ -19,7 +19,7 @@
   <name>edu_sharing-community-repository-plugin-elastic-tracker</name>
 
   <properties>
-    <spring.boot.version>3.4.13</spring.boot.version>
+    <spring.boot.version>3.5.15</spring.boot.version>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
     <java.version>17</java.version>
