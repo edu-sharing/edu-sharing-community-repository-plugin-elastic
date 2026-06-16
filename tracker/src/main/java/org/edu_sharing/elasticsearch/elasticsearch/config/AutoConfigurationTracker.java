@@ -8,6 +8,7 @@ import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
 import co.elastic.clients.elasticsearch.indices.IndexSettings;
 import co.elastic.clients.elasticsearch.indices.IndexSettingsAnalysis;
 import co.elastic.clients.elasticsearch.synonyms.ElasticsearchSynonymsClient;
+import co.elastic.clients.util.NamedValue;
 import co.elastic.clients.util.ObjectBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -131,7 +132,7 @@ public class AutoConfigurationTracker {
         return s.index(id -> id
                         .numberOfShards(Integer.toString(indexNumberOfShards))
                         .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))
-                .mapping(mapping -> mapping.totalFields(tf -> tf.limit(20000L)))
+                .mapping(mapping -> mapping.totalFields(tf -> tf.limit("20000")))
                 .analysis(this::getIndexSettingAnalysis);
     }
 
@@ -148,8 +149,8 @@ public class AutoConfigurationTracker {
                 .filter("shingle", f -> f
                         .definition(def -> def
                                 .shingle(shingle -> shingle
-                                        .minShingleSize("2")
-                                        .maxShingleSize("3"))));
+                                        .minShingleSize(2)
+                                        .maxShingleSize(3))));
 
         return builder;
 
@@ -161,13 +162,13 @@ public class AutoConfigurationTracker {
      * @param unlimitedKeywordFields list of fields for which ignore_above is removed in the keyword section
      */
     ObjectBuilder<TypeMapping> getWorkspaceMappings(TypeMapping.Builder mapping, List<String> unlimitedKeywordFields) {
-        List<Map<String, DynamicTemplate>> templates = new java.util.ArrayList<>(List.of(
-                Map.of("aggregated_type", DynamicTemplate.of(dt -> dt
+        List<NamedValue<DynamicTemplate>> templates = new java.util.ArrayList<>(List.of(
+                new NamedValue<>("aggregated_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("string")
                         .pathMatch("properties_aggregated.*")
                         .mapping(mp -> mp.keyword(kw -> kw.ignoreAbove(256).store(true))))),
 
-                Map.of("nodeRef_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("nodeRef_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("object")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*(nodeRef|parentRef)$")
@@ -179,55 +180,55 @@ public class AutoConfigurationTracker {
                                                         .properties("protocol", protProp -> protProp.keyword(v -> v))
                                                         .properties("identifier", idProp -> idProp.keyword(v -> v)))))))),
 
-                Map.of("owner_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("owner_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*owner$")
                         .mapping(mp -> mp.keyword(v -> v)))),
 
-                Map.of("path_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("path_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*path$")
                         .mapping(mp -> mp.keyword(v -> v)))),
 
-                Map.of("fullpath_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("fullpath_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*fullpath$")
                         .mapping(mp -> mp.keyword(v -> v)))),
 
-                Map.of("fullpaths_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("fullpaths_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*fullpaths$")
                         .mapping(mp -> mp.keyword(v -> v)))),
 
-                Map.of("fulldisplaypath_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("fulldisplaypath_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*fulldisplaypath$")
                         .mapping(mp -> mp.keyword(v -> v)))),
 
-                Map.of("aspects_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("aspects_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*aspects$")
                         .mapping(mp -> mp.keyword(v -> v)))),
 
-                Map.of("permissions_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("permissions_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*permissions.(\\w*.)*$")
                         .mapping(mp -> mp.keyword(v -> v)))),
 
-                Map.of("type_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("type_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*type$")
                         .mapping(mp -> mp.keyword(v -> v)))),
 
-                Map.of("content_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("content_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*content$")
@@ -240,13 +241,13 @@ public class AutoConfigurationTracker {
                                         .properties("locale", prop -> prop.keyword(v -> v))
                                         .properties("mimetype", prop -> prop.keyword(v -> v)))))),
 
-                Map.of("properties_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("properties_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*properties.(ccm:original|cclom:location|sys:node-uuid|cclom:format|cm:versionLabel)$")
                         .mapping(mp -> mp.keyword(v -> v)))),
 
-                Map.of("title_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("title_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*properties.(cclom:title)$")
@@ -258,24 +259,24 @@ public class AutoConfigurationTracker {
                                 .fields("trigram", prop -> prop.text(v -> v.analyzer("trigram")))
                                 .fields("reverse", prop -> prop.text(v -> v.analyzer("reverse"))))))),
 
-                Map.of("workflow_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("workflow_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .pathMatch("workflow.*")
                         .mapping(mp -> mp.keyword(v -> v)))),
 
-                Map.of("contributor_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("contributor_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^contributor.(email|firstname|lastname|org|url|uuid|vcard)$")
                         .mapping(mp -> mp.keyword(v -> v)))),
 
-                Map.of("long_type", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("long_type", DynamicTemplate.of(dt -> dt
                         .matchMappingType("*")
                         .matchPattern(MatchType.Regex)
                         .pathMatch("^(?:\\w+\\.)*(aclId|txnId|dbid)$")
                         .mapping(mp -> mp.long_(v -> v)))),
 
-                Map.of("convert_date", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("convert_date", DynamicTemplate.of(dt -> dt
                         .matchMappingType("date")
                         .pathMatch("*properties.*")
                         .mapping(mp -> mp.text(t -> t
@@ -283,7 +284,7 @@ public class AutoConfigurationTracker {
                                 .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                 .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
 
-                Map.of("i18n_fields", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("i18n_fields", DynamicTemplate.of(dt -> dt
                         .matchMappingType("string", "long", "double", "boolean", "date")
                         .pathMatch("i18n.*")
                         .mapping(mp -> mp.keyword(t -> t
@@ -291,7 +292,7 @@ public class AutoConfigurationTracker {
                                 )
                         ))),
 
-                Map.of("convert_numeric_long", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("convert_numeric_long", DynamicTemplate.of(dt -> dt
                         .matchMappingType("long")
                         .pathMatch("*properties.*")
                         .mapping(mp -> mp.text(t -> t
@@ -299,7 +300,7 @@ public class AutoConfigurationTracker {
                                 .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                 .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
 
-                Map.of("convert_numeric_double", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("convert_numeric_double", DynamicTemplate.of(dt -> dt
                         .matchMappingType("double")
                         .pathMatch("*properties.*")
                         .mapping(mp -> mp.text(t -> t
@@ -307,7 +308,7 @@ public class AutoConfigurationTracker {
                                 .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                 .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
 
-                Map.of("generate_sort_lowercase", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("generate_sort_lowercase", DynamicTemplate.of(dt -> dt
                         .matchMappingType("string")
                         .pathMatch("*properties.*")
                         .mapping(mp -> mp.text(t -> t
@@ -316,7 +317,7 @@ public class AutoConfigurationTracker {
                                         .fields("sort", f2 -> f2.keyword(kw2 -> kw2.ignoreAbove(256).normalizer("lowercase")))
                                 )
                         ))),
-                Map.of("copy_facettes", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("copy_facettes", DynamicTemplate.of(dt -> dt
                         .matchMappingType("string")
                         .pathMatch("*properties.*")
                         .mapping(mp -> mp.text(t -> t
@@ -325,7 +326,7 @@ public class AutoConfigurationTracker {
                                         .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                 )
                         ))),
-                Map.of("convert_date_aggregated", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("convert_date_aggregated", DynamicTemplate.of(dt -> dt
                         .matchMappingType("date")
                         .pathMatch("*properties_aggregated.*")
                         .mapping(mp -> mp.text(t -> t
@@ -333,7 +334,7 @@ public class AutoConfigurationTracker {
                                 .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                 .fields("date", f -> f.date(v -> v.ignoreMalformed(true))))))),
 
-                Map.of("convert_numeric_long_aggregated", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("convert_numeric_long_aggregated", DynamicTemplate.of(dt -> dt
                         .matchMappingType("long")
                         .pathMatch("*properties_aggregated.*")
                         .mapping(mp -> mp.text(t -> t
@@ -341,7 +342,7 @@ public class AutoConfigurationTracker {
                                 .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                 .fields("number", f -> f.long_(v -> v.ignoreMalformed(true))))))),
 
-                Map.of("convert_numeric_double_aggregated", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("convert_numeric_double_aggregated", DynamicTemplate.of(dt -> dt
                         .matchMappingType("double")
                         .pathMatch("*properties_aggregated.*")
                         .mapping(mp -> mp.text(t -> t
@@ -349,27 +350,27 @@ public class AutoConfigurationTracker {
                                 .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
                                 .fields("number", f -> f.float_(v -> v.ignoreMalformed(true))))))),
 
-                Map.of("statistics_rating", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("statistics_rating", DynamicTemplate.of(dt -> dt
                         .pathMatch("statistic_RATING_*")
                         .mapping(mp -> mp.float_(f -> f)))),
 
-                Map.of("statistics_generic", DynamicTemplate.of(dt -> dt
+                new NamedValue<>("statistics_generic", DynamicTemplate.of(dt -> dt
                         .pathMatch("statistic_*")
                         .mapping(mp -> mp.long_(l -> l))))
         ));
         if (unlimitedKeywordFields != null && !unlimitedKeywordFields.isEmpty()) {
             templates.add(0,
-                    Map.of("unlimited_keyword_length_type", DynamicTemplate.of(dt -> dt
-                                    .matchMappingType("*")
-                                    .matchPattern(MatchType.Regex)
-                                    .pathMatch("^(?:\\w+\\.)*properties.(" + StringUtils.join(unlimitedKeywordFields, "|") + ")$")
-                                    .mapping(mp -> mp.text(t -> t
-                                                    .store(true)
-                                                    .fields("keyword", prop -> prop.keyword(v -> v))
-                                                    .fields("sort", prop -> prop.keyword(v -> v.normalizer("lowercase")))
-                                            )
+                    new NamedValue<>("unlimited_keyword_length_type", DynamicTemplate.of(dt -> dt
+                            .matchMappingType("*")
+                            .matchPattern(MatchType.Regex)
+                            .pathMatch("^(?:\\w+\\.)*properties.(" + StringUtils.join(unlimitedKeywordFields, "|") + ")$")
+                            .mapping(mp -> mp.text(t -> t
+                                            .store(true)
+                                            .fields("keyword", prop -> prop.keyword(v -> v))
+                                            .fields("sort", prop -> prop.keyword(v -> v.normalizer("lowercase")))
                                     )
                             )
+                    )
                     )
             );
         }
