@@ -29,6 +29,17 @@ public class MdsService {
                 .collect(Collectors.toSet());
     }
 
+    @Cacheable(cacheNames = "mdsSuggestProps", key = "#mdsId", cacheManager = "mdsCacheManager")
+    public Set<String> getSuggestPropertyIds(String mdsId) {
+        Mds metadataSet = mdsCachedApi.getMetadataSet(mdsId);
+        return metadataSet.getWidgets()
+                .stream()
+                .filter(Objects::nonNull)
+                .filter(x -> x.getSuggestionSource() != null && x.getSuggestionSource().equals("Sql"))
+                .map(MdsWidget::getId)
+                .collect(Collectors.toSet());
+    }
+
     @Cacheable(cacheNames = "mdsJsonDataPropertyIds", key = "#mdsId", cacheManager = "mdsCacheManager")
     public Set<String> getJsonDataPropertyIds(String mdsId) {
         Mds metadataSet = mdsCachedApi.getMetadataSet(mdsId);

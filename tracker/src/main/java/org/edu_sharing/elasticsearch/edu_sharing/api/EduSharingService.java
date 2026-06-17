@@ -8,6 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.edu_sharing.elasticsearch.alfresco.client.NodePreview;
 import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewApi;
 import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewData;
+import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.generated.repository.backend.services.rest.client.api.*;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.*;
@@ -37,6 +38,7 @@ public class EduSharingService {
     private final SuggestionsV1Api suggestionsV1Api;
     private final MdsService mdsService;
     private final ObjectMapper objectMapper;
+    private final MdsV1Api mdsV1Api;
 
 
     @Value("${valuespace.languages}")
@@ -190,6 +192,9 @@ public class EduSharingService {
 
         String mds = getMdsId(data);
 
+        translateSuggestions(data, mds);
+
+
         Set<String> valueSpacePropsMds = mdsService.getValueSpaceProbertyIds(mds);
         if (valueSpacePropsMds == null) {
             log.warn("no i18n props found for mds:{}", mds);
@@ -198,6 +203,37 @@ public class EduSharingService {
 
         for (Map.Entry<String, Serializable> prop : properties.entrySet()) {
             translateProperties(data, mds, prop);
+        }
+    }
+
+    private void translateSuggestions(org.edu_sharing.elasticsearch.alfresco.client.NodeData data, String mds) {
+        Set<String> suggestPropertyIds = mdsService.getSuggestPropertyIds(mds);
+        if (suggestPropertyIds != null && !suggestPropertyIds.isEmpty()) {
+            for(String suggestProp : suggestPropertyIds){
+                if(data.getNodeMetadata().getProperties().keySet().contains(CCConstants.getValidGlobalName(suggestProp))){
+                    Serializable val = data.getNodeMetadata().getProperties().get(CCConstants.getValidGlobalName(suggestProp));
+                    // handle MultiValue/MultiLang
+                    val = (Serializable)WorkspaceService.getValue(val,suggestProp);
+                    List<String> vals = null;
+                    if (val instanceof List<?>) {
+                        vals = (List<String>) val;
+                    }else if(val instanceof String) {
+                        vals = List.of((String)val);
+                    }
+
+                    for(String l : valuespaceLanguages){
+                        Suggestions suggestions = getValues4Keys(mds, l, suggestProp, vals);
+                        Map<String, Map<String, List<String>>> valueSpaces = data.getValueSpaces();
+                        suggestions.getValues().forEach((s) -> {
+                            Map<String, List<String>> propMap = valueSpaces.computeIfAbsent(l, (k) -> new HashMap<>());
+                            if(StringUtils.isNotBlank(s.getTranslation())) {
+                                List<String> translations4Prop = propMap.computeIfAbsent(suggestProp, (prop) -> new ArrayList<>());
+                                translations4Prop.add(s.getTranslation());
+                            }
+                        });
+                    }
+                }
+            }
         }
     }
 
@@ -233,5 +269,9 @@ public class EduSharingService {
             return null;
         }
         return text.getText();
+    }
+
+    public Suggestions getValues4Keys(String mds,String locale, String property,List<String> keys){
+        return mdsV1Api.getValues4Keys(DEFAULT_REPOSITORY,mds,locale,"ngsearch",property,keys).block();
     }
 }

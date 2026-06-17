@@ -36,6 +36,7 @@ import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.*;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.BasicJsonParser;
 import org.springframework.boot.json.JsonParseException;
@@ -372,38 +373,13 @@ public class WorkspaceService implements SearchHitsRunner {
                     continue;
                 }
 
-                Object value = prop.getValue();
                 if (key.matches(CONTRIBUTOR_REGEX)) {
-                    if (value != null) {
-                        contributorProperties.put(key, value);
+                    if (prop.getValue() != null) {
+                        contributorProperties.put(key, prop.getValue());
                     }
                 }
 
-                if (prop.getValue() instanceof List<?> listvalue) {
-
-                    //i.e. cm:title
-                    if (!listvalue.isEmpty() && listvalue.get(0) instanceof Map) {
-                        value = getMultilangValue(listvalue);
-                    }
-
-                    //i.e. cclom:general_keyword
-                    if (!listvalue.isEmpty() && listvalue.get(0) instanceof List) {
-                        List<String> mvValue = new ArrayList<>();
-                        for (Object l : listvalue) {
-                            String mlv = getMultilangValue((List<?>) l);
-                            if (mlv != null) {
-                                mvValue.add(mlv);
-                            }
-                        }
-                        if (!mvValue.isEmpty()) {
-                            value = (Serializable) mvValue;
-                        }//fix: mapper_parsing_exception Preview of field's value: '{locale=de_}']] (empty keyword)
-                        else {
-                            log.info("fallback to \\”\\” for prop {} v:{}", key, value);
-                            value = "";
-                        }
-                    }
-                }
+                Object value = getValue(prop.getValue(), key);
                 if ("cm:modified".equals(key) || "cm:created".equals(key)) {
 
                     if (prop.getValue() != null && prop.getValue() instanceof String stringValue) {
@@ -590,6 +566,36 @@ public class WorkspaceService implements SearchHitsRunner {
         }
 
         builder.endObject();
+    }
+
+    @Nullable
+    public static Object getValue(Object value, String keyShortName) {
+        if (value instanceof List<?> listvalue) {
+
+            //i.e. cm:title
+            if (!listvalue.isEmpty() && listvalue.get(0) instanceof Map) {
+                value = getMultilangValue(listvalue);
+            }
+
+            //i.e. cclom:general_keyword
+            if (!listvalue.isEmpty() && listvalue.get(0) instanceof List) {
+                List<String> mvValue = new ArrayList<>();
+                for (Object l : listvalue) {
+                    String mlv = getMultilangValue((List<?>) l);
+                    if (mlv != null) {
+                        mvValue.add(mlv);
+                    }
+                }
+                if (!mvValue.isEmpty()) {
+                    value = (Serializable) mvValue;
+                }//fix: mapper_parsing_exception Preview of field's value: '{locale=de_}']] (empty keyword)
+                else {
+                    log.info("fallback to \\”\\” for prop {} v:{}", keyShortName, value);
+                    value = "";
+                }
+            }
+        }
+        return value;
     }
 
     public void mapWorkflowProtocol(Object value, @NonNull DataBuilder builder) {
@@ -1201,7 +1207,7 @@ public class WorkspaceService implements SearchHitsRunner {
         }
     }
 
-    private String getMultilangValue(List<?> values) {
+    public static String getMultilangValue(List<?> values) {
         if (values.size() > 1) {
             // find german value i.e for Documents/Images edu folder
             String value = null;
