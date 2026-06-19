@@ -1,6 +1,9 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.HealthStatus;
+import co.elastic.clients.elasticsearch.cluster.HealthResponse;
+import co.elastic.clients.elasticsearch.cluster.health.IndexHealthStats;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -72,7 +75,18 @@ public class AdminService {  //, SmartInitializingSingleton {
     }
 
     public boolean indicesExists(String value, String... values) throws IOException {
-        return client.indices().exists(req -> req.index(value, values)).value();
+        boolean result = client.indices().exists(req -> req.index(value, values)).value();
+        if(result){
+
+            HealthResponse response = client.cluster().health(h -> h
+                    .index(value,values));
+            result = response.indices().entrySet().stream()
+                    .allMatch( e -> e.getValue().status().equals(HealthStatus.Green));
+            if(!result){
+                log.info("one of indexes does not have health status green {} {}",value,Arrays.toString(values));
+            }
+        }
+        return result;
     }
 
     @PostConstruct

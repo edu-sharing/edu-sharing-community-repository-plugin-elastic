@@ -43,9 +43,6 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
     @Value("${alfresco.readTimeout}")
     long alfrescoReadTimeout;
 
-    @Value("${trackContent}")
-    boolean trackContent;
-
     private final TypesConfig typesConfig;
 
     private static final String URL_TRANSACTIONS = "/alfresco/service/api/solr/transactions";
@@ -312,16 +309,6 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
 
 
         for (NodeData nodeData : result) {
-            if (parameters.content && trackContent) {
-                String fullText = null;
-                try {
-                    fullText = getTextContent(nodeData.getNodeMetadata().getId());
-                } catch (Throwable t) {
-                    log.warn("Error while fetching text content for {}", nodeData.getNodeMetadata().getNodeRef(), t);
-                }
-                if (fullText != null) nodeData.setFullText(fullText);
-            }
-
             if (parameters.children) {
 
                 TypesConfigItem typeConfig = typesConfig.getTypeConfig(nodeData.getNodeMetadata().getType());

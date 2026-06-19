@@ -12,6 +12,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationContext;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationException;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationStep;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -27,8 +28,10 @@ public class ReindexMigrationJob implements MigrationJob {
     private final String targetIndex;
     private final Script migrationScript;
 
-
     private String taskId;
+
+    private final Integer reindexBatchSize;
+    private final Float requestsPerSecond;
 
     @Override
     public void onEnterState(MigrationContext context) {
@@ -44,9 +47,13 @@ public class ReindexMigrationJob implements MigrationJob {
             taskId = client.reindex(req -> req
                             .waitForCompletion(false)
                             .conflicts(Conflicts.Proceed)
-                            .source(src -> src.index(sourceIndex))
+                            .source(src -> src
+                                            .index(sourceIndex)
+                                            .size(reindexBatchSize))
                             .dest(dest -> dest.index(targetIndex))
-                            .script(migrationScript))
+                            .script(migrationScript)
+                            .requestsPerSecond(requestsPerSecond)
+                    )
                     .task();
             context.setMigrationContent(taskId);
         } catch (IOException ex) {

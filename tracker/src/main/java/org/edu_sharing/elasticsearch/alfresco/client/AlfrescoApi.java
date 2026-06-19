@@ -12,4 +12,5 @@ public interface AlfrescoApi {
     List<NodeMetadata> getNodeMetadata(List<Node> nodes);
     List<NodeMetadata> getNodeMetadataByIds(List<Long> dbNodeIds, GetNodeMetadataParam getNodeMetadataParam);
     List<NodeData> getNodeData(List<NodeMetadata> nodes, FetchParameters parameters);
+    String getTextContent(Long dbid);
 }

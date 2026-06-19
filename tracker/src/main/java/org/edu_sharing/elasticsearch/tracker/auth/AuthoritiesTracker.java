@@ -41,12 +41,6 @@ public class AuthoritiesTracker extends AbstractAlfTransactionTracker<AlfTransac
                 .filter(n -> !n.getStatus().equals("d"))
                 .collect(Collectors.toList());
 
-        List<Node> toDelete = nodes.stream()
-                .filter(n -> n.getStatus().equals("d"))
-                .collect(Collectors.toList());
-
-        authorityService.delete(toDelete);
-
         if (nodes.isEmpty()) {
             return;
         }

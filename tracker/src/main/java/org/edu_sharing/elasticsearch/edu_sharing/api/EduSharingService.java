@@ -31,6 +31,7 @@ public class EduSharingService {
     private final StatisticV1Api statisticV1Api;
     private final PreviewApi previewApi;
     private final TrackingV1Api trackingV1Api;
+    private final NodeV1Api nodeV1Api;
     private final SharingV1Api sharingV1Api;
     private final RelationV1Api relationV1Api;
     private final SuggestionsV1Api suggestionsV1Api;
@@ -224,5 +225,13 @@ public class EduSharingService {
         return suggestionsV1Api.getRawSuggestionsByNodeId(DEFAULT_REPOSITORY, nodeId, null)
                 .collectList()
                 .block();
+    }
+
+    public String getTextContent(String nodeId) {
+        NodeText text = nodeV1Api.getTextContent(DEFAULT_REPOSITORY, nodeId, false).block();
+        if(text == null) {
+            return null;
+        }
+        return text.getText();
     }
 }
