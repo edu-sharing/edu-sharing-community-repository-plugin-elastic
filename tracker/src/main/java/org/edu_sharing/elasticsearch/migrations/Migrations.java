@@ -69,7 +69,7 @@ public class Migrations {
     }
 
     @Bean
-    @Order(3)
+    @Order(4)
     public MigrationInfo migration11_0() {
         //language=groovy
         String workspaceScript = """
