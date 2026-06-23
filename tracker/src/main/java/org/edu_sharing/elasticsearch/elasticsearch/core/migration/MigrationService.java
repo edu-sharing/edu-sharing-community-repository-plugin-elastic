@@ -311,9 +311,9 @@ public class MigrationService {
             );
 
             jobs = List.of( // Jobs needs to be ordered by MigrationStep (see requires migration)
+                    new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(),transactionMigrationScript,reindexBatchSize,requestsPerSecond),
                     new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(),workspaceMigrationScript,reindexBatchSize,requestsPerSecond),
                     new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),authorityMigrationScript,reindexBatchSize,requestsPerSecond),
-                    new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(),transactionMigrationScript,reindexBatchSize,requestsPerSecond),
                     new CallbackMigrationJob(client, context.getMigrationCallbacks()),
                     new DocumentsMigrationJob(adminService, context.getMigrationTrackerStateIndex(), trackerRegistry, context.getMigrationTracker(), statusIndexServiceFactory, trackerExecutorFactory),
                     new CompleteMigrationJob()

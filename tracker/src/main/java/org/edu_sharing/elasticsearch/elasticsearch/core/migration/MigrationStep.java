@@ -3,8 +3,8 @@ package org.edu_sharing.elasticsearch.elasticsearch.core.migration;
 import java.util.Arrays;
 
 public enum MigrationStep {
-    REINDEX_WORKSPACE_INDEX_PROGRESS_STEP(0, "Reindex Workspace"),
-    REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP(1, "Reindex Transactions"),
+    REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP(0, "Reindex Transactions"),
+    REINDEX_WORKSPACE_INDEX_PROGRESS_STEP(1, "Reindex Workspace"),
     REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP(2, "ReIndex Authorities"),
     ON_MIGRATION_CALLBACK_PROGRESS_STEP(3, "On Migration Callback"),
     MIGRATE_DOCUMENTS_PROGRESS_STEP(4, "Migrate Documents"),
