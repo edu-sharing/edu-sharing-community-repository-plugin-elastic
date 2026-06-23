@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 @Slf4j
 @Component
@@ -114,7 +115,9 @@ public class MigrationService {
         String sourceAuthoritiesIndex = currentVersion == null ? "authorities" : "authorities_" + currentVersion;
         String sourceTransactionIndex = currentVersion == null ? "transactions" : "transactions_" + currentVersion;
 
-        if (adminService.indicesExists(sourceWorkspaceIndex, sourceTransactionIndex, sourceAuthoritiesIndex)) {
+        // leave out sourceAuthoritiesIndex check to allow migrations from 9.1
+        if (adminService.indicesExists(sourceWorkspaceIndex, sourceTransactionIndex)) {
+
 
             while (!adminService.indecesConfiguredExist()) {
                 log.info("waiting for indexes...");
@@ -312,14 +315,16 @@ public class MigrationService {
                     this::setMigrationContentDelegate
             );
 
-            jobs = List.of( // Jobs needs to be ordered by MigrationStep (see requires migration)
-                    new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(),transactionMigrationScript,reindexBatchSize,requestsPerSecond),
-                    new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(),workspaceMigrationScript,reindexBatchSize,requestsPerSecond),
-                    new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),authorityMigrationScript,reindexBatchSize,requestsPerSecond),
-                    new CallbackMigrationJob(client, context.getMigrationCallbacks()),
-                    new DocumentsMigrationJob(adminService, context.getMigrationTrackerStateIndex(), trackerRegistry, context.getMigrationTracker(), statusIndexServiceFactory, trackerExecutorFactory, repositoryAvailabilityProbe),
-                    new CompleteMigrationJob()
-            );
+            boolean shouldMigrateAuthorities = !sourceAuthoritiesIndex.split("_")[1].equals("9.1");
+
+            jobs = Stream.of( // Jobs needs to be ordered by MigrationStep (see requires migration)
+                            new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(),transactionMigrationScript,reindexBatchSize,requestsPerSecond),
+                            new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(),workspaceMigrationScript,reindexBatchSize,requestsPerSecond),
+                            shouldMigrateAuthorities ? new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),authorityMigrationScript,reindexBatchSize,requestsPerSecond) : null,
+                            new CallbackMigrationJob(client, context.getMigrationCallbacks()),
+                            new DocumentsMigrationJob(adminService, context.getMigrationTrackerStateIndex(), trackerRegistry, context.getMigrationTracker(), statusIndexServiceFactory, trackerExecutorFactory,repositoryAvailabilityProbe),
+                            new CompleteMigrationJob())
+                    .filter(Objects::nonNull).toList();
 
             validateMigrationJobs();
         }
