@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class DefaultApplicationState implements ApplicationState, ApplicationStatePublisher {
     private final AtomicBoolean migrationCompleted = new AtomicBoolean(false);
     private final AtomicBoolean hooksCompleted = new AtomicBoolean(false);
+    private final AtomicBoolean repositoryReady = new AtomicBoolean(false);
 
     @Override
     public void markMigrationCompleted() {
@@ -17,7 +18,12 @@ public class DefaultApplicationState implements ApplicationState, ApplicationSta
     }
 
     @Override
+    public void markRepositoryReady() {
+        repositoryReady.set(true);
+    }
+
+    @Override
     public boolean canTrack() {
-        return migrationCompleted.get() && hooksCompleted.get();
+        return migrationCompleted.get() && hooksCompleted.get() && repositoryReady.get();
     }
 }

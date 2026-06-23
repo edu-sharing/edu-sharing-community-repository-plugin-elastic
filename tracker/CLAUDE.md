@@ -43,6 +43,18 @@ by `mode` configurations re-declaring the same bean name. (See `README.md` "Hint
 - Index migrations are declared as `MigrationInfo` beans (with `@Order`) in `migrations/Migrations.java`.
   These track **structural** index changes only, versioned manually. Full migration flow in `README.md`.
 
+## Repository readiness (non-obvious)
+
+The container `entrypoint.sh` waits only for **Elasticsearch**, not the edu-sharing repo. Repo
+readiness is awaited **lazily inside the app**, right before the repo is actually used — so the
+ES-only work (reindex, callbacks, startup hooks) starts immediately while the repo is still booting.
+`RepositoryAvailabilityProbe` (`edu_sharing/api`) probes via `aboutApi.about()` (`GET /_about`),
+polling every `repository.readiness.pollInterval` (default 5s). In `migration-only`,
+`DocumentsMigrationJob.onProgressState()` calls `waitUntilAvailable()` (only if trackers must be
+migrated); in `default`, the `repositoryReady` flag in `DefaultApplicationState.canTrack()` is set by
+`WaitForRepositoryJob` (async, mirrors `WaitForMigrationJob`). Version-aware routing (tracker talks
+only to the matching repo version) is intentionally K8s infrastructure, **not** tracker code.
+
 ## Generated code (do not edit by hand)
 
 edu-sharing REST clients are generated at build time by `openapi-generator-maven-plugin` into

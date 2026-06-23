@@ -10,6 +10,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
+import org.edu_sharing.elasticsearch.edu_sharing.api.RepositoryAvailabilityProbe;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.jobs.*;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.AppInfo;
 import org.edu_sharing.elasticsearch.tracker.core.TrackerConfig;
@@ -37,6 +38,7 @@ public class MigrationService {
     private final StatusIndexServiceFactory statusIndexServiceFactory;
     private final List<MigrationInfo> migrationInfos;
     private final TrackerRegistry trackerRegistry;
+    private final RepositoryAvailabilityProbe repositoryAvailabilityProbe;
 
 
     @Value("${migration.reindex.size}")
@@ -315,7 +317,7 @@ public class MigrationService {
                     new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(),workspaceMigrationScript,reindexBatchSize,requestsPerSecond),
                     new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),authorityMigrationScript,reindexBatchSize,requestsPerSecond),
                     new CallbackMigrationJob(client, context.getMigrationCallbacks()),
-                    new DocumentsMigrationJob(adminService, context.getMigrationTrackerStateIndex(), trackerRegistry, context.getMigrationTracker(), statusIndexServiceFactory, trackerExecutorFactory),
+                    new DocumentsMigrationJob(adminService, context.getMigrationTrackerStateIndex(), trackerRegistry, context.getMigrationTracker(), statusIndexServiceFactory, trackerExecutorFactory, repositoryAvailabilityProbe),
                     new CompleteMigrationJob()
             );
 

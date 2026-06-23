@@ -21,8 +21,6 @@ repository_search_elastic_index_replicas="${REPOSITORY_SEARCH_ELASTIC_INDEX_REPL
 repository_service_host="${REPOSITORY_SERVICE_HOST:-repository-service}"
 repository_service_port="${REPOSITORY_SERVICE_PORT:-8080}"
 
-repository_service_base="http://${repository_service_host}:${repository_service_port}/edu-sharing"
-
 repository_service_admin_pass="${REPOSITORY_SERVICE_ADMIN_PASS:-admin}"
 
 ### Wait ###############################################################################################################
@@ -34,12 +32,9 @@ until [[ $(curl -sSf -w "%{http_code}\n" -o /dev/null "${repository_search_elast
 	sleep 3
 done
 
-until wait-for-it "${repository_service_host}:${repository_service_port}" -t 3; do sleep 1; done
-
-until [[ $(curl -sSf -w "%{http_code}\n" -o /dev/null -H 'Accept: application/json' "${repository_service_base}/rest/_about/status/SERVICE?timeoutSeconds=3") -eq 200 ]]; do
-	echo >&2 "Waiting for ${repository_service_host} ..."
-	sleep 3
-done
+# Note: we intentionally do NOT wait for the repository here. The tracker only needs the
+# repository in the document tracking phase; waiting for it lazily inside the application lets
+# the ES-only work (index migration / startup hooks) start immediately while the repository boots.
 
 ########################################################################################################################
 
