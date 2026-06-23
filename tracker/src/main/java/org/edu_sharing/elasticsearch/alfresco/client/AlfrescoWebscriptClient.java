@@ -1,5 +1,12 @@
 package org.edu_sharing.elasticsearch.alfresco.client;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.deser.DeserializationProblemHandler;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.jakarta.rs.json.JacksonJsonProvider;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.*;
@@ -15,11 +22,12 @@ import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -59,18 +67,52 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
 
     private Client client;
 
+    /**
+     * Tracks already-logged (target class + property) combinations so that an unknown JSON field
+     * from the Alfresco API is reported only once instead of flooding the log on every batch.
+     */
+    private static final Set<String> loggedUnknownProps = ConcurrentHashMap.newKeySet();
+
     @PostConstruct
     void init() {
-        client = ClientBuilder.newBuilder()
+        ClientBuilder builder = ClientBuilder.newBuilder()
                 .connectTimeout(alfrescoReadTimeout, TimeUnit.MILLISECONDS)
                 .readTimeout(alfrescoReadTimeout, TimeUnit.MILLISECONDS)
-                .register(JacksonJsonProvider.class).build();
+                .register(new JacksonJsonProvider(buildObjectMapper()));
         //client.property("use.async.http.conduit", Boolean.TRUE);
         //client.property("org.apache.cxf.transport.http.async.usePolicy", AsyncHTTPConduitFactory.UseAsyncPolicy.ALWAYS);
         if (Boolean.parseBoolean(logRequests)) {
             java.util.logging.Logger jaxlogger = java.util.logging.Logger.getLogger(java.util.logging.Logger.GLOBAL_LOGGER_NAME);
-            client = ClientBuilder.newClient(new ClientConfig().register(new LoggingFeature(jaxlogger)));
+            builder.register(new LoggingFeature(jaxlogger));
         }
+        client = builder.build();
+    }
+
+    /**
+     * Builds a lenient {@link ObjectMapper} for the Alfresco responses: unknown JSON fields must not
+     * break deserialization of a whole batch (the Alfresco SOLR API occasionally adds fields such as
+     * {@code "status"} that the model classes do not declare). Unknown fields are skipped and logged
+     * once per (class, field) so that genuine API drift stays visible.
+     */
+    ObjectMapper buildObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        mapper.addHandler(new DeserializationProblemHandler() {
+            @Override
+            public boolean handleUnknownProperty(DeserializationContext ctxt, JsonParser p,
+                                                 JsonDeserializer<?> deserializer, Object beanOrClass,
+                                                 String propertyName) throws IOException {
+                String key = beanOrClass.getClass().getName() + "#" + propertyName;
+                if (loggedUnknownProps.add(key)) {
+                    log.warn("Ignoring unknown JSON field '{}' for {} (Alfresco API drift?)",
+                            propertyName, beanOrClass.getClass().getSimpleName());
+                }
+                p.skipChildren();
+                return true;
+            }
+        });
+        return mapper;
     }
 
     public List<Node> getNodes(GetNodeParam p) {
