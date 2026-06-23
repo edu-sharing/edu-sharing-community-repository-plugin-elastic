@@ -55,6 +55,11 @@ migrated); in `default`, the `repositoryReady` flag in `DefaultApplicationState.
 `WaitForRepositoryJob` (async, mirrors `WaitForMigrationJob`). Version-aware routing (tracker talks
 only to the matching repo version) is intentionally K8s infrastructure, **not** tracker code.
 
+Because of this, **no bean may access the repo eagerly during context startup** (constructor /
+`@PostConstruct` / field init) — that would crash the context while the repo is still booting.
+`WorkspaceService` therefore resolves its `homeRepoId` lazily (`getHomeRepoId()`), not in its
+constructor. `@PostConstruct` work that only touches Elasticsearch (index/synonym creation) is fine.
+
 ## Generated code (do not edit by hand)
 
 edu-sharing REST clients are generated at build time by `openapi-generator-maven-plugin` into
