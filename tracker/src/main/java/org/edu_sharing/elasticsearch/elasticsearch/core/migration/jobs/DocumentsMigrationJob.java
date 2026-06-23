@@ -6,6 +6,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
+import org.edu_sharing.elasticsearch.edu_sharing.api.RepositoryAvailabilityProbe;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationContext;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationException;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationStep;
@@ -33,6 +34,7 @@ public class DocumentsMigrationJob implements MigrationJob {
     private final Collection<Class<? extends TrackerConfig<?, ? extends CommitTimeStatus>>> migrationTrackerConfigTypes;
     private final StatusIndexServiceFactory statusIndexServiceFactory;
     private final TrackerExecutorFactory trackerExecutorFactory;
+    private final RepositoryAvailabilityProbe repositoryAvailabilityProbe;
 
     private Map<TrackerConfig<?, ?>, TrackingExecutor<?>> trackingExecutors;
 
@@ -127,6 +129,12 @@ public class DocumentsMigrationJob implements MigrationJob {
 
     @Override
     public void onProgressState(MigrationContext context) {
+
+        // The reindex/callback phases ran ES-only; repository access starts here. Wait for the
+        // repository only now (and only if there is anything to track via the repository).
+        if (!trackingExecutors.isEmpty()) {
+            repositoryAvailabilityProbe.waitUntilAvailable();
+        }
 
         List<Future<?>> futures = new ArrayList<>();
         trackingExecutors.forEach((trackerConfig, trackingExecutor) -> {

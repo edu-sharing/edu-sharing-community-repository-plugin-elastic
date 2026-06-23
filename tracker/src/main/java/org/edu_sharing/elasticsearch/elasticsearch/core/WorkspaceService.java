@@ -75,7 +75,8 @@ public class WorkspaceService implements SearchHitsRunner {
     int bulkSizeElastic;
 
     private final SimpleDateFormat statisticDateFormatter = new SimpleDateFormat("yyyy-MM-dd");
-    private final String homeRepoId;
+    private final EduSharingService eduSharingService;
+    private volatile String homeRepoId;
     private final ElasticsearchClient client;
     private final ScriptExecutor scriptExecutor;
     private final AtomicInteger nodeCounter = new AtomicInteger(0);
@@ -92,7 +93,23 @@ public class WorkspaceService implements SearchHitsRunner {
         this.scriptExecutor = scriptExecutor;
         this.alfrescoClient = alfrescoClient;
         this.index = workspace.getIndex();
-        this.homeRepoId = eduSharingService.getHomeRepository().getId();
+        this.eduSharingService = eduSharingService;
+    }
+
+    /**
+     * Resolves the home repository id lazily on first use (and caches it). The repository is not
+     * queried at bean construction time, so the application can start while the repository is still
+     * booting; this method is only reached during tracking, by which point the repository is ready.
+     */
+    private String getHomeRepoId() {
+        if (homeRepoId == null) {
+            synchronized (this) {
+                if (homeRepoId == null) {
+                    homeRepoId = eduSharingService.getHomeRepository().getId();
+                }
+            }
+        }
+        return homeRepoId;
     }
 
     public void updateNodesWithAcl(final long aclId, final Map<String, List<String>> permissions) throws IOException {
@@ -782,7 +799,7 @@ public class WorkspaceService implements SearchHitsRunner {
             String usageAppId = (String) usageOrProposal.getProperties().get(propertyUsageAppId);
 
             //check if it is an collection usage
-            if (!homeRepoId.equals(usageAppId)) {
+            if (!getHomeRepoId().equals(usageAppId)) {
                 return null;
             }
         }

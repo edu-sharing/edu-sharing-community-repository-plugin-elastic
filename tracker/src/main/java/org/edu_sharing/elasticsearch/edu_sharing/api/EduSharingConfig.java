@@ -1,6 +1,7 @@
 package org.edu_sharing.elasticsearch.edu_sharing.api;
 
 import io.netty.handler.logging.LogLevel;
+import io.netty.resolver.DefaultAddressResolverGroup;
 import org.edu_sharing.elasticsearch.cache.OutdatedCheckingCacheManager;
 import org.edu_sharing.elasticsearch.edu_sharing.api.authorization.AuthorizationClient;
 import org.edu_sharing.elasticsearch.edu_sharing.api.authorization.AuthorizationFilterFunction;
@@ -56,6 +57,10 @@ public class EduSharingConfig {
     public WebClient webClient() {
 
         HttpClient httpClient = HttpClient.create()
+                // Use the JDK resolver (getaddrinfo) instead of Reactor Netty's native DNS resolver.
+                // The native resolver bypasses /etc/hosts, nsswitch and search domains and fails (SERVFAIL)
+                // in some K8s/CoreDNS setups where curl resolves fine.
+                .resolver(DefaultAddressResolverGroup.INSTANCE)
                 .followRedirect(true)
                 .responseTimeout(Duration.ofSeconds(readTimeout.toSeconds()));
 
