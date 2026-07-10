@@ -61,9 +61,9 @@ public class Migrations {
 
     @Bean
     @Order(3)
-    public MigrationInfo migration10_1(ObjectProvider<MigrationCallback10_1> migrationCallback) {
+    public MigrationInfo migration10_0_1(ObjectProvider<MigrationCallback10_1> migrationCallback) {
         return MigrationInfo.builder()
-                .version("10.1")
+                .version("10.0.1")
                 .migrationCallbackProvider(migrationCallback::getObject)
                 .build();
     }
