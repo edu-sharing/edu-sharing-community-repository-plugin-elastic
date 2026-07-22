@@ -36,6 +36,9 @@ public class ElasticsearchConfig {
     @Value("${elastic.connectionRequestTimeout}")
     int elasticConnectionRequestTimeout;
 
+    @Value("${elastic.maxConnections}")
+    int elasticMaxConnections;
+
 
     @Bean
     public RestClient restClient() {
@@ -44,6 +47,9 @@ public class ElasticsearchConfig {
                         .setConnectTimeout(elasticConnectTimeout)
                         .setSocketTimeout(elasticSocketTimeout)
                         .setConnectionRequestTimeout(elasticConnectionRequestTimeout))
+                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+                        .setMaxConnPerRoute(elasticMaxConnections)
+                        .setMaxConnTotal(elasticMaxConnections))
                 .build();
     }
 
