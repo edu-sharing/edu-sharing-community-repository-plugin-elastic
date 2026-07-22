@@ -5,7 +5,6 @@ import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractAlfTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.core.config.AlfTransactionTrackerProperties;
-import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.RelationData;
 import org.springframework.stereotype.Component;
 
@@ -26,13 +25,12 @@ public class RelationTracker extends AbstractAlfTransactionTracker<AlfTransactio
         
         Map<Node, List<RelationData>> nodeRelations = new ConcurrentHashMap<>();
 
-        Collection<List<Node>> partitions = Partition.getPartitions(nodes, props.getFetchSizeAlfresco());
         this.threadUtil.runThreaded(
-                partitions,
-                partition -> partition.forEach(node -> {
+                nodes,
+                node -> {
                     List<RelationData> relationData = eduSharingService.getRelations(Tools.getUUID(node.getNodeRef()));
                     nodeRelations.put(node, relationData);
-                }),
+                },
                 true,
                 true);
 

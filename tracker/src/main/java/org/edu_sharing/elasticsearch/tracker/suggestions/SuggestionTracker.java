@@ -10,7 +10,6 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.model.ElasticNode;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractAlfTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.core.config.AlfTransactionTrackerProperties;
-import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.PropertySuggestion;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -34,10 +33,9 @@ public class SuggestionTracker extends AbstractAlfTransactionTracker<AlfTransact
     public void trackNodes(List<Node> nodes) throws IOException {
         Map<Node, List<Map<String, Object>>> nodeSuggestions = new ConcurrentHashMap<>();
 
-        Collection<List<Node>> partitions = Partition.getPartitions(nodes, props.getFetchSizeAlfresco());
         this.threadUtil.runThreaded(
-                partitions,
-                partition -> partition.forEach(node -> {
+                nodes,
+                node -> {
                     String nodeId = Tools.getUUID(node.getNodeRef());
                     List<PropertySuggestion> suggestions = eduSharingService.getSuggestions(nodeId);
                     if (suggestions.isEmpty()) {
@@ -51,7 +49,7 @@ public class SuggestionTracker extends AbstractAlfTransactionTracker<AlfTransact
                             .filter(Objects::nonNull)
                             .toList();
                     nodeSuggestions.put(node, nodePropertySuggestions);
-                }),
+                },
                 true,
                 true);
 
