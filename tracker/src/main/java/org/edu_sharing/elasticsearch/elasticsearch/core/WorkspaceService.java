@@ -149,7 +149,7 @@ public class WorkspaceService implements SearchHitsRunner {
                                     .must(m -> m.term(t -> t.field("properties." + CCConstants.getValidLocalName(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL)).value(nodeId)))
                             ))))
                     .conflicts(Conflicts.Proceed)
-                    .refresh(true)
+                    .refresh(false)
                     .script(src -> src
                             .source(SCRIPT_UPDATE_RELATIONS)
                             .params("relations", JsonData.of(relationData)))
@@ -960,7 +960,7 @@ public class WorkspaceService implements SearchHitsRunner {
                                     .must(m -> m.term(t -> t.field("properties."+CCConstants.getValidLocalName(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL)).value(nodeId)))
                             ))))
                     .conflicts(Conflicts.Proceed)
-                    .refresh(true)
+                    .refresh(false)
                     .script(src -> src
                             .source(SCRIPT_UPDATE_SUGGESTIONS)
                             .params("suggestions", JsonData.of(suggestions)))

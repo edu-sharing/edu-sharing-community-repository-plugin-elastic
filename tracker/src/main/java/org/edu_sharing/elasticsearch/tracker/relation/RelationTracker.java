@@ -36,7 +36,8 @@ public class RelationTracker extends AbstractAlfTransactionTracker<AlfTransactio
                 true,
                 true);
 
-        nodeRelations.forEach(this::updateNodesWithRelations);
+        threadUtil.runThreaded(nodeRelations.entrySet(), entry -> updateNodesWithRelations(entry.getKey(), entry.getValue()), true, true);
+        workspaceService.refreshWorkspace();
     }
 
     private void updateNodesWithRelations(Node node, List<RelationData> relationDataList) {
