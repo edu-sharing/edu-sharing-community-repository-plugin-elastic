@@ -40,7 +40,9 @@ public class AuthorizationFilterFunction implements ExchangeFilterFunction {
 
         return next.exchange(withAuthorizationHeaderRequest)
                 .flatMap(it -> {
-                    if (it.statusCode() == HttpStatus.UNAUTHORIZED) {
+                    // we need to check both 401 and 403 -> if guest mode is enabled we get 403 instead
+                    // TODO we still have a lag of information when the endpoint is accessible by guest but doesn't return all data
+                    if (it.statusCode() == HttpStatus.UNAUTHORIZED || it.statusCode() == HttpStatus.FORBIDDEN) {
                         return throughGetToken(request, next);
                     }
 
