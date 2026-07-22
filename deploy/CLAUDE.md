@@ -45,7 +45,10 @@ Builds the runtime Docker image for the tracker Spring Boot service.
   (`REPOSITORY_SEARCH_ELASTIC_INDEX_HOST/PORT`, `REPOSITORY_SERVICE_HOST/PORT`,
   `REPOSITORY_SERVICE_ADMIN_PASS`, `*_SHARDS/_REPLICAS`, bind/port for server & management) before
   `exec java -jar`. This is where container config maps onto the tracker's Spring properties.
-- **`src/main/build/assets/profiler/profile.sh`** — async-profiler helper inside the image.
+- **`src/main/build/assets/profiler/profile.sh`** — async-profiler helper inside the image, usage
+  `profile.sh <duration-seconds> [event]`. `event` defaults to `itimer` (CPU flamegraph); pass `alloc`
+  for an allocation flamegraph (`--total`, bytes per stack) when chasing a heap leak — `itimer` alone
+  never records allocation/GC/heap events.
 
 ## Other submodules (index)
 
