@@ -2,6 +2,7 @@ package org.edu_sharing.elasticsearch.elasticsearch.core.migration.jobs;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
@@ -35,12 +36,14 @@ public class DocumentsMigrationJob implements MigrationJob {
     private final StatusIndexServiceFactory statusIndexServiceFactory;
     private final TrackerExecutorFactory trackerExecutorFactory;
     private final RepositoryAvailabilityProbe repositoryAvailabilityProbe;
+    private final TrackerAvailabilityTickService tickService;
 
     private Map<TrackerConfig<?, ?>, TrackingExecutor<?>> trackingExecutors;
 
 
     @Override
     public void onEnterState(MigrationContext context) {
+        tickService.tick(MigrationJob.tickName(this));
         IndexConfiguration indexConfiguration = new IndexConfiguration(req -> req.index(migrationTransactionIndex));
         boolean createdIndex;
         try {
@@ -127,6 +130,8 @@ public class DocumentsMigrationJob implements MigrationJob {
         }
     }
 
+    private record TrackerRun(String trackerName, ExecutorService executorService, Future<?> future) {}
+
     @Override
     public void onProgressState(MigrationContext context) {
 
@@ -136,28 +141,34 @@ public class DocumentsMigrationJob implements MigrationJob {
             repositoryAvailabilityProbe.waitUntilAvailable();
         }
 
-        List<Future<?>> futures = new ArrayList<>();
+        List<TrackerRun> runs = new ArrayList<>();
         trackingExecutors.forEach((trackerConfig, trackingExecutor) -> {
+            String name = trackerConfig.getName();
             ExecutorService executorService = Executors.newSingleThreadExecutor(r -> {
                 Thread t = new Thread(r);
-                t.setName(trackerConfig.getName()); // Threadname aus Config-Key
+                t.setName(name); // Threadname aus Config-Key
                 t.setDaemon(true);
                 return t;
             });
 
-            Future<?> submit = executorService.submit(trackingExecutor::track);
-            futures.add(submit);
+            Future<?> future = executorService.submit(() -> {
+                trackingExecutor.track();
+                tickService.clear(name);
+            });
+            runs.add(new TrackerRun(name, executorService, future));
         });
+        tickService.clear(MigrationJob.tickName(this));
 
-
-        for (Future<?> future : futures) {
+        for (TrackerRun run : runs) {
             try {
-                future.get();
+                run.future().get();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new MigrationException("Migration was interrupted", e);
+                throw new MigrationException("Migration was interrupted for tracker " + run.trackerName(), e);
             } catch (Exception e) {
-                throw new MigrationException("Migration tracking failed: " + e.getMessage(), e);
+                throw new MigrationException("Migration tracking failed for tracker " + run.trackerName() + ": " + e.getMessage(), e);
+            } finally {
+                run.executorService().shutdown();
             }
         }
     }
