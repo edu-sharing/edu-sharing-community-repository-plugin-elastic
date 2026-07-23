@@ -40,6 +40,9 @@ public class AutoConfigurationTracker {
     @Value("${elastic.index.number_of_replicas}")
     private int indexNumberOfReplicas;
 
+    @Value("${elastic.index.max_regex_length}")
+    private int indexMaxRegexLength;
+
     private final String version;
 
     public AutoConfigurationTracker(List<MigrationInfo> migrationInfos) {
@@ -131,6 +134,7 @@ public class AutoConfigurationTracker {
         return s.index(id -> id
                         .numberOfShards(Integer.toString(indexNumberOfShards))
                         .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))
+                .maxRegexLength(indexMaxRegexLength)
                 .mapping(mapping -> mapping.totalFields(tf -> tf.limit("20000")))
                 .analysis(this::getIndexSettingAnalysis);
     }
