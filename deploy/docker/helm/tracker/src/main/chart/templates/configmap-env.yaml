@@ -18,6 +18,9 @@ data:
     {{- if default .Values.global.debug .Values.debug }}
     -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
     {{- end }}
+  {{- with .Values.config.jvm.malloc.arenaMax }}
+  MALLOC_ARENA_MAX: {{ . | quote }}
+  {{- end }}
   REPOSITORY_SEARCH_ELASTIC_INDEX_HOST: {{ .Values.config.search.elastic.host | quote }}
   REPOSITORY_SEARCH_ELASTIC_INDEX_PORT: {{ .Values.config.search.elastic.port | quote }}
   REPOSITORY_SEARCH_ELASTIC_INDEX_REPLICAS: {{ .Values.config.search.elastic.index.replicas | quote }}
