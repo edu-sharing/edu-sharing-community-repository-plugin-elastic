@@ -87,6 +87,9 @@ config:
       minPercentage: "90.0"
       ## @param config.jvm.ram.maxPercentage Set maximum memory in percentages
       maxPercentage: "90.0"
+    malloc:
+      ## @param config.jvm.malloc.arenaMax Cap glibc malloc arenas (MALLOC_ARENA_MAX) to bound native/off-heap RSS growth independent of the JVM heap
+      arenaMax: "2"
 
   metrics:
     ## @param config.metrics.enabled Enable metrics
