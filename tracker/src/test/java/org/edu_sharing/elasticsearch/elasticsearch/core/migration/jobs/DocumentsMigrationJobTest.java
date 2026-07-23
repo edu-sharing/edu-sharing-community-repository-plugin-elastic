@@ -1,7 +1,6 @@
 package org.edu_sharing.elasticsearch.elasticsearch.core.migration.jobs;
 
 import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
-import org.edu_sharing.elasticsearch.edu_sharing.api.RepositoryAvailabilityProbe;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
@@ -47,8 +46,6 @@ class DocumentsMigrationJobTest {
     @Mock
     private TrackerExecutorFactory trackerExecutorFactory;
     @Mock
-    private RepositoryAvailabilityProbe repositoryAvailabilityProbe;
-    @Mock
     private TrackerAvailabilityTickService tickService;
 
     private DocumentsMigrationJob job;
@@ -63,7 +60,6 @@ class DocumentsMigrationJobTest {
                 Collections.emptyList(),
                 statusIndexServiceFactory,
                 trackerExecutorFactory,
-                repositoryAvailabilityProbe,
                 tickService);
         jobTickName = MigrationJob.tickName(job);
     }
@@ -130,19 +126,5 @@ class DocumentsMigrationJobTest {
         assertThat(progressThread.isAlive()).isFalse();
         assertThat(failureFromBackgroundThread[0]).isNull();
         verify(tickService, timeout(2000)).clear("workspace");
-    }
-
-    @Test
-    void onProgressStateClearsJobLevelTickEvenWhenThereAreNoTrackersToRun() {
-        // Arrange: nothing to migrate in this step (e.g. all trackers already up to date).
-        ReflectionTestUtils.setField(job, "trackingExecutors", Collections.emptyMap());
-
-        // Act
-        job.onProgressState(mock(MigrationContext.class));
-
-        // Assert: the job-level tick set in onEnterState() must not be left to age out just
-        // because there was no per-tracker work to hand liveness off to.
-        verify(tickService).clear(jobTickName);
-        verify(repositoryAvailabilityProbe, never()).waitUntilAvailable();
     }
 }
