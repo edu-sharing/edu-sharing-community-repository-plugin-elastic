@@ -77,7 +77,7 @@ public class ContentTracker extends AbstractAlfTransactionTracker<ContentTracker
 
                     BulkOperation bulkOp = BulkOperation.of(b -> b
                             .update(u -> u
-                                    .id(Long.valueOf(nodeData.getNodeMetadata().getId()).toString())
+                                    .id(Tools.getUUID(nodeData.getNodeMetadata().getNodeRef()))
                                     .action(a -> a.script(
                                             s -> s
                                                     .source("ctx._source.content = params.new_content")
@@ -90,7 +90,7 @@ public class ContentTracker extends AbstractAlfTransactionTracker<ContentTracker
                     log.debug("Node {} has no content. content will be removed", nodeData.getNodeMetadata().getNodeRef());
                     BulkOperation bulkOp = BulkOperation.of(b -> b
                             .update(u -> u
-                                    .id(Long.valueOf(nodeData.getNodeMetadata().getId()).toString())
+                                    .id(Tools.getUUID(nodeData.getNodeMetadata().getNodeRef()))
                                     .action(a -> a.script(
                                             s -> s
                                                     .source("ctx._source.remove('content');")
