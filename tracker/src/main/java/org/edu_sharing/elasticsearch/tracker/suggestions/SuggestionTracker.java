@@ -39,9 +39,11 @@ public class SuggestionTracker extends AbstractAlfTransactionTracker<AlfTransact
                     String nodeId = Tools.getUUID(node.getNodeRef());
                     List<PropertySuggestion> suggestions = eduSharingService.getSuggestions(nodeId);
                     if (suggestions.isEmpty()) {
+                        log.debug("Node {} has no suggestions", nodeId);
                         nodeSuggestions.put(node, List.of());
                         return;
                     }
+                    log.debug("Node {} has {} suggestions", nodeId, suggestions.size());
                     String mds = getMetadataSet(nodeId);
                     List<Map<String, Object>> nodePropertySuggestions = suggestions
                             .stream()
