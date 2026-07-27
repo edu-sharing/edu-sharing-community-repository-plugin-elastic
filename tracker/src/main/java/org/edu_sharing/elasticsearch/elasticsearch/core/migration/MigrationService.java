@@ -4,6 +4,7 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.AdminService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexService;
@@ -35,6 +36,7 @@ public class MigrationService {
     private final StatusIndexServiceFactory statusIndexServiceFactory;
     private final List<MigrationInfo> migrationInfos;
     private final TrackerRegistry trackerRegistry;
+    private final TrackerAvailabilityTickService tickService;
 
 
     @Value("${migration.reindex.size}")
@@ -249,11 +251,11 @@ public class MigrationService {
             boolean shouldMigrateAuthorities = !sourceAuthoritiesIndex.split("_")[1].equals("9.1");
 
             jobs = Stream.of( // Jobs needs to be ordered by MigrationStep (see requires migration)
-                            new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(),reindexBatchSize,requestsPerSecond),
-                            shouldMigrateAuthorities ? new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),reindexBatchSize,requestsPerSecond) : null,
-                            new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(),reindexBatchSize,requestsPerSecond),
-                            new CallbackMigrationJob(client, context.getMigrationCallbacks()),
-                            new DocumentsMigrationJob(adminService, context.getMigrationTrackerStateIndex(), trackerRegistry, context.getMigrationTracker(), statusIndexServiceFactory, trackerExecutorFactory),
+                            new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(),reindexBatchSize,requestsPerSecond, tickService),
+                            shouldMigrateAuthorities ? new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),reindexBatchSize,requestsPerSecond, tickService) : null,
+                            new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(),reindexBatchSize,requestsPerSecond, tickService),
+                            new CallbackMigrationJob(client, context.getMigrationCallbacks(), tickService),
+                            new DocumentsMigrationJob(adminService, context.getMigrationTrackerStateIndex(), trackerRegistry, context.getMigrationTracker(), statusIndexServiceFactory, trackerExecutorFactory, tickService),
                             new CompleteMigrationJob())
                     .filter(Objects::nonNull).toList();
 

@@ -1135,7 +1135,11 @@ public class WorkspaceService implements SearchHitsRunner {
         } finally {
             String fscrollId = scrollId;
             if (scrollId != null && !scrollId.isEmpty()) {
-                client.clearScroll(cs -> cs.scrollId(fscrollId));
+                try {
+                    client.clearScroll(cs -> cs.scrollId(fscrollId));
+                } catch (Exception e) {
+                    log.warn("failed to clear scroll {}: {}", fscrollId, e.getMessage(), e);
+                }
             }
         }
     }

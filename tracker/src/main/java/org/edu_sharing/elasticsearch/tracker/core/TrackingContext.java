@@ -5,6 +5,7 @@ import org.edu_sharing.elasticsearch.metric.MetricContext;
 import org.edu_sharing.elasticsearch.tracker.strategy.TrackerStrategy;
 
 public record TrackingContext<STATE>(
+        String name,
         TrackerStrategy strategy,
         StatusIndexServiceInterface<STATE> statusIndexService,
         MetricContext metricContext
