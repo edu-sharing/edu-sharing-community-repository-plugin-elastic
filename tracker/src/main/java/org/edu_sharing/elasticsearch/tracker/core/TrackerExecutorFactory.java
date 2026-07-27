@@ -1,6 +1,7 @@
 package org.edu_sharing.elasticsearch.tracker.core;
 
 import lombok.RequiredArgsConstructor;
+import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.ApplicationState;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceFactory;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
@@ -26,6 +27,7 @@ public class TrackerExecutorFactory {
     private final TrackerRegistry trackerRegistry;
     private final MetricContextFactory metricContextFactory;
     private final ApplicationState applicationState;
+    private final TrackerAvailabilityTickService tickService;
 
     private TrackerStrategy applyDefaultStrategy(TrackerConfig<?, ?> trackerConfig) {
         return new FixNumberOfTransactionStrategy();
@@ -87,7 +89,8 @@ public class TrackerExecutorFactory {
         Map<TrackerCoroutineConfig, TrackingExecutor<?>> result = new LinkedHashMap<>();
         for (TrackerCoroutineConfig tackerCoroutineConfig : tackerCoroutineConfigs) {
             TrackingExecutor<?> trackingExecutor = createTrackerExecutor(tackerCoroutineConfig.getTracker(),
-                    new TrackingContext<>(null,
+                    new TrackingContext<>(tackerCoroutineConfig.getName(),
+                    null,
                     null,
                     metricContextFactory.createMetric(tackerCoroutineConfig.getName())) );
             result.put(tackerCoroutineConfig, trackingExecutor);
@@ -117,7 +120,8 @@ public class TrackerExecutorFactory {
             trackerStrategy = defaultStrategySupplier.apply(trackerConfig);
         }
 
-        return new TrackingContext<>(trackerStrategy,
+        return new TrackingContext<>(trackerConfig.getName(),
+                trackerStrategy,
                 statusIndexServiceRegistry.getCommitTimeStatusIndex(trackerConfig),
                 metricContextFactory.createMetric(trackerConfig.getName()));
     }
@@ -127,6 +131,6 @@ public class TrackerExecutorFactory {
     @Scope("prototype")
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     public <STATUS> TrackingExecutor<STATUS> createTrackerExecutor(Tracker<STATUS> tracker, TrackingContext<STATUS> trackingContext) {
-        return new TrackingExecutor<>(tracker, trackingContext, applicationState);
+        return new TrackingExecutor<>(tracker, trackingContext, applicationState, tickService);
     }
 }

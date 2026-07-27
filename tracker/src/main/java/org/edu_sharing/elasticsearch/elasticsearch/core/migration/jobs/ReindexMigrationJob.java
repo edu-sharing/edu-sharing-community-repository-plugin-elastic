@@ -9,10 +9,10 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationContext;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationException;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationStep;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -32,6 +32,7 @@ public class ReindexMigrationJob implements MigrationJob {
 
     private final Integer reindexBatchSize;
     private final Float requestsPerSecond;
+    private final TrackerAvailabilityTickService tickService;
 
     @Override
     public void onEnterState(MigrationContext context) {
@@ -65,6 +66,7 @@ public class ReindexMigrationJob implements MigrationJob {
     public void onProgressState(MigrationContext context) {
         while (true) {
             try {
+                tickService.tick(MigrationJob.tickName(this));
                 GetTasksResponse tasksResponse = client.tasks().get(req -> req.taskId(taskId));
                 TaskInfo task = tasksResponse.task();
                 if (tasksResponse.error() != null) {
@@ -92,7 +94,10 @@ public class ReindexMigrationJob implements MigrationJob {
 
     @Override
     public void onExitState(MigrationContext context) {
-
+        // reindexing concluded - clear so this step's last tick doesn't sit there and eventually
+        // age past the liveness threshold while a later, untracked phase (e.g. waiting for the
+        // repository) is still legitimately running.
+        tickService.clear(MigrationJob.tickName(this));
     }
 }
 

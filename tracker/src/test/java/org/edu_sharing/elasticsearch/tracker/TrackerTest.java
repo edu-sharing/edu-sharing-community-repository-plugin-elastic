@@ -83,7 +83,7 @@ public class TrackerTest {
         Transactions data = TestUtil.loadTransactions(testData);
         tracker.setAlfClient(new AlfrescoApiMock(data));
         strategy = new MaxCommitTimeStrategy(maxCommitTime);
-        TrackingContext<Tx> trackingContext = new TrackingContext<>(strategy, statusIndexService, MetricContext.builder().build());
+        TrackingContext<Tx> trackingContext = new TrackingContext<>("testTracker", strategy, statusIndexService, MetricContext.builder().build());
 
         Tracker.State state;
         do{

@@ -2,8 +2,10 @@ package org.edu_sharing.elasticsearch.elasticsearch.config.mode;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import lombok.RequiredArgsConstructor;
+import org.edu_sharing.elasticsearch.edu_sharing.api.RepositoryAvailabilityProbe;
 import org.edu_sharing.elasticsearch.elasticsearch.core.DefaultApplicationState;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
+import org.edu_sharing.elasticsearch.elasticsearch.core.WaitForRepositoryJob;
 import org.edu_sharing.elasticsearch.elasticsearch.core.hook.ApplicationStartupHook;
 import org.edu_sharing.elasticsearch.elasticsearch.core.hook.ApplicationStartupHookService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationService;
@@ -36,6 +38,11 @@ public class DefaultConfiguration {
     @Bean
     public WaitForMigrationJob waitForMigrationJob(MigrationService migrationService, DefaultApplicationState defaultApplicationState) {
         return new WaitForMigrationJob(migrationService, defaultApplicationState);
+    }
+
+    @Bean
+    public WaitForRepositoryJob waitForRepositoryJob(RepositoryAvailabilityProbe repositoryAvailabilityProbe, DefaultApplicationState defaultApplicationState) {
+        return new WaitForRepositoryJob(repositoryAvailabilityProbe, defaultApplicationState);
     }
 
 
