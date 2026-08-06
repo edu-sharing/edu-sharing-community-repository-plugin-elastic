@@ -224,5 +224,48 @@ public abstract class AbstractAlfTransactionTracker<PROPS extends AlfTransaction
 
     public abstract void trackNodes(List<Node> nodes) throws IOException;
 
+    /**
+     * Filters the raw transaction nodes down to the ones this tracker should actually write, and
+     * deduplicates them by UUID.
+     * <p>
+     * A node only ever lives in one store at a time - it is never simultaneously in
+     * {@code workspace://} and {@code archive://}. Dedup still must key on the UUID rather than on
+     * {@code Node} itself, though: moving a node to the trash and restoring it can assign it a new
+     * Alfresco DBID for the same UUID, so a batch spanning both events can contain two {@code Node}
+     * entries for that UUID with different DBIDs (sequentially, never both stores at once). Since
+     * {@code Node.equals}/{@code hashCode} compare the DBID, keying dedup on {@code Node} would not
+     * recognize those as duplicates and both would race to write the same Elasticsearch {@code _id}
+     * (that {@code _id} is the UUID, via {@code Tools.getUUID} - not the DBID). Keeping the highest
+     * {@code txnId} per UUID picks the node's current state instead of writing a stale one.
+     * <p>
+     * Store filtering via {@code indexStoreRefs} mirrors {@link org.edu_sharing.elasticsearch.tracker.main.MainTracker}
+     * and {@link org.edu_sharing.elasticsearch.tracker.auth.AuthoritiesTracker}, which already apply it
+     * themselves; other {@code AbstractAlfTransactionTracker} subclasses previously ignored the
+     * property entirely.
+     */
+    protected List<Node> filterIndexableNodes(List<Node> nodes) {
+        Set<String> stores = (props.getIndexStoreRefs() == null || props.getIndexStoreRefs().isEmpty())
+                ? Set.of(CCConstants.STORE_WORKSPACES_SPACES)
+                : Set.copyOf(props.getIndexStoreRefs());
+
+        Map<String, Node> byUuid = new LinkedHashMap<>();
+        int skippedStore = 0, skippedDeleted = 0;
+        for (Node node : nodes) {
+            if (!stores.contains(Tools.getStoreRef(node.getNodeRef()))) {
+                skippedStore++;
+                continue;
+            }
+            if ("d".equals(node.getStatus())) {
+                skippedDeleted++;
+                continue;
+            }
+            byUuid.merge(Tools.getUUID(node.getNodeRef()), node,
+                    (a, b) -> a.getTxnId() >= b.getTxnId() ? a : b);
+        }
+        int deduplicated = nodes.size() - skippedStore - skippedDeleted - byUuid.size();
+        log.info("filtered nodes: in={} out={} skippedStore={} skippedDeleted={} deduplicated={}",
+                nodes.size(), byUuid.size(), skippedStore, skippedDeleted, deduplicated);
+        return List.copyOf(byUuid.values());
+    }
 
 }

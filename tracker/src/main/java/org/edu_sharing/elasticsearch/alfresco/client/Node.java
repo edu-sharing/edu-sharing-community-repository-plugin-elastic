@@ -64,4 +64,9 @@ public class Node
         if(!(obj instanceof Node)) return false;
         return this.getId() == ((Node)obj).getId();
     }
+
+    @Override
+    public int hashCode() {
+        return Long.hashCode(this.id);
+    }
 }

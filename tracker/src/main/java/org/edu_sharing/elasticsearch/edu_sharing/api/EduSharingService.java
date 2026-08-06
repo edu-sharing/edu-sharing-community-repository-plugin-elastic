@@ -67,9 +67,13 @@ public class EduSharingService {
     public String getMdsId(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData) {
         String mds = (String) nodeData.getNodeMetadata().getProperties().get(CCConstants.CM_PROP_METADATASET_EDU_METADATASET);
         if (mds == null) {
-            mds = mdsService.getMetadataSet(DEFAULT_MDS_ID).getId();
+            mds = getDefaultMdsId();
         }
         return mds;
+    }
+
+    public String getDefaultMdsId() {
+        return mdsService.getMetadataSet(DEFAULT_MDS_ID).getId();
     }
 
     public void translateProperties(org.edu_sharing.elasticsearch.alfresco.client.NodeData nodeData, String mds, Map.Entry<String, Serializable> prop) {

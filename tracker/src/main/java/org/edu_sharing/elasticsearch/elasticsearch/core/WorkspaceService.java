@@ -74,6 +74,9 @@ public class WorkspaceService implements SearchHitsRunner {
     @Value("${tracker.bulk.size.elastic}")
     int bulkSizeElastic;
 
+    @Value("${elastic.update.retryOnConflict:5}")
+    int updateRetryOnConflict;
+
     private final SimpleDateFormat statisticDateFormatter = new SimpleDateFormat("yyyy-MM-dd");
     private final EduSharingService eduSharingService;
     private volatile String homeRepoId;
@@ -173,37 +176,77 @@ public class WorkspaceService implements SearchHitsRunner {
         }
     }
 
-    public void updateNodesWithRelations(final String nodeId, final List<RelationData> relationData) {
-        // language=groovy
-        final String SCRIPT_UPDATE_RELATIONS = """
-                ctx._source.relations = params.relations;
-                """;
+    public FieldUpdateOutcome updateNodesWithRelations(final String nodeId, final List<RelationData> relationData) throws IOException {
+        return updateNodeAndPublishedCopies(nodeId, "relations", JsonData.of(relationData));
+    }
 
-        UpdateByQueryResponse bulkByScrollResponse;
+    /**
+     * Outcome of {@link #updateNodeAndPublishedCopies(String, String, JsonData)}, meant to be logged
+     * (and, where useful, counted) by the calling tracker so a silently dropped write becomes visible.
+     */
+    public record FieldUpdateOutcome(String nodeId, @Nullable Result primary, long copiesUpdated, long copiesConflicts) {
+        public boolean primaryMissing() {
+            return primary == null;
+        }
+    }
+
+    /**
+     * Writes {@code field} on the node itself and on all of its published copies.
+     * <p>
+     * The node itself is intentionally NOT written via {@code updateByQuery}:
+     * <ul>
+     *   <li>{@code _update} is a realtime GET on the primary shard (it reads the translog), so it also
+     *   sees documents the mainTracker just wrote but that are not yet refresh-visible.</li>
+     *   <li>{@code retry_on_conflict} resolves version conflicts with the other trackers that write the
+     *   same {@code _id} concurrently (content/preview/statistics/collectionSync); {@code updateByQuery}
+     *   has no equivalent, and {@code Conflicts.Proceed} used to drop the write silently on conflict.</li>
+     * </ul>
+     * Published copies have their own {@code _id} and are only reachable via the query, so they keep
+     * going through {@code updateByQuery}.
+     */
+    private FieldUpdateOutcome updateNodeAndPublishedCopies(String nodeId, String field, JsonData value) throws IOException {
+        // language=painless
+        final String script = "ctx._source." + field + " = params.value;";
+
+        Result primary = null;
         try {
-            bulkByScrollResponse = client.updateByQuery(req -> req
+            UpdateRequest<Void, Void> request = UpdateRequest.of(u -> u
                     .index(index)
-                    .query(q -> q.bool(b -> b
-                            .should(s -> s.term(t -> t.field("_id").value(nodeId)))
-                            .should(s -> s.bool(b2 -> b2
-                                    .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
-                                    .must(m -> m.term(t -> t.field("properties." + CCConstants.getValidLocalName(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL)).value(nodeId)))
-                            ))))
-                    .conflicts(Conflicts.Proceed)
-                    .refresh(false)
-                    .script(src -> src
-                            .source(SCRIPT_UPDATE_RELATIONS)
-                            .params("relations", JsonData.of(relationData)))
-            );
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+                    .id(nodeId)
+                    .retryOnConflict(updateRetryOnConflict)
+                    .script(s -> s.source(script).params("value", value)));
+            primary = client.update(request, Void.class).result();
+        } catch (ElasticsearchException e) {
+            boolean missing = e.status() == 404
+                    || (e.error() != null && "document_missing_exception".equals(e.error().type()));
+            if (!missing) {
+                // conflict after N retries, mapping error, ... -> let the batch fail so the tracker
+                // does not commit and the node is retried on the next run
+                throw e;
+            }
+            log.warn("{}: document missing in index, skipping node {}", field, nodeId);
         }
 
-        log.debug("updated: {}", bulkByScrollResponse.updated());
-        List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
-        for (BulkIndexByScrollFailure failure : bulkFailures) {
-            log.error(failure.cause().toString(), failure.cause());
+        UpdateByQueryResponse response = client.updateByQuery(req -> req
+                .index(index)
+                .query(q -> q.bool(b -> b
+                        .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
+                        .must(m -> m.term(t -> t.field("properties." + CCConstants.getValidLocalName(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL)).value(nodeId)))))
+                .conflicts(Conflicts.Proceed)
+                .refresh(false)
+                .script(src -> src.source(script).params("value", value)));
+
+        for (BulkIndexByScrollFailure failure : response.failures()) {
+            log.error("{}: update of published copy of {} failed: {}", field, nodeId, failure.cause());
         }
+        long conflicts = Objects.requireNonNullElse(response.versionConflicts(), 0L);
+        if (conflicts > 0) {
+            log.warn("{}: {} version conflicts while updating published copies of {} - those writes were dropped",
+                    field, conflicts, nodeId);
+        }
+        long updated = Objects.requireNonNullElse(response.updated(), 0L);
+        log.debug("{}: nodeId={} primary={} copiesUpdated={} copiesConflicts={}", field, nodeId, primary, updated, conflicts);
+        return new FieldUpdateOutcome(nodeId, primary, updated, conflicts);
     }
 
     public UpdateResponse<Void> update(String nodeId, Object data) throws IOException {
@@ -234,7 +277,7 @@ public class WorkspaceService implements SearchHitsRunner {
         BulkResponse response = client.bulk(req -> req.index(index).operations(updateRequests));
         for (BulkResponseItem item : response.items()) {
             if (item.error() != null) {
-                log.error(item.error().reason());
+                log.error("bulk update of {} failed: {}", item.id(), item.error().reason());
             }
         }
     }
@@ -984,37 +1027,16 @@ public class WorkspaceService implements SearchHitsRunner {
     }
 
 
-    public void updateNodesWithSuggestions(String nodeId, @NotNull Collection<Map<String, Object>> suggestions) {
-        // language=groovy
-        final String SCRIPT_UPDATE_SUGGESTIONS = """
-                ctx._source.suggestions = params.suggestions;
-                """;
+    public FieldUpdateOutcome updateNodesWithSuggestions(String nodeId, @NotNull Collection<Map<String, Object>> suggestions) throws IOException {
+        return updateNodeAndPublishedCopies(nodeId, "suggestions", JsonData.of(suggestions));
+    }
 
-        UpdateByQueryResponse bulkByScrollResponse;
-        try {
-            bulkByScrollResponse = client.updateByQuery(req -> req
-                    .index(index)
-                    .query(q -> q.bool(b -> b
-                            .should(s -> s.term(t -> t.field("_id").value(nodeId)))
-                            .should(s -> s.bool(b2 -> b2
-                                    .must(m -> m.term(t -> t.field("aspects").value(CCConstants.CCM_ASPECT_PUBLISHED)))
-                                    .must(m -> m.term(t -> t.field("properties."+CCConstants.getValidLocalName(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL)).value(nodeId)))
-                            ))))
-                    .conflicts(Conflicts.Proceed)
-                    .refresh(false)
-                    .script(src -> src
-                            .source(SCRIPT_UPDATE_SUGGESTIONS)
-                            .params("suggestions", JsonData.of(suggestions)))
-            );
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        log.debug("updated: {}", bulkByScrollResponse.updated());
-        List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
-        for (BulkIndexByScrollFailure failure : bulkFailures) {
-            log.error(failure.cause().toString(), failure.cause());
-        }
+    /**
+     * Realtime GET on the node's document - unlike {@link #search}, this does not depend on the
+     * index having been refreshed since the last write (it reads the translog on the primary shard).
+     */
+    public <T> GetResponse<T> get(String id, Class<T> clazz) throws IOException {
+        return client.get(req -> req.index(index).id(id), clazz);
     }
 
     private record UsageDetails(String nodeIdCollection, String nodeIdIO) {
