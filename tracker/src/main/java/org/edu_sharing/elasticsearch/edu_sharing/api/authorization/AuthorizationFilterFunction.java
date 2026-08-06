@@ -12,6 +12,10 @@ import reactor.core.publisher.Mono;
 
 @RequiredArgsConstructor
 public class AuthorizationFilterFunction implements ExchangeFilterFunction {
+    // set by the backend on every /rest/* response - "false" when the request was only answered as guest,
+    // even with a 200 status (see DESP-377)
+    private static final String HEADER_AUTHENTICATED = "X-Edu-Authenticated";
+
     private final AuthorizationClient authorizationClient;
     private String token;
 
@@ -40,9 +44,12 @@ public class AuthorizationFilterFunction implements ExchangeFilterFunction {
 
         return next.exchange(withAuthorizationHeaderRequest)
                 .flatMap(it -> {
-                    // we need to check both 401 and 403 -> if guest mode is enabled we get 403 instead
-                    // TODO we still have a lag of information when the endpoint is accessible by guest but doesn't return all data
-                    if (it.statusCode() == HttpStatus.UNAUTHORIZED || it.statusCode() == HttpStatus.FORBIDDEN) {
+                    if (it.statusCode() == HttpStatus.UNAUTHORIZED) {
+                        return throughGetToken(request, next);
+                    }
+                    // guest mode may still answer with 200 (or 403, if guest lacks permission on the node) instead
+                    // of 401 -> re-login if our ticket was not actually recognized as authenticated
+                    if ("false".equalsIgnoreCase(it.headers().asHttpHeaders().getFirst(HEADER_AUTHENTICATED))) {
                         return throughGetToken(request, next);
                     }
 
