@@ -19,6 +19,13 @@ public class InternalQueries {
         return Query.of(q -> q.nested(n -> n.path("collections").query(Query.of(qi -> qi.term(t -> t.field("collections.dbid").value(collectionDbid))))));
     }
 
+    /**
+     * matches all nodes that hold a replica of a collection with the given acl in their collections array
+     */
+    public static Query queryCollectionsWithAcl(long aclId) {
+        return Query.of(q -> q.nested(n -> n.path("collections").query(Query.of(qi -> qi.term(t -> t.field("collections.aclId").value(aclId))))));
+    }
+
     public static Query queryChildrenNodes(Long childDbid) {
         return Query.of(q -> q.nested(n -> n.path("children").query(Query.of(qi -> qi.term(t -> t.field("children.dbid").value(childDbid))))));
     }

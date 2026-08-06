@@ -130,6 +130,47 @@ public class WorkspaceService implements SearchHitsRunner {
         for (BulkIndexByScrollFailure failure : bulkFailures) {
             log.error(failure.cause().toString(), failure.cause());
         }
+
+        updateCollectionReplicasWithAcl(aclId, permissions);
+    }
+
+    /**
+     * a collection is replicated into the collections array of every node that has a metadata copy in it,
+     * including its permissions section. since those replicas do not carry the aclId of the node itself
+     * they are not covered by updateNodesWithAcl and need to be synced separately.
+     */
+    public void updateCollectionReplicasWithAcl(final long aclId, final Map<String, List<String>> permissions) throws IOException {
+        log.info("starting collection replicas: {} ", aclId);
+
+        // language=groovy
+        final String SCRIPT_UPDATE_COLLECTION_PERMISSIONS = """
+                if (ctx._source.collections == null) {
+                    return;
+                }
+                long aclId = ((Number) params.aclId).longValue();
+                for (def collection : ctx._source.collections) {
+                    if (collection.aclId != null && ((Number) collection.aclId).longValue() == aclId) {
+                        collection.permissions = params.permissions;
+                    }
+                }
+                """;
+
+        UpdateByQueryResponse bulkByScrollResponse = client.updateByQuery(req -> req
+                .index(index)
+                .query(InternalQueries.queryCollectionsWithAcl(aclId))
+                .conflicts(Conflicts.Proceed)
+                .refresh(false)
+                .script(scr -> scr
+                        .source(SCRIPT_UPDATE_COLLECTION_PERMISSIONS)
+                        .params("aclId", JsonData.of(aclId))
+                        .params("permissions", JsonData.of(permissions)))
+        );
+
+        log.info("updated: {}", bulkByScrollResponse.updated());
+        List<BulkIndexByScrollFailure> bulkFailures = bulkByScrollResponse.failures();
+        for (BulkIndexByScrollFailure failure : bulkFailures) {
+            log.error(failure.cause().toString(), failure.cause());
+        }
     }
 
     public void updateNodesWithRelations(final String nodeId, final List<RelationData> relationData) {
