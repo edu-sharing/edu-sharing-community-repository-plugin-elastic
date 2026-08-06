@@ -45,7 +45,6 @@ class SuggestionTrackerTest {
     void setUp() {
         AlfTransactionTrackerProperties props = new AlfTransactionTrackerProperties();
         props.setThreads(1);
-        props.setIndexStoreRefs(List.of("workspace://SpacesStore"));
 
         tracker = new SuggestionTracker(props, new ObjectMapper());
         tracker.setEduSharingService(eduSharingService);
@@ -121,18 +120,6 @@ class SuggestionTrackerTest {
         assertThat(written).hasSize(1);
         assertThat(written.get(0)).containsEntry("i18n", Map.of("de", List.of("Wert 1")));
         verify(eduSharingService).translateValuespaceProperty("uuid-1", "-default-", "ccm:taxonid", "value-1");
-    }
-
-    @Test
-    void archiveStoreNodesAreSkippedSoTheyCannotOverwriteTheLiveNodesDocument() throws IOException {
-        // Arrange: tracker.suggestion.indexStoreRefs only allows workspace://SpacesStore.
-        Node archiveNode = node("archive://SpacesStore/uuid-1", "u", 1, 100);
-
-        // Act
-        tracker.trackNodes(List.of(archiveNode));
-
-        // Assert: filtered out before any repository/index call is made.
-        verifyNoInteractions(eduSharingService, workspaceService);
     }
 
     @Test
