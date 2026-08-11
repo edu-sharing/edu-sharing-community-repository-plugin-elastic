@@ -224,5 +224,43 @@ public abstract class AbstractAlfTransactionTracker<PROPS extends AlfTransaction
 
     public abstract void trackNodes(List<Node> nodes) throws IOException;
 
+    /**
+     * Filters the raw transaction nodes down to the ones this tracker should actually write, and
+     * deduplicates them by UUID.
+     * <p>
+     * Store filtering is not this method's job: it is done server-side by {@code track()} passing
+     * {@code storeProtocol}/{@code storeIdentifier} to {@code alfClient.getNodes(...)} (see above), the
+     * same mechanism {@code content}/{@code preview}/{@code collection}/{@code statisticsalfresco}
+     * already use - so {@code nodes} here never contains a store this tracker did not ask for.
+     * <p>
+     * Dedup still must key on the UUID rather than on {@code Node} itself, though: moving a node to the
+     * trash and restoring it can assign it a new Alfresco DBID for the same UUID, so a batch spanning
+     * both events can contain two {@code Node} entries for that UUID with different DBIDs (in the same
+     * store, sequentially - a node is never in two stores at once). Since {@code Node.equals}/
+     * {@code hashCode} compare the DBID, keying dedup on {@code Node} would not recognize those as
+     * duplicates: both would independently trigger a live fetch/write for the same UUID - redundant
+     * work, and two writers racing the same Elasticsearch {@code _id} (that {@code _id} is the UUID, via
+     * {@code Tools.getUUID} - not the DBID). Neither duplicate is "stale" in that fetch, though:
+     * SuggestionTracker/RelationTracker only use the surviving {@code Node} to derive the UUID, then
+     * read the current suggestions/relations live from the repository, so either duplicate would
+     * produce an identical result. Keeping the highest {@code txnId} is therefore just a deterministic
+     * tie-break, not a correctness requirement.
+     */
+    protected List<Node> filterIndexableNodes(List<Node> nodes) {
+        Map<String, Node> byUuid = new LinkedHashMap<>();
+        int skippedDeleted = 0;
+        for (Node node : nodes) {
+            if ("d".equals(node.getStatus())) {
+                skippedDeleted++;
+                continue;
+            }
+            byUuid.merge(Tools.getUUID(node.getNodeRef()), node,
+                    (a, b) -> a.getTxnId() >= b.getTxnId() ? a : b);
+        }
+        int deduplicated = nodes.size() - skippedDeleted - byUuid.size();
+        log.info("filtered nodes: in={} out={} skippedDeleted={} deduplicated={}",
+                nodes.size(), byUuid.size(), skippedDeleted, deduplicated);
+        return List.copyOf(byUuid.values());
+    }
 
 }
