@@ -45,12 +45,12 @@ public class AuthorizationFilterFunction implements ExchangeFilterFunction {
         return next.exchange(withAuthorizationHeaderRequest)
                 .flatMap(it -> {
                     if (it.statusCode() == HttpStatus.UNAUTHORIZED) {
-                        return throughGetToken(request, next);
+                        return it.releaseBody().then(throughGetToken(request, next)) ;
                     }
                     // guest mode may still answer with 200 (or 403, if guest lacks permission on the node) instead
                     // of 401 -> re-login if our ticket was not actually recognized as authenticated
                     if ("false".equalsIgnoreCase(it.headers().asHttpHeaders().getFirst(HEADER_AUTHENTICATED))) {
-                        return throughGetToken(request, next);
+                        return it.releaseBody().then(throughGetToken(request, next));
                     }
 
                     return Mono.just(it);
