@@ -36,10 +36,10 @@ public class ShareTrackerConfig {
         return new GenericTrackingSupport<>() {
 
             @Override
-            public List<TimedData<ShareInfoOplog>> getData(OffsetDateTime fromTimeStamp, OffsetDateTime toTimeStamp, int batchSize) {
-                List<ShareInfoOplog> shareInfoOplogs = eduSharingService.getShareInfoOplog(fromTimeStamp, toTimeStamp, batchSize);
+            public List<TimedData<ShareInfoOplog>> getData(OffsetDateTime fromTimeStamp, Long afterId, OffsetDateTime toTimeStamp, int batchSize) {
+                List<ShareInfoOplog> shareInfoOplogs = eduSharingService.getShareInfoOplog(fromTimeStamp, afterId, toTimeStamp, batchSize);
                 return shareInfoOplogs.stream()
-                        .map(x -> new TimedData<>(x, x.getTimestamp().toInstant().toEpochMilli()))
+                        .map(x -> new TimedData<>(x, x.getTimestamp().toInstant().toEpochMilli(), x.getId()))
                         .toList();
             }
 
