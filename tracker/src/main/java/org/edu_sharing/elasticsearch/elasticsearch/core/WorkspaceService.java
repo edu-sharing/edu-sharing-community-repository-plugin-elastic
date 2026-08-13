@@ -48,6 +48,7 @@ import java.io.Serializable;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.Collection;
 import java.util.Collections;
@@ -925,11 +926,12 @@ public class WorkspaceService implements SearchHitsRunner {
                     builder.field("nodeId", activity.getNodeId());
                     builder.field("initiator", activity.getUsername());
                     builder.field("type", activity.getType());
-                    // TODO: getTimestamp() is now the repository's write/polling-cursor time (can lag
-                    // the real event by hours, e.g. via RetryFailedOrMissingMongoAlfOpLogJob), not when
-                    // the activity actually happened - switch to activity.getOccurredAt() once the
-                    // generated client exposes it (needs an openapi.json regen from a live repository).
-                    builder.field("timestamp", activity.getTimestamp().toInstant().toEpochMilli());
+                    // getTimestamp() is the repository's write/polling-cursor time (can lag the real
+                    // event by hours, e.g. via RetryFailedOrMissingMongoAlfOpLogJob) - occurredAt is
+                    // the actual event time and what should be shown to users. Records written before
+                    // occurredAt existed have it as null, so fall back to timestamp for those.
+                    OffsetDateTime displayTimestamp = activity.getOccurredAt() != null ? activity.getOccurredAt() : activity.getTimestamp();
+                    builder.field("timestamp", displayTimestamp.toInstant().toEpochMilli());
                     builder.endObject();
                 }
                 {
