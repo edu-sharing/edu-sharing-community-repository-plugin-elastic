@@ -925,6 +925,10 @@ public class WorkspaceService implements SearchHitsRunner {
                     builder.field("nodeId", activity.getNodeId());
                     builder.field("initiator", activity.getUsername());
                     builder.field("type", activity.getType());
+                    // TODO: getTimestamp() is now the repository's write/polling-cursor time (can lag
+                    // the real event by hours, e.g. via RetryFailedOrMissingMongoAlfOpLogJob), not when
+                    // the activity actually happened - switch to activity.getOccurredAt() once the
+                    // generated client exposes it (needs an openapi.json regen from a live repository).
                     builder.field("timestamp", activity.getTimestamp().toInstant().toEpochMilli());
                     builder.endObject();
                 }
