@@ -405,6 +405,8 @@ public class AutoConfigurationTracker {
                                 .properties("initiator", prop -> prop.keyword(v -> v))
                                 .properties("receiver", prop -> prop.keyword(v -> v))
                                 .properties("type", prop -> prop.keyword(v -> v))
+                                // TODO planned for the next index iteration; also adapt queries as well!
+                                //.properties("occurredAt", prop -> prop.date(v -> v))
                                 .properties("timestamp", prop -> prop.date(v -> v))))
                 .properties("share", shareProp -> shareProp
                         .object(shareObj -> shareObj

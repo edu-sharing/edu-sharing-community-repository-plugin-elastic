@@ -250,8 +250,13 @@ public class EduSharingService {
         return trackingV1Api.getAllUserNodeActivities(DEFAULT_REPOSITORY, since, until, maxItems).collectList().block();
     }
 
-    public List<ShareInfoOplog> getShareInfoOplog(OffsetDateTime since, OffsetDateTime until, int maxItems) {
-        return sharingV1Api.getOpLog(DEFAULT_REPOSITORY, null, since, until, maxItems).collectList().block();
+    /**
+     * @param afterId tiebreaker for oplog entries sharing the exact same "since" timestamp,
+     *                forming a combined (timestamp, id) cursor together with "since" - see
+     *                SharingApi#getOpLog. Null is treated as "no lower id bound".
+     */
+    public List<ShareInfoOplog> getShareInfoOplog(OffsetDateTime since, Long afterId, OffsetDateTime until, int maxItems) {
+        return sharingV1Api.getOpLog(DEFAULT_REPOSITORY, afterId, since, until, maxItems).collectList().block();
     }
 
     public List<ShareInfo> getShareInfos(List<Long> shareIds) {

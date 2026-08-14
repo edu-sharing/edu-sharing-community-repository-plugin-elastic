@@ -43,6 +43,7 @@ public class GenericTimebaseTracker<PROPS extends GenericTimebaseTrackerProperti
             OffsetDateTime lastTimestampDate = OffsetDateTime.ofInstant(
                     Instant.ofEpochMilli(Optional.ofNullable(trackerStatus).map(CommitTimeStatus::getCommitTime).orElse(0L)),
                     ZoneOffset.UTC);
+            Long lastId = Optional.ofNullable(trackerStatus).map(TimeBasedStatus::getLastId).orElse(null);
 
             OffsetDateTime toTimeStamp = context.strategy().getLimit() != null
                     ? OffsetDateTime.ofInstant(Instant.ofEpochMilli(context.strategy().getLimit()), ZoneOffset.UTC)
@@ -52,7 +53,7 @@ public class GenericTimebaseTracker<PROPS extends GenericTimebaseTrackerProperti
 
             int i = 0;
             do {
-                List<TimedData<DATA>> trackingData = trackingSupport.getData(lastTimestampDate, toTimeStamp, props.getBatchSize());
+                List<TimedData<DATA>> trackingData = trackingSupport.getData(lastTimestampDate, lastId, toTimeStamp, props.getBatchSize());
                 if (trackingData.isEmpty()) {
                     log.info("{} no new data found", getName());
                     return State.FINISHED;
@@ -60,10 +61,11 @@ public class GenericTimebaseTracker<PROPS extends GenericTimebaseTrackerProperti
 
                 TimedData<DATA> lastData = trackingData.get(trackingData.size() - 1);
                 lastTimestampDate = Instant.ofEpochMilli(lastData.timestamp()).atOffset(ZoneOffset.UTC);
+                lastId = lastData.sortKey();
 
                 trackingSupport.onHandleData(trackingData.stream().map(TimedData::data).toList());
                 log.info("{} handled {} entries", getName(), trackingData.size());
-                context.statusIndexService().setState(new TimeBasedStatus(lastTimestampDate.toInstant().toEpochMilli()));
+                context.statusIndexService().setState(new TimeBasedStatus(lastTimestampDate.toInstant().toEpochMilli(), lastId));
             } while (i++ < props.getMaxIterations());
             log.info("finished {} until: {}", getName(), dateFormat.format(lastTimestampDate));
         } catch (Exception e) {

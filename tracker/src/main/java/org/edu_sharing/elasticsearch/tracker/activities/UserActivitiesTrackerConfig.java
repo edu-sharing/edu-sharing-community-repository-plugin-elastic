@@ -31,7 +31,7 @@ public class UserActivitiesTrackerConfig {
         return new GenericTrackingSupport<>() {
 
             @Override
-            public List<TimedData<UserNodeActivity>> getData(OffsetDateTime fromTimeStamp, OffsetDateTime toTimeStamp, int batchSize) {
+            public List<TimedData<UserNodeActivity>> getData(OffsetDateTime fromTimeStamp, Long afterId, OffsetDateTime toTimeStamp, int batchSize) {
                 List<UserNodeActivity> userActivitiesSince = eduSharingService.getUserActivitiesSince(fromTimeStamp, toTimeStamp, batchSize);
                 return userActivitiesSince.stream()
                         .map(x -> new TimedData<>(x, x.getTimestamp().toInstant().toEpochMilli()))

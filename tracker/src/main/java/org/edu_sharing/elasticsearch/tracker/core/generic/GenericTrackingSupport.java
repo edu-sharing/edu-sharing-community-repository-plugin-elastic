@@ -6,7 +6,13 @@ import java.util.List;
 
 public interface GenericTrackingSupport<DATA> {
 
-    List<TimedData<DATA>> getData(OffsetDateTime fromTimeStamp, OffsetDateTime toTimeStamp,  int batchSize);
+    /**
+     * @param afterId tiebreaker cursor for entries sharing the exact same fromTimeStamp (see
+     *                {@link TimedData#sortKey()}); null if the previous batch's last entry had
+     *                no sort key, or no entry has been processed yet. Data sources without a
+     *                stable id can ignore it.
+     */
+    List<TimedData<DATA>> getData(OffsetDateTime fromTimeStamp, Long afterId, OffsetDateTime toTimeStamp, int batchSize);
 
     void onHandleData(List<DATA> trackingData) throws IOException;
 

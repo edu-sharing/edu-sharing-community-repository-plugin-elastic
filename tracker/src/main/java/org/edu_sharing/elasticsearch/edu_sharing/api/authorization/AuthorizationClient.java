@@ -49,6 +49,9 @@ public class AuthorizationClient {
 
     private synchronized void invalidate() {
         this.tokenCacheFuture = Mono.fromFuture(this.tokenCacheFuture)
+                // prevent login error get cached
+                .onErrorResume(e -> Mono.just(new TokenCache(null, 0L)))
+                .defaultIfEmpty(new TokenCache(null, 0L))
                 .flatMap(tokenCache -> {
                     if (Instant.now().getEpochSecond() - tokenCache.time < 1 && tokenCache.token != null) {
                         return Mono.just(tokenCache);
