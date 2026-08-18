@@ -1187,7 +1187,7 @@ public class WorkspaceService implements SearchHitsRunner {
 
     public void syncCollectionReplicas(NodeMetadataSimple collection) throws IOException {
         log.info("starting for collection: {}", collection.getNodeRef());
-        this.run(InternalQueries.queryCollectionNodes(collection.getId()), maxCollectionChildItemsUpdateSize, Map.class, (hit) -> {
+        this.run(InternalQueries.queryCollectionNodes(collection.getId()), 25,maxCollectionChildItemsUpdateSize,null,Map.class, (hit) -> {
             try {
                 onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(hit.source()), true, false);
             } catch (IOException e) {
