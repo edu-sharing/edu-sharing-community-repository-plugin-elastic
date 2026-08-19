@@ -9,6 +9,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.AuthorityService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.StatusIndexServiceInterface;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.state.Tx;
+import org.edu_sharing.elasticsearch.elasticsearch.core.NodeFailureService;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.config.AlfTransactionTrackerProperties;
 import org.edu_sharing.elasticsearch.tracker.strategy.DependentStatusIndexServiceStrategie;
@@ -36,6 +37,9 @@ public abstract class AbstractAlfTransactionTracker<PROPS extends AlfTransaction
 
     @Setter(onMethod_ = @Autowired)
     protected EduSharingService eduSharingService;
+
+    @Setter(onMethod_ = @Autowired)
+    protected NodeFailureService nodeFailureService;
 
     protected ThreadUtil threadUtil;
 

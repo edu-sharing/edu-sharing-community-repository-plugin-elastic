@@ -99,6 +99,38 @@ public class AutoConfigurationTracker {
                         .numberOfReplicas(Integer.toString(indexNumberOfReplicas)))));
     }
 
+    /**
+     * Dead letter index: nodes that could not be indexed for a reason that will not go away by
+     * retrying. Written by {@code NodeFailureService}, emptied again as soon as a node is resolved,
+     * so its document count is exactly the number of currently broken nodes.
+     * <p>
+     * {@code dynamic: strict} on purpose - an index that exists to report broken mappings must not
+     * be able to break its own mapping.
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "nodeFailures")
+    public IndexConfiguration nodeFailures() {
+        return new IndexConfiguration(req -> req
+                .index("tracker_failures_" + version)
+                .settings(s -> s.index(id -> id
+                        .numberOfShards(Integer.toString(indexNumberOfShards))
+                        .numberOfReplicas(Integer.toString(indexNumberOfReplicas))))
+                .mappings(m -> m
+                        .dynamic(DynamicMapping.Strict)
+                        .properties("tracker", p -> p.keyword(k -> k))
+                        .properties("source", p -> p.keyword(k -> k))
+                        .properties("operation", p -> p.keyword(k -> k))
+                        .properties("nodeRef", p -> p.keyword(k -> k))
+                        .properties("nodeType", p -> p.keyword(k -> k))
+                        .properties("dbid", p -> p.long_(l -> l))
+                        .properties("txnId", p -> p.long_(l -> l))
+                        .properties("errorType", p -> p.keyword(k -> k))
+                        .properties("errorReason", p -> p.text(t -> t))
+                        .properties("firstSeen", p -> p.date(d -> d))
+                        .properties("lastSeen", p -> p.date(d -> d))
+                        .properties("attempts", p -> p.long_(l -> l))));
+    }
+
     @Bean
     @ConditionalOnMissingBean(name = "authorities")
     public IndexConfiguration authorities() {
