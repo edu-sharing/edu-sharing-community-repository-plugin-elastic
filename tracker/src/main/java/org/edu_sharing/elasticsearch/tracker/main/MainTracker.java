@@ -105,7 +105,7 @@ public class MainTracker extends AbstractAlfTransactionTracker<AlfTransactionTra
                     true,
                     true);
             log.info("index bulkOperations: {}", operations.size());
-            workspaceService.index(operations);
+            workspaceService.index(operations, getName(), p);
             log.info("finished partition {}", pIdx);
             pIdx++;
         }

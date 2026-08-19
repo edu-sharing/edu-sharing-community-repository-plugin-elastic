@@ -59,7 +59,8 @@ class WorkspaceServiceUpdateTest {
     @BeforeEach
     void setUp() {
         IndexConfiguration workspace = new IndexConfiguration(b -> b.index(INDEX));
-        workspaceService = new WorkspaceService(client, scriptExecutor, eduSharingService, alfrescoClient, workspace);
+        workspaceService = new WorkspaceService(client, scriptExecutor, eduSharingService, alfrescoClient, workspace,
+                mock(NodeFailureService.class));
         ReflectionTestUtils.setField(workspaceService, "updateRetryOnConflict", 5);
     }
 

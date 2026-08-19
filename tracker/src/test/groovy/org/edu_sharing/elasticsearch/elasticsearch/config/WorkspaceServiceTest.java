@@ -9,6 +9,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import org.edu_sharing.elasticsearch.alfresco.client.*;
+import org.edu_sharing.elasticsearch.elasticsearch.core.NodeFailureService;
 import org.edu_sharing.elasticsearch.edu_sharing.client.EduSharingClient;
 import org.edu_sharing.elasticsearch.edu_sharing.client.Repository;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
@@ -64,7 +65,8 @@ class WorkspaceServiceTest {
         when(eduSharingClient.getHomeRepository()).thenReturn(repository);
         when(repository.getId()).thenReturn("local");
 
-        underTest = Mockito.spy(new WorkspaceService(elasticsearchClient, scriptExecutor, eduSharingClient, alfrescoClient, new IndexConfiguration(req -> req.index("workspace"))));
+        underTest = Mockito.spy(new WorkspaceService(elasticsearchClient, scriptExecutor, eduSharingClient, alfrescoClient, new IndexConfiguration(req -> req.index("workspace")),
+                mock(NodeFailureService.class)));
     }
 
     @Test

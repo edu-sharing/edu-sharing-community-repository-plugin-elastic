@@ -28,6 +28,7 @@ import org.edu_sharing.elasticsearch.alfresco.client.NodeData;
 import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.model.ElasticNode;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
+import org.edu_sharing.elasticsearch.elasticsearch.utils.ElasticErrorClassifier;
 import org.edu_sharing.elasticsearch.elasticsearch.utils.utils.NodeMetadataSimple;
 import org.edu_sharing.elasticsearch.tools.ScriptExecutor;
 import org.edu_sharing.elasticsearch.tools.Tools;
@@ -86,17 +87,20 @@ public class WorkspaceService implements SearchHitsRunner {
     private final AtomicLong lastNodeCount = new AtomicLong(System.currentTimeMillis());
     private final AlfrescoWebscriptClient alfrescoClient;
     private final String index;
+    private final NodeFailureService nodeFailureService;
 
     public WorkspaceService(co.elastic.clients.elasticsearch.ElasticsearchClient client,
                             ScriptExecutor scriptExecutor,
                             EduSharingService eduSharingService,
                             AlfrescoWebscriptClient alfrescoClient,
-                            IndexConfiguration workspace) {
+                            IndexConfiguration workspace,
+                            NodeFailureService nodeFailureService) {
         this.client = client;
         this.scriptExecutor = scriptExecutor;
         this.alfrescoClient = alfrescoClient;
         this.index = workspace.getIndex();
         this.eduSharingService = eduSharingService;
+        this.nodeFailureService = nodeFailureService;
     }
 
     /**
@@ -283,17 +287,63 @@ public class WorkspaceService implements SearchHitsRunner {
     }
 
 
-    public void index(List<BulkOperation> operations) throws IOException {
-        if (!operations.isEmpty()) {
-            log.info("starting bulk update:");
-            BulkResponse bulkResponse = client.bulk(req -> req.index(index).operations(operations));
-            log.info("finished bulkBulkOperations:{}", bulkResponse.items().size());
-            for (BulkResponseItem item : bulkResponse.items()) {
-                if (item.error() != null) {
-                    log.error("Failed indexing of {}", item.id());
-                    log.error("Failed indexing of {}", item.error().causedBy());
-                }
+    /**
+     * Bulk indexes the given operations.
+     * <p>
+     * A failed item is either recorded in the dead letter index and skipped, or - for anything that
+     * is not a problem of the document itself - propagated, so the tracker does not commit its
+     * transaction marker and retries the batch. Previously every failure was logged and forgotten,
+     * which silently dropped the node from the index for good.
+     *
+     * @param tracker  tracker failed nodes would have to be replayed through
+     * @param nodeData the nodes the operations were built from, used to resolve a failed item back
+     *                 to its dbid and transaction
+     */
+    public void index(List<BulkOperation> operations, String tracker, List<NodeData> nodeData) throws IOException {
+        if (operations.isEmpty()) {
+            return;
+        }
+
+        log.info("starting bulk update:");
+        BulkResponse bulkResponse = client.bulk(req -> req.index(index).operations(operations));
+        log.info("finished bulkBulkOperations:{}", bulkResponse.items().size());
+
+        Map<String, NodeMetadata> byUuid = nodeData == null ? Map.of() : nodeData.stream()
+                .map(NodeData::getNodeMetadata)
+                .filter(n -> n != null && n.getNodeRef() != null)
+                .collect(Collectors.toMap(n -> Tools.getUUID(n.getNodeRef()), n -> n, (a, b) -> a));
+
+        ElasticsearchException fatal = null;
+        for (BulkResponseItem item : bulkResponse.items()) {
+            if (item.error() == null) {
+                continue;
             }
+
+            if (!ElasticErrorClassifier.isNodeLevel(item.status(), item.error())) {
+                log.error("bulk indexing of {} failed: [{}] {}", item.id(),
+                        ElasticErrorClassifier.errorType(item.error()), item.error().reason());
+                if (fatal == null) {
+                    // keep going so every broken document of this batch is recorded, then fail
+                    fatal = ElasticErrorClassifier.toException("es/bulk", item.status(), item.error());
+                }
+                continue;
+            }
+
+            log.warn("skipping node {}: [{}] {}", item.id(),
+                    ElasticErrorClassifier.errorType(item.error()), item.error().reason());
+
+            NodeMetadata node = byUuid.get(item.id());
+            if (node == null) {
+                // without the dbid the entry would not identify anything repairable
+                log.error("could not record failed node {}, not found in the indexed batch", item.id());
+                continue;
+            }
+            nodeFailureService.record(new NodeFailureService.NodeFailure(tracker, tracker, "index",
+                    node.getId(), node.getNodeRef(), node.getType(), node.getTxnId()), item.error());
+        }
+
+        if (fatal != null) {
+            throw fatal;
         }
     }
 
@@ -1185,16 +1235,27 @@ public class WorkspaceService implements SearchHitsRunner {
         log.info("finished:");
     }
 
-    public void syncCollectionReplicas(NodeMetadataSimple collection) throws IOException {
+    public void syncCollectionReplicas(NodeMetadataSimple collection, String tracker) throws IOException {
         log.info("starting for collection: {}", collection.getNodeRef());
         this.run(InternalQueries.queryCollectionNodes(collection.getId()), 25,maxCollectionChildItemsUpdateSize,null,Map.class, (hit) -> {
+            NodeMetadataSimple child = new NodeMetadataSimple(hit.source());
             try {
-                onUpdateRefreshUsageCollectionReplicas(new NodeMetadataSimple(hit.source()), true, false);
-            } catch (IOException e) {
-                log.warn("error refreshing collections " + collection.getNodeRef(), e);
+                onUpdateRefreshUsageCollectionReplicas(child, true, false);
+            } catch (ElasticsearchException e) {
+                // a single broken child must not abort the remaining children of this collection,
+                // but only if the failure belongs to the document itself - connection problems have
+                // to be propagated so the whole batch is retried instead of silently skipped
+                if (!ElasticErrorClassifier.isNodeLevel(e)) {
+                    throw e;
+                }
+                log.warn("skipping child {} of collection {}: [{}] {}", child.getNodeRef(),
+                        collection.getNodeRef(), ElasticErrorClassifier.errorType(e), e.getMessage());
+                nodeFailureService.record(new NodeFailureService.NodeFailure(tracker,
+                        "syncCollectionReplicas", "update", child.getId(), child.getNodeRef(),
+                        child.getType(), null), e);
             }
         });
-        log.info("finished for collection: " + collection.getNodeRef());
+        log.info("finished for collection: {}", collection.getNodeRef());
     }
 
     public void onUpdateRefreshUsageCollectionReplicas(NodeMetadataSimple node, boolean update, boolean resyncIndex) throws IOException {
