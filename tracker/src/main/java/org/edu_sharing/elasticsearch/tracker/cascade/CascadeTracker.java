@@ -144,7 +144,7 @@ public class CascadeTracker extends AbstractTrackerCoroutine<TrackerScheduleProp
             double progress = calcProgress(processed, all);
             metricContext.getProgress().set((long) (progress * PROGRESS_FACTOR));
             metricContext.getTimestamp().set(System.currentTimeMillis());
-            log.info("{} processed {}%", metricContext.getLabelProgress(), Tools.df.format(progress));
+            log.info("{} processed {}%", metricContext.getName(), Tools.df.format(progress));
             metricCalculated = System.currentTimeMillis();
         }
     }

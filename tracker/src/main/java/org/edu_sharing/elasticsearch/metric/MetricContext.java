@@ -14,8 +14,9 @@ public class MetricContext {
     AtomicLong progress = new AtomicLong();
     @Builder.Default
     AtomicLong timestamp = new AtomicLong(System.currentTimeMillis());
-    String labelProgress;
-    String descriptionProgress;
-    String labelDelay;
-    String descriptionDelay;
+    /**
+     * name of the tracker this context belongs to. every tracker feeds the same two gauges and is told apart
+     * by this value in the {@code tracker} tag - see {@link MetricContextFactory}.
+     */
+    String name;
 }

@@ -111,52 +111,34 @@ config:
           ## @param config.metrics.rules.jvmHighGCRate.labels.severity Set metric rule jvmHighGCRate severity level
           severity: critical
 
-      trackingACLDelay:
-        ## @param config.metrics.rules.trackingACLDelay.enabled Enable metric rule trackingACLDelay
+      ## the tracker exposes one gauge per dimension for all trackers, told apart by the `tracker` label,
+      ## so these rules cover every tracker at once - the alert carries the tracker name in its labels.
+      trackingDelay:
+        ## @param config.metrics.rules.trackingDelay.enabled Enable metric rule trackingDelay
         enabled: true
         config:
-          ## @param config.metrics.rules.trackingACLDelay.config.max Set metric rule trackingACLDelay max delay seconds
+          ## @param config.metrics.rules.trackingDelay.config.max Set metric rule trackingDelay max delay seconds
           max: 300
-        ## @param config.metrics.rules.trackingACLDelay.for Set metric rule trackingACLDelay wait interval
+        ## @param config.metrics.rules.trackingDelay.for Set metric rule trackingDelay wait interval
         for: 30m
+        ## @param config.metrics.rules.trackingDelay.exclude Trackers excluded from metric rule trackingDelay
+        exclude: []
         labels:
-          ## @param config.metrics.rules.trackingACLDelay.labels.severity Set metric rule trackingACLDelay severity level
+          ## @param config.metrics.rules.trackingDelay.labels.severity Set metric rule trackingDelay severity level
           severity: critical
 
-      trackingACLProgress:
-        ## @param config.metrics.rules.trackingACLProgress.enabled Enable metric rule trackingACLProgress
+      trackingProgress:
+        ## @param config.metrics.rules.trackingProgress.enabled Enable metric rule trackingProgress
         enabled: true
         config:
-          ## @param config.metrics.rules.trackingACLProgress.config.min Set metric rule trackingACLProgress min progress rate
+          ## @param config.metrics.rules.trackingProgress.config.min Set metric rule trackingProgress min progress rate
           min: 95
-        ## @param config.metrics.rules.trackingACLProgress.for Set metric rule trackingACLProgress wait interval
+        ## @param config.metrics.rules.trackingProgress.for Set metric rule trackingProgress wait interval
         for: 5m
+        ## @param config.metrics.rules.trackingProgress.exclude Trackers excluded from metric rule trackingProgress
+        exclude: []
         labels:
-          ## @param config.metrics.rules.trackingACLProgress.labels.severity Set metric rule trackingACLProgress severity level
-          severity: critical
-
-      trackingTransactionDelay:
-        ## @param config.metrics.rules.trackingTransactionDelay.enabled Enable metric rule trackingTransactionDelay
-        enabled: true
-        config:
-          ## @param config.metrics.rules.trackingTransactionDelay.config.max Set metric rule trackingTransactionDelay max delay seconds
-          max: 300
-        ## @param config.metrics.rules.trackingTransactionDelay.for Set metric rule trackingTransactionDelay wait interval
-        for: 30m
-        labels:
-          ## @param config.metrics.rules.trackingTransactionDelay.labels.severity Set metric rule trackingTransactionDelay severity level
-          severity: critical
-
-      trackingTransactionProgress:
-        ## @param config.metrics.rules.trackingTransactionProgress.enabled Enable metric rule trackingTransactionProgress
-        enabled: true
-        config:
-          ## @param config.metrics.rules.trackingTransactionProgress.config.min Set metric rule trackingTransactionProgress min progress rate
-          min: 95
-        ## @param config.metrics.rules.trackingTransactionProgress.for Set metric rule trackingTransactionProgress wait interval
-        for: 5m
-        labels:
-          ## @param config.metrics.rules.trackingTransactionProgress.labels.severity Set metric rule trackingTransactionProgress severity level
+          ## @param config.metrics.rules.trackingProgress.labels.severity Set metric rule trackingProgress severity level
           severity: critical
 
   ## @param config.override Configure overrides
