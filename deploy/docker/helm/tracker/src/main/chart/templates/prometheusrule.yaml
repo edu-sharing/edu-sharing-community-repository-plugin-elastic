@@ -20,49 +20,27 @@ spec:
           for: {{ .Values.config.metrics.rules.jvmHighGCRate.for }}
           labels: {{ toYaml .Values.config.metrics.rules.jvmHighGCRate.labels | nindent 12 }}
         {{- end }}
-        {{- if .Values.config.metrics.rules.trackingACLDelay.enabled }}
-        - alert: trackingACLDelay
+        {{- if .Values.config.metrics.rules.trackingDelay.enabled }}
+        - alert: trackingDelay
           annotations:
             description: >-
-              {{ include "edusharing_common_lib.names.name" . }} has high tracking acl delay (> {{ .Values.config.metrics.rules.trackingACLDelay.config.max | float64 }}s) since {{ .Values.config.metrics.rules.trackingACLDelay.for }}.
-            summary: {{ include "edusharing_common_lib.names.name" . }} has high tracking acl delay.
+              {{ include "edusharing_common_lib.names.name" . }} tracker {{ "{{ $labels.tracker }}" }} has high tracking delay (> {{ .Values.config.metrics.rules.trackingDelay.config.max | float64 }}s) since {{ .Values.config.metrics.rules.trackingDelay.for }}.
+            summary: {{ include "edusharing_common_lib.names.name" . }} has high tracking delay.
           expr: >-
-            aclDelay{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*"} > {{ .Values.config.metrics.rules.trackingACLDelay.config.max | float64 }}
-          for: {{ .Values.config.metrics.rules.trackingACLDelay.for }}
-          labels: {{ toYaml .Values.config.metrics.rules.trackingACLDelay.labels | nindent 12 }}
+            trackerDelay{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*"{{ with .Values.config.metrics.rules.trackingDelay.exclude }},tracker!~"{{ join "|" . }}"{{ end }}} > {{ .Values.config.metrics.rules.trackingDelay.config.max | float64 }}
+          for: {{ .Values.config.metrics.rules.trackingDelay.for }}
+          labels: {{ toYaml .Values.config.metrics.rules.trackingDelay.labels | nindent 12 }}
         {{- end }}
-        {{- if .Values.config.metrics.rules.trackingACLProgress.enabled }}
-        - alert: trackingACLProgress
+        {{- if .Values.config.metrics.rules.trackingProgress.enabled }}
+        - alert: trackingProgress
           annotations:
             description: >-
-              {{ include "edusharing_common_lib.names.name" . }} has low tracking acl progress (< {{ .Values.config.metrics.rules.trackingACLProgress.config.min | float64 }}%) since {{ .Values.config.metrics.rules.trackingACLProgress.for }}.
-            summary: {{ include "edusharing_common_lib.names.name" . }} has low tracking acl progress.
+              {{ include "edusharing_common_lib.names.name" . }} tracker {{ "{{ $labels.tracker }}" }} has low tracking progress (< {{ .Values.config.metrics.rules.trackingProgress.config.min | float64 }}%) since {{ .Values.config.metrics.rules.trackingProgress.for }}.
+            summary: {{ include "edusharing_common_lib.names.name" . }} has low tracking progress.
           expr: >-
-            aclProgress{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*"} < {{ .Values.config.metrics.rules.trackingACLProgress.config.min | float64 }}
-          for: {{ .Values.config.metrics.rules.trackingACLProgress.for }}
-          labels: {{ toYaml .Values.config.metrics.rules.trackingACLProgress.labels | nindent 12 }}
-        {{- end }}
-        {{- if .Values.config.metrics.rules.trackingTransactionDelay.enabled }}
-        - alert: trackingTransactionDelay
-          annotations:
-            description: >-
-              {{ include "edusharing_common_lib.names.name" . }} has high tracking transaction delay (> {{ .Values.config.metrics.rules.trackingTransactionDelay.config.max | float64 }}s) since {{ .Values.config.metrics.rules.trackingTransactionDelay.for }}.
-            summary: {{ include "edusharing_common_lib.names.name" . }} has high tracking transaction delay.
-          expr: >-
-            transactionDelay{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*"} > {{ .Values.config.metrics.rules.trackingTransactionDelay.config.max | float64 }}
-          for: {{ .Values.config.metrics.rules.trackingTransactionDelay.for }}
-          labels: {{ toYaml .Values.config.metrics.rules.trackingTransactionDelay.labels | nindent 12 }}
-        {{- end }}
-        {{- if .Values.config.metrics.rules.trackingTransactionProgress.enabled }}
-        - alert: trackingTransactionProgress
-          annotations:
-            description: >-
-              {{ include "edusharing_common_lib.names.name" . }} has low tracking transaction progress (< {{ .Values.config.metrics.rules.trackingTransactionProgress.config.min | float64 }}%) since {{ .Values.config.metrics.rules.trackingTransactionProgress.for }}.
-            summary: {{ include "edusharing_common_lib.names.name" . }} has low tracking transaction progress.
-          expr: >-
-            transactionProgress{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*"} < {{ .Values.config.metrics.rules.trackingTransactionProgress.config.min | float64 }}
-          for: {{ .Values.config.metrics.rules.trackingTransactionProgress.for }}
-          labels: {{ toYaml .Values.config.metrics.rules.trackingTransactionProgress.labels | nindent 12 }}
+            trackerProgress{namespace="{{ .Release.Namespace }}",pod=~"{{ include "edusharing_common_lib.names.name" . }}.*"{{ with .Values.config.metrics.rules.trackingProgress.exclude }},tracker!~"{{ join "|" . }}"{{ end }}} < {{ .Values.config.metrics.rules.trackingProgress.config.min | float64 }}
+          for: {{ .Values.config.metrics.rules.trackingProgress.for }}
+          labels: {{ toYaml .Values.config.metrics.rules.trackingProgress.labels | nindent 12 }}
         {{- end }}
 {{- end }}
 {{- end }}
