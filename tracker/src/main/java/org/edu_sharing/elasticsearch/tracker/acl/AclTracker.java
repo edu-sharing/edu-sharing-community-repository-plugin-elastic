@@ -8,6 +8,7 @@ import org.edu_sharing.elasticsearch.elasticsearch.core.state.AclTx;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractTracker;
 import org.edu_sharing.elasticsearch.tracker.core.TrackingContext;
 import org.edu_sharing.elasticsearch.tracker.strategy.DependentStatusIndexServiceStrategie;
+import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.edu_sharing.elasticsearch.tracker.utils.ThreadUtil;
 import org.springframework.stereotype.Component;
 
@@ -165,7 +166,14 @@ public class AclTracker extends AbstractTracker<AclTrackerProperties, AclTx> {
             }
 
             log.info("updating node permissions in index");
-            threadUtil.runThreaded(new ArrayList<>(aclPermMap.keySet()), aclId -> workspaceService.updateNodesWithAcl(aclId, aclPermMap.get(aclId)), true, true);
+
+            Collection<List<Long>> partitions = Partition.getPartitions(aclPermMap.keySet(), 100);
+            int pIdx = 0;
+            for(List<Long> partition: partitions){
+                log.info("starting partition: {}, partitionSize: {}", pIdx, partition.size());
+                threadUtil.runThreaded(partition, aclId -> workspaceService.updateNodesWithAcl(aclId, aclPermMap.get(aclId)), true, true);
+                pIdx++;
+            }
             workspaceService.refreshWorkspace();
 
             AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().stream().max((Comparator
