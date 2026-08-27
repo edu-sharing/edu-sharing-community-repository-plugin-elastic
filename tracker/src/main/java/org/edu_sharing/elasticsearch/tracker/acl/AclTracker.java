@@ -10,6 +10,8 @@ import org.edu_sharing.elasticsearch.tracker.core.TrackingContext;
 import org.edu_sharing.elasticsearch.tracker.strategy.DependentStatusIndexServiceStrategie;
 import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.edu_sharing.elasticsearch.tracker.utils.ThreadUtil;
+import org.edu_sharing.elasticsearch.tracker.rag.RagAccessSync;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -31,14 +33,22 @@ public class AclTracker extends AbstractTracker<AclTrackerProperties, AclTx> {
 
     private ThreadUtil threadUtil;
 
+    /**
+     * Empty unless the RAG projection is switched on. An ObjectProvider keeps that a configuration
+     * question rather than a second code path - Spring supplies one either way.
+     */
+    private final ObjectProvider<RagAccessSync> ragAccessSync;
+
     public AclTracker(AclTrackerProperties aclTrackerProperties,
                       AlfrescoWebscriptClient alfClient,
                       WorkspaceService workspaceService,
-                      AclTrackerProperties trackerProperties) {
+                      AclTrackerProperties trackerProperties,
+                      ObjectProvider<RagAccessSync> ragAccessSync) {
         super(aclTrackerProperties);
         this.alfClient = alfClient;
         this.workspaceService = workspaceService;
         this.trackerProperties = trackerProperties;
+        this.ragAccessSync = ragAccessSync;
     }
 
 
@@ -175,6 +185,24 @@ public class AclTracker extends AbstractTracker<AclTrackerProperties, AclTx> {
                 pIdx++;
             }
             workspaceService.refreshWorkspace();
+
+            // after the refresh, never beside it: the RAG projection recomputes each node's readers
+            // from the workspace document, so it has to see the values just written.
+            //
+            // Failures are contained here on purpose. The RAG index is an optional projection; the
+            // workspace index has already been updated at this point, and letting the projection
+            // throw would abort this run before the acl cursor is committed - an optional feature
+            // would then stall access tracking for the whole installation. The chunks keep their
+            // previous access until the next change touches them.
+            ragAccessSync.ifAvailable(sync -> {
+                try {
+                    sync.onAclsChanged(aclPermMap.keySet());
+                } catch (Exception e) {
+                    log.error("rag access refresh failed for acls {} - the chunk index keeps its "
+                            + "previous access until these nodes are touched again",
+                            aclPermMap.keySet(), e);
+                }
+            });
 
             AclChangeSet lastAclChangeSet = aclChangeSets.getAclChangeSets().stream().max((Comparator
                     .comparingLong(AclChangeSet::getCommitTimeMs)

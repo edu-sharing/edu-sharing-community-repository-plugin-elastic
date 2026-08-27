@@ -40,6 +40,35 @@
       ${elastic.stack.version}
     </docker.edu_sharing.community.common.kibana.tag>
 
+    <!--
+      Embedding-Dienst fuer die optionale RAG-Suche (HuggingFace Text Embeddings Inference).
+      ACHTUNG: TEI liegt auf ghcr.io, nicht auf Docker Hub - der bestehende
+      dockerio.mirror.docker.edu-sharing.com spiegelt es also nicht. Vor dem produktiven
+      Einsatz muss das Image in die eigene Registry gespiegelt und dieser Wert angepasst
+      werden; der Default hier zeigt bewusst direkt auf den Ursprung, damit er lokal
+      funktioniert und in CI auffaellt statt still den falschen Mirror zu treffen.
+    -->
+    <docker.edu_sharing.community.common.embedding.name>
+      ghcr.io/huggingface/text-embeddings-inference
+    </docker.edu_sharing.community.common.embedding.name>
+
+    <docker.edu_sharing.community.common.embedding.tag>
+      cpu-1.8
+    </docker.edu_sharing.community.common.embedding.tag>
+
+    <!--
+      Antwortmodell fuer die semantische Suche. Ollama, weil es auf Docker Hub liegt - der
+      bestehende Mirror greift also, anders als bei TEI - und weil sein /v1/chat/completions
+      OpenAI-kompatibel ist, also derselbe Client wie fuer jeden gehosteten Anbieter.
+    -->
+    <docker.edu_sharing.community.common.llm.name>
+      ollama/ollama
+    </docker.edu_sharing.community.common.llm.name>
+
+    <docker.edu_sharing.community.common.llm.tag>
+      0.5.7
+    </docker.edu_sharing.community.common.llm.tag>
+
     <docker.edu_sharing.community.common.elasticsearch.exporter.name>
       edu_sharing-community-common-docker-elasticsearch-exporter
     </docker.edu_sharing.community.common.elasticsearch.exporter.name>

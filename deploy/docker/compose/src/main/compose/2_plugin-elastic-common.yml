@@ -41,11 +41,98 @@ services:
       REPOSITORY_SERVICE_PORT: "8080"
       REPOSITORY_SERVICE_ADMIN_PASS: "${REPOSITORY_SERVICE_ADMIN_PASS:-admin}"
       MALLOC_ARENA_MAX: "${REPOSITORY_SEARCH_ELASTIC_TRACKER_MALLOC_ARENA_MAX:-2}"
+      # Spring Boot bindet diese nativ und sie ranken ueber der application.properties im
+      # Image - der Schalter braucht daher keine Aenderung am entrypoint.sh. Steht
+      # TRACKER_RAG_ENABLED auf false, liest der Tracker die uebrigen Werte nie.
+      TRACKER_RAG_ENABLED: "${TRACKER_RAG_ENABLED:-false}"
+      TRACKER_RAG_PROFILES_0_ID: "${REPOSITORY_SEARCH_ELASTIC_EMBEDDING_PROFILE:-bge-m3-v1}"
+      TRACKER_RAG_PROFILES_0_ACTIVE: "true"
+      TRACKER_RAG_PROFILES_0_MODEL: "${REPOSITORY_SEARCH_ELASTIC_EMBEDDING_MODEL:-BAAI/bge-m3}"
+      TRACKER_RAG_PROFILES_0_DIMENSIONS: "${REPOSITORY_SEARCH_ELASTIC_EMBEDDING_DIMENSIONS:-1024}"
+      TRACKER_RAG_PROFILES_0_BASEURL: "http://repository-search-elastic-embedding"
     expose:
       - "7199"
+    # kein depends_on auf den Embedding-Dienst: ein Dienst ohne Profil darf nicht von einem
+    # mit Profil abhaengen. Noetig ist es auch nicht - der Client wiederholt, und schlaegt
+    # ein ganzer Batch fehl, wird der Cursor nicht committet und der Lauf wiederholt sich.
     depends_on:
       - repository-search-elastic-index
       - repository-service
+
+  # Optional: Embedding-Dienst fuer die semantische Suche (RAG).
+  #
+  # Das compose-Profil haelt ihn inert, solange er nicht angefordert wird - ein eigenes
+  # Fragment waere hier wirkungslos gewesen: deploy.sh sammelt Dateien ueber
+  # `find ... -name "*_*-<typ>.yml"` mit einer festen Typliste (common/debug/dev/remote/nginx),
+  # ein neuer Suffix wird also nie gefunden.
+  #
+  # Einschalten in der .env des deploy-Projekts:
+  #   COMPOSE_PROFILES=rag
+  #   TRACKER_RAG_ENABLED=true
+  repository-search-elastic-embedding:
+    image: "${docker.edu_sharing.community.common.embedding.name}:${docker.edu_sharing.community.common.embedding.tag}"
+    container_name: "repository-search-elastic-embedding_${COMPOSE_PROJECT_NAME}"
+    profiles:
+      - rag
+    command:
+      - "--model-id"
+      - "${REPOSITORY_SEARCH_ELASTIC_EMBEDDING_MODEL:-BAAI/bge-m3}"
+      - "--max-batch-tokens"
+      - "${REPOSITORY_SEARCH_ELASTIC_EMBEDDING_MAX_BATCH_TOKENS:-8192}"
+    volumes:
+      - "repository-search-elastic-embedding-volume:/data"
+    expose:
+      - "80"
+
+  # Optional: Antwortmodell fuer die semantische Suche.
+  #
+  # Haengt am selben Profil wie der Embedding-Dienst, ist aber unabhaengig davon nutzbar:
+  # das Repository spricht ihn nur an, wenn elasticsearch.rag.answer.provider auf "openai"
+  # steht. Zeigt die Konfiguration stattdessen auf einen gehosteten Anbieter, kann dieser
+  # Container aus bleiben - dann verlassen die Textstellen allerdings die Infrastruktur.
+  #
+  # Ollama laedt ein Modell nicht selbst nach, wenn die OpenAI-kompatible Route es zum
+  # ersten Mal anfragt - es antwortet mit "model not found". Deshalb wird es hier beim Start
+  # geholt: serve im Hintergrund, warten bis die API steht, pull, dann auf serve warten.
+  # Der erste Start dauert entsprechend so lange wie der Download.
+  #
+  # Danach wird das Kontextfenster eingebacken. Ollamas Default sind 2048 Token; ein
+  # RAG-Prompt mit sechs Passagen liegt darueber und wurde bis dahin still abgeschnitten -
+  # das Modell antwortete also aus einem Teil der Textstellen, ohne dass es jemand merkt.
+  # Ollama 0.5.7 kennt dafuer keine Umgebungsvariable, wohl aber ein Modelfile. Das Derivat
+  # traegt denselben Namen wie die Vorlage, damit die Repository-Konfiguration unveraendert
+  # bleibt und beide Seiten nicht auseinanderlaufen koennen.
+  repository-search-elastic-llm:
+    image: "${docker.edu_sharing.community.common.llm.name}:${docker.edu_sharing.community.common.llm.tag}"
+    container_name: "repository-search-elastic-llm_${COMPOSE_PROJECT_NAME}"
+    profiles:
+      - rag
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        /bin/ollama serve &
+        until /bin/ollama list >/dev/null 2>&1; do sleep 1; done
+        /bin/ollama pull ${REPOSITORY_SEARCH_ELASTIC_LLM_MODEL:-qwen2.5:1.5b-instruct}
+        printf 'FROM %s\nPARAMETER num_ctx %s\n' \
+          '${REPOSITORY_SEARCH_ELASTIC_LLM_MODEL:-qwen2.5:1.5b-instruct}' \
+          '${REPOSITORY_SEARCH_ELASTIC_LLM_CONTEXT:-8192}' > /tmp/Modelfile
+        /bin/ollama create ${REPOSITORY_SEARCH_ELASTIC_LLM_MODEL:-qwen2.5:1.5b-instruct} -f /tmp/Modelfile
+        wait
+    environment:
+      # Wie lange ein geladenes Modell im RAM bleibt. Ohne das laedt Ollama es nach fuenf
+      # Minuten Ruhe aus und die naechste Frage wartet erneut auf das Laden - auf CPU sind
+      # das zweistellige Sekunden, was eine Suche unbrauchbar macht.
+      OLLAMA_KEEP_ALIVE: "${REPOSITORY_SEARCH_ELASTIC_LLM_KEEP_ALIVE:-24h}"
+      OLLAMA_NUM_PARALLEL: "${REPOSITORY_SEARCH_ELASTIC_LLM_NUM_PARALLEL:-1}"
+    # Ollama nimmt sonst alle Kerne und verdraengt den Embedding-Dienst, bis das Einbetten
+    # einer einzelnen Frage in den Timeout laeuft - die Suche faellt dann aus, weil das
+    # Antwortmodell rechnet. Begrenzt wird ueber cpus, nicht ueber eine Umgebungsvariable:
+    # ein OLLAMA_NUM_THREAD gibt es nicht, es wuerde stillschweigend ignoriert.
+    cpus: ${REPOSITORY_SEARCH_ELASTIC_LLM_CPUS:-4}
+    volumes:
+      - "repository-search-elastic-llm-volume:/root/.ollama"
+    expose:
+      - "11434"
 
   repository-search-elastic-migration:
     image: "${docker.repository}/${docker.prefix}-deploy-docker-build-tracker:${docker.tag}"
@@ -81,3 +168,5 @@ services:
 
 volumes:
   repository-search-elastic-index-volume:
+  repository-search-elastic-embedding-volume:
+  repository-search-elastic-llm-volume:

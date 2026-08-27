@@ -29,3 +29,23 @@ data:
   REPOSITORY_SERVICE_HOST: {{ .Values.config.repository.host | quote }}
   REPOSITORY_SERVICE_PORT: {{ .Values.config.repository.port | quote }}
   SPRING_APPLICATION_JSON: {{ .Values.config.override | quote }}
+  {{- if .Values.rag.enabled }}
+  # Environment variables rather than entrypoint.sh: Spring Boot binds them natively and
+  # they outrank the application.properties baked into the image, so the switch needs no
+  # change to the image at all. The list index follows the usual relaxed-binding spelling.
+  TRACKER_RAG_ENABLED: "true"
+  TRACKER_RAG_PROFILES_0_ID: {{ .Values.rag.profile.id | quote }}
+  TRACKER_RAG_PROFILES_0_ACTIVE: "true"
+  TRACKER_RAG_PROFILES_0_MODEL: {{ .Values.rag.profile.model | quote }}
+  TRACKER_RAG_PROFILES_0_DIMENSIONS: {{ .Values.rag.profile.dimensions | quote }}
+  TRACKER_RAG_PROFILES_0_BASEURL: {{ printf "http://%s-embedding" (include "edusharing_common_lib.names.name" .) | quote }}
+  {{- with .Values.rag.profile.maxChunksPerNode }}
+  TRACKER_RAG_PROFILES_0_MAXCHUNKSPERNODE: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.rag.index.shards }}
+  ELASTIC_INDEX_RAG_NUMBER_OF_SHARDS: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.rag.index.replicas }}
+  ELASTIC_INDEX_RAG_NUMBER_OF_REPLICAS: {{ . | quote }}
+  {{- end }}
+  {{- end }}

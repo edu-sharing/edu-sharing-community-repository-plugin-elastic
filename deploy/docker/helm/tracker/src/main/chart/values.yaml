@@ -287,6 +287,161 @@ resources:
 
 ########################################################################################################################
 
+########################################################################################################################
+# RAG
+########################################################################################################################
+
+## @section RAG / semantic search
+rag:
+
+  ## @param rag.enabled Enable the RAG chunk index and its embedding service
+  ## Off by default. The first run walks the entire transaction history and embeds every
+  ## node in the repository - the one genuinely expensive moment in this pipeline. With this
+  ## off, neither the embedding deployment nor any RAG configuration is rendered at all.
+  enabled: false
+
+  profile:
+    ## @param rag.profile.id Embedding profile id; also the suffix of its index and its tracker cursor
+    ## Change it together with the model. A profile change builds a second index beside the
+    ## existing one and the alias is switched over once it has caught up.
+    id: bge-m3-v1
+    ## @param rag.profile.model Embedding model
+    model: BAAI/bge-m3
+    ## @param rag.profile.dimensions Vector length of the model - must match it exactly
+    dimensions: 1024
+    ## @param rag.profile.maxChunksPerNode Ceiling per node; anything beyond is reported, not dropped silently
+    maxChunksPerNode: 300
+
+  index:
+    ## @param rag.index.shards Shards of the chunk index - it holds a multiple of the workspace index's documents
+    shards: 3
+    ## @param rag.index.replicas Replicas of the chunk index
+    replicas: 1
+
+  embedding:
+    ## @param rag.embedding.replicaCount Replicas of the embedding service
+    replicaCount: 1
+
+    image:
+      ## @param rag.embedding.image.name Embedding service image
+      ## NOTE: TEI is published on ghcr.io, which the existing Docker Hub mirror does not
+      ## serve. Mirror it into your own registry and point this at the copy before going live.
+      name: ghcr.io/huggingface/text-embeddings-inference
+      ## @param rag.embedding.image.tag Image tag - use a CUDA variant on GPU nodes
+      tag: cpu-1.8
+
+    ## @param rag.embedding.maxBatchTokens Token budget per inference batch
+    maxBatchTokens: 8192
+
+    probe:
+      ## @param rag.embedding.probe.initialDelaySeconds Grace period while the model loads
+      ## Loading takes minutes on CPU; probing too early restarts the pod mid-load.
+      initialDelaySeconds: 120
+
+    persistence:
+      ## @param rag.embedding.persistence.enabled Keep the downloaded model across restarts
+      ## Without it the model is downloaded again on every pod start - several gigabytes.
+      enabled: false
+      spec:
+        ## @param rag.embedding.persistence.spec.accessModes Access modes of the model cache claim
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            ## @param rag.embedding.persistence.spec.resources.requests.storage Size of the model cache claim
+            storage: 20Gi
+
+    ## @param rag.embedding.resources Resources of the embedding service
+    ## The initial run wants a GPU; steady-state delta tracking does not. Set nvidia.com/gpu
+    ## here together with nodeSelector to place it on a GPU node.
+    resources: {}
+
+    ## @param rag.embedding.nodeSelector Schedule the embedding service, e.g. onto GPU nodes
+    nodeSelector: {}
+    ## @param rag.embedding.tolerations Tolerations for the embedding service
+    tolerations: []
+
+  llm:
+    ## @param rag.llm.enabled Run a local model to formulate answers
+    ## Only needed when the repository is configured with
+    ## elasticsearch.rag.answer.provider = "openai" pointing at this service. Point that at a
+    ## hosted provider instead and leave this off - then the passages leave the infrastructure,
+    ## which for a corpus with non-public fulltexts is a decision, not a default.
+    enabled: false
+
+    ## @param rag.llm.replicaCount Replicas of the answer service
+    replicaCount: 1
+
+    image:
+      ## @param rag.llm.image.name Answer service image
+      ## Ollama: published on Docker Hub, so the existing mirror serves it - unlike TEI - and its
+      ## /v1/chat/completions is OpenAI-compatible, so the repository uses one client for this and
+      ## for any hosted provider.
+      name: ollama/ollama
+      ## @param rag.llm.image.tag Image tag
+      tag: 0.5.7
+
+    ## @param rag.llm.model Model to pull and serve
+    ## Apache-2.0, about 1Gi resident. Measured against qwen2.5:7b on a 16-thread CPU host: the 7B
+    ## produced 1.8 tokens per second and its 4.7Gi pushed the host into swap, at which point a
+    ## single question took over a minute just to embed. On a GPU node the 7B is the better answer
+    ## and this is where to change it; on CPU it is not usable interactively.
+    model: qwen2.5:1.5b-instruct
+
+    ## @param rag.llm.contextLength Token window the model is served with
+    ## Ollama's own default is 2048, which a RAG prompt exceeds - it was truncated silently, so
+    ## the model answered from part of the passages. This must comfortably exceed
+    ## elasticsearch.rag.answer.maxPromptChars divided by about 3.6, plus maxTokens.
+    contextLength: 8192
+
+    ## @param rag.llm.keepAlive How long a loaded model stays resident
+    ## Ollama unloads after five idle minutes by default; the next question then waits for the
+    ## load again, which on CPU is tens of seconds.
+    keepAlive: 24h
+
+    ## @param rag.llm.numParallel Concurrent requests per model
+    ## Above 1 the model is held in memory once per slot and competes with the embedding service
+    ## for cores. Raise it only where both have their own node.
+    numParallel: 1
+
+
+    probe:
+      ## @param rag.llm.probe.initialDelaySeconds Grace period while the model is pulled and loaded
+      initialDelaySeconds: 60
+      ## @param rag.llm.probe.failureThreshold Readiness attempts while the model is still downloading
+      ## The first start downloads several gigabytes; at 15s per attempt this allows about an hour.
+      failureThreshold: 240
+
+    persistence:
+      ## @param rag.llm.persistence.enabled Keep the pulled model across restarts
+      enabled: false
+      spec:
+        ## @param rag.llm.persistence.spec.accessModes Access modes of the model cache claim
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            ## @param rag.llm.persistence.spec.resources.requests.storage Size of the model cache claim
+            storage: 30Gi
+
+    ## Resources of the answer service.
+    ## Set a CPU limit here, not an Ollama environment variable - there is no OLLAMA_NUM_THREAD and
+    ## it would be ignored. Unbounded, Ollama takes every core and starves the embedding service
+    ## until a question no longer embeds inside its timeout, so the search breaks because the
+    ## answer model is busy. Set nvidia.com/gpu together with nodeSelector for a GPU node.
+    resources:
+      limits:
+        ## @param rag.llm.resources.limits.cpu Cores the answer service may use
+        cpu: "4"
+        ## @param rag.llm.resources.limits.memory Enough for a 1.5B model to stay resident
+        memory: 4Gi
+
+    ## @param rag.llm.nodeSelector Schedule the answer service, e.g. onto GPU nodes
+    nodeSelector: {}
+    ## @param rag.llm.tolerations Tolerations for the answer service
+    tolerations: []
+
+
 job:
 
   migration:

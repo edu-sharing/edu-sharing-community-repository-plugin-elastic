@@ -1,0 +1,12 @@
+{{- if and .Values.rag.enabled .Values.rag.embedding.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "edusharing_common_lib.names.name" . }}-embedding
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
+  annotations:
+    # The model is several gigabytes; keeping the claim across upgrades avoids downloading
+    # it again on every rollout, which on a slow link dominates the restart time.
+    "helm.sh/resource-policy": keep
+spec: {{- toYaml .Values.rag.embedding.persistence.spec | nindent 2 }}
+{{- end }}

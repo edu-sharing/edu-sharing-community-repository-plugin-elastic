@@ -88,26 +88,66 @@
 | `resources.limits.memory`                               | Set memory limit on resources                                                                              | `2Gi`                                          |
 | `resources.requests.cpu`                                | Set CPU for requests on resources                                                                          | `500m`                                         |
 | `resources.requests.memory`                             | Set memory for requests on resources                                                                       | `2Gi`                                          |
-| `job.migration.enabled`                                 | Enable migration job                                                                                       | `false`                                        |
-| `job.migration.image.name`                              | Set name for migration job image                                                                           | `${docker.prefix}-deploy-docker-build-tracker` |
-| `job.migration.image.tag`                               | Set tag for migration job image                                                                            | `${docker.tag}`                                |
-| `job.migration.podAnnotations`                          | Set pod annotations for migration job                                                                      | `{}`                                           |
-| `job.migration.startupProbe.failureThreshold`           | Failure threshold for startupProbe                                                                         | `300`                                          |
-| `job.migration.startupProbe.initialDelaySeconds`        | Initial delay seconds for startupProbe                                                                     | `0`                                            |
-| `job.migration.startupProbe.periodSeconds`              | Period seconds for startupProbe                                                                            | `20`                                           |
-| `job.migration.startupProbe.successThreshold`           | Success threshold for startupProbe                                                                         | `1`                                            |
-| `job.migration.startupProbe.timeoutSeconds`             | Timeout seconds for startupProbe                                                                           | `10`                                           |
-| `job.migration.livenessProbe.failureThreshold`          | Failure threshold for livenessProbe                                                                        | `3`                                            |
-| `job.migration.livenessProbe.initialDelaySeconds`       | Initial delay seconds for livenessProbe                                                                    | `30`                                           |
-| `job.migration.livenessProbe.periodSeconds`             | Period seconds for livenessProbe                                                                           | `30`                                           |
-| `job.migration.livenessProbe.timeoutSeconds`            | Timeout seconds for livenessProbe                                                                          | `10`                                           |
-| `job.migration.readinessProbe.failureThreshold`         | Failure threshold for readinessProbe                                                                       | `1`                                            |
-| `job.migration.readinessProbe.initialDelaySeconds`      | Initial delay seconds for readinessProbe                                                                   | `10`                                           |
-| `job.migration.readinessProbe.periodSeconds`            | Period seconds for readinessProbe                                                                          | `10`                                           |
-| `job.migration.readinessProbe.successThreshold`         | Set threshold for success on readiness probe                                                               | `1`                                            |
-| `job.migration.readinessProbe.timeoutSeconds`           | Timeout seconds for readinessProbe                                                                         | `10`                                           |
-| `job.migration.resources.limits.cpu`                    | Set CPU limit on resources                                                                                 | `500m`                                         |
-| `job.migration.resources.limits.memory`                 | Set memory limit on resources                                                                              | `2Gi`                                          |
-| `job.migration.resources.requests.cpu`                  | Set CPU for requests on resources                                                                          | `500m`                                         |
-| `job.migration.resources.requests.memory`               | Set memory for requests on resources                                                                       | `2Gi`                                          |
-| `job.migration.securityContext.runAsUser`               | Set user to run migration job under                                                                        | `1000`                                         |
+
+### RAG / semantic search
+
+| Name                                                        | Description                                                                        | Value                                           |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `rag.enabled`                                               | Enable the RAG chunk index and its embedding service                               | `false`                                         |
+| `rag.profile.id`                                            | Embedding profile id; also the suffix of its index and its tracker cursor          | `bge-m3-v1`                                     |
+| `rag.profile.model`                                         | Embedding model                                                                    | `BAAI/bge-m3`                                   |
+| `rag.profile.dimensions`                                    | Vector length of the model - must match it exactly                                 | `1024`                                          |
+| `rag.profile.maxChunksPerNode`                              | Ceiling per node; anything beyond is reported, not dropped silently                | `300`                                           |
+| `rag.index.shards`                                          | Shards of the chunk index - it holds a multiple of the workspace index's documents | `3`                                             |
+| `rag.index.replicas`                                        | Replicas of the chunk index                                                        | `1`                                             |
+| `rag.embedding.replicaCount`                                | Replicas of the embedding service                                                  | `1`                                             |
+| `rag.embedding.image.name`                                  | Embedding service image                                                            | `ghcr.io/huggingface/text-embeddings-inference` |
+| `rag.embedding.image.tag`                                   | Image tag - use a CUDA variant on GPU nodes                                        | `cpu-1.8`                                       |
+| `rag.embedding.maxBatchTokens`                              | Token budget per inference batch                                                   | `8192`                                          |
+| `rag.embedding.probe.initialDelaySeconds`                   | Grace period while the model loads                                                 | `120`                                           |
+| `rag.embedding.persistence.enabled`                         | Keep the downloaded model across restarts                                          | `false`                                         |
+| `rag.embedding.persistence.spec.accessModes`                | Access modes of the model cache claim                                              | `["ReadWriteOnce"]`                             |
+| `rag.embedding.persistence.spec.resources.requests.storage` | Size of the model cache claim                                                      | `20Gi`                                          |
+| `rag.embedding.resources`                                   | Resources of the embedding service                                                 | `{}`                                            |
+| `rag.embedding.nodeSelector`                                | Schedule the embedding service, e.g. onto GPU nodes                                | `{}`                                            |
+| `rag.embedding.tolerations`                                 | Tolerations for the embedding service                                              | `[]`                                            |
+| `rag.llm.enabled`                                           | Run a local model to formulate answers                                             | `false`                                         |
+| `rag.llm.replicaCount`                                      | Replicas of the answer service                                                     | `1`                                             |
+| `rag.llm.image.name`                                        | Answer service image                                                               | `ollama/ollama`                                 |
+| `rag.llm.image.tag`                                         | Image tag                                                                          | `0.5.7`                                         |
+| `rag.llm.model`                                             | Model to pull and serve                                                            | `qwen2.5:1.5b-instruct`                         |
+| `rag.llm.contextLength`                                     | Token window the model is served with                                              | `8192`                                          |
+| `rag.llm.keepAlive`                                         | How long a loaded model stays resident                                             | `24h`                                           |
+| `rag.llm.numParallel`                                       | Concurrent requests per model                                                      | `1`                                             |
+| `rag.llm.probe.initialDelaySeconds`                         | Grace period while the model is pulled and loaded                                  | `60`                                            |
+| `rag.llm.probe.failureThreshold`                            | Readiness attempts while the model is still downloading                            | `240`                                           |
+| `rag.llm.persistence.enabled`                               | Keep the pulled model across restarts                                              | `false`                                         |
+| `rag.llm.persistence.spec.accessModes`                      | Access modes of the model cache claim                                              | `["ReadWriteOnce"]`                             |
+| `rag.llm.persistence.spec.resources.requests.storage`       | Size of the model cache claim                                                      | `30Gi`                                          |
+| `rag.llm.resources.limits.cpu`                              | Cores the answer service may use                                                   | `4`                                             |
+| `rag.llm.resources.limits.memory`                           | Enough for a 1.5B model to stay resident                                           | `4Gi`                                           |
+| `rag.llm.nodeSelector`                                      | Schedule the answer service, e.g. onto GPU nodes                                   | `{}`                                            |
+| `rag.llm.tolerations`                                       | Tolerations for the answer service                                                 | `[]`                                            |
+| `job.migration.enabled`                                     | Enable migration job                                                               | `false`                                         |
+| `job.migration.image.name`                                  | Set name for migration job image                                                   | `${docker.prefix}-deploy-docker-build-tracker`  |
+| `job.migration.image.tag`                                   | Set tag for migration job image                                                    | `${docker.tag}`                                 |
+| `job.migration.podAnnotations`                              | Set pod annotations for migration job                                              | `{}`                                            |
+| `job.migration.startupProbe.failureThreshold`               | Failure threshold for startupProbe                                                 | `300`                                           |
+| `job.migration.startupProbe.initialDelaySeconds`            | Initial delay seconds for startupProbe                                             | `0`                                             |
+| `job.migration.startupProbe.periodSeconds`                  | Period seconds for startupProbe                                                    | `20`                                            |
+| `job.migration.startupProbe.successThreshold`               | Success threshold for startupProbe                                                 | `1`                                             |
+| `job.migration.startupProbe.timeoutSeconds`                 | Timeout seconds for startupProbe                                                   | `10`                                            |
+| `job.migration.livenessProbe.failureThreshold`              | Failure threshold for livenessProbe                                                | `3`                                             |
+| `job.migration.livenessProbe.initialDelaySeconds`           | Initial delay seconds for livenessProbe                                            | `30`                                            |
+| `job.migration.livenessProbe.periodSeconds`                 | Period seconds for livenessProbe                                                   | `30`                                            |
+| `job.migration.livenessProbe.timeoutSeconds`                | Timeout seconds for livenessProbe                                                  | `10`                                            |
+| `job.migration.readinessProbe.failureThreshold`             | Failure threshold for readinessProbe                                               | `1`                                             |
+| `job.migration.readinessProbe.initialDelaySeconds`          | Initial delay seconds for readinessProbe                                           | `10`                                            |
+| `job.migration.readinessProbe.periodSeconds`                | Period seconds for readinessProbe                                                  | `10`                                            |
+| `job.migration.readinessProbe.successThreshold`             | Set threshold for success on readiness probe                                       | `1`                                             |
+| `job.migration.readinessProbe.timeoutSeconds`               | Timeout seconds for readinessProbe                                                 | `10`                                            |
+| `job.migration.resources.limits.cpu`                        | Set CPU limit on resources                                                         | `500m`                                          |
+| `job.migration.resources.limits.memory`                     | Set memory limit on resources                                                      | `2Gi`                                           |
+| `job.migration.resources.requests.cpu`                      | Set CPU for requests on resources                                                  | `500m`                                          |
+| `job.migration.resources.requests.memory`                   | Set memory for requests on resources                                               | `2Gi`                                           |
+| `job.migration.securityContext.runAsUser`                   | Set user to run migration job under                                                | `1000`                                          |

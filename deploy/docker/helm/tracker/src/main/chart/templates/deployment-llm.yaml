@@ -1,0 +1,92 @@
+{{- if and .Values.rag.enabled .Values.rag.llm.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "edusharing_common_lib.names.name" . }}-llm
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.rag.llm.replicaCount }}
+  selector:
+    matchLabels: {{ include "edusharing_common_lib.labels.app" . | nindent 6 }}
+      app.kubernetes.io/component: llm
+  template:
+    metadata:
+      labels: {{ include "edusharing_common_lib.labels.app" . | nindent 8 }}
+        app.kubernetes.io/component: llm
+      annotations:
+        sidecar.istio.io/inject: {{ .Values.global.cluster.istio.enabled | quote }}
+        {{- with merge .Values.podAnnotations .Values.global.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      containers:
+      - name: llm
+        image: {{ .Values.rag.llm.image.name }}:{{ .Values.rag.llm.image.tag }}
+        imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+        # Ollama does not pull a model when the OpenAI-compatible route first asks for it - it
+        # answers "model not found". So it is fetched at start: serve in the background, wait for
+        # the API, pull, then wait on serve. The first start takes as long as the download.
+        #
+        # The context window is then baked in. Ollama defaults to 2048 tokens; a RAG prompt with
+        # six passages is larger and was silently truncated, so the model answered from part of
+        # the passages with nothing to show for it. Ollama has no environment variable for this,
+        # but it has Modelfiles. The derived model keeps the name of its base so the repository
+        # configuration stays unchanged and the two cannot drift apart.
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            /bin/ollama serve &
+            until /bin/ollama list >/dev/null 2>&1; do sleep 1; done
+            /bin/ollama pull {{ .Values.rag.llm.model }}
+            printf 'FROM %s\nPARAMETER num_ctx %s\n' \
+              '{{ .Values.rag.llm.model }}' '{{ .Values.rag.llm.contextLength }}' > /tmp/Modelfile
+            /bin/ollama create {{ .Values.rag.llm.model }} -f /tmp/Modelfile
+            wait
+        env:
+          # How long a loaded model stays resident. Without this Ollama unloads after five idle
+          # minutes and the next question waits for the load again - tens of seconds on CPU.
+          - name: OLLAMA_KEEP_ALIVE
+            value: {{ .Values.rag.llm.keepAlive | quote }}
+          - name: OLLAMA_NUM_PARALLEL
+            value: {{ .Values.rag.llm.numParallel | quote }}
+        ports:
+          - name: http
+            containerPort: 11434
+        # Readiness only once the model is actually there: /api/tags answers while the pull is
+        # still running, so probing it would route questions to a pod that cannot answer them.
+        readinessProbe:
+          exec:
+            # printf-then-quote so the whole command is one properly quoted YAML scalar; quoting the
+            # model name on its own would nest quotes inside an already quoted flow entry
+            command:
+              - /bin/sh
+              - -c
+              - {{ printf "/bin/ollama list | grep -q %s" .Values.rag.llm.model | quote }}
+          initialDelaySeconds: {{ .Values.rag.llm.probe.initialDelaySeconds }}
+          periodSeconds: 15
+          failureThreshold: {{ .Values.rag.llm.probe.failureThreshold }}
+        livenessProbe:
+          httpGet:
+            path: /api/tags
+            port: http
+          initialDelaySeconds: {{ .Values.rag.llm.probe.initialDelaySeconds }}
+          periodSeconds: 30
+        resources: {{- toYaml .Values.rag.llm.resources | nindent 10 }}
+        volumeMounts:
+          - name: model-cache
+            mountPath: /root/.ollama
+      volumes:
+        - name: model-cache
+          {{- if .Values.rag.llm.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "edusharing_common_lib.names.name" . }}-llm
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.rag.llm.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.rag.llm.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

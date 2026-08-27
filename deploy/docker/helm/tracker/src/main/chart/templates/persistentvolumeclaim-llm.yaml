@@ -1,0 +1,12 @@
+{{- if and .Values.rag.enabled .Values.rag.llm.enabled .Values.rag.llm.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "edusharing_common_lib.names.name" . }}-llm
+  labels: {{ include "edusharing_common_lib.labels.app" . | nindent 4 }}
+  annotations:
+    # A 7B model in q4 is several gigabytes; keeping the claim across upgrades avoids pulling it
+    # again on every rollout, which otherwise dominates the restart time.
+    "helm.sh/resource-policy": keep
+spec: {{- toYaml .Values.rag.llm.persistence.spec | nindent 2 }}
+{{- end }}
