@@ -117,7 +117,13 @@ public class StatisticsTracker extends AbstractTracker<BaseTrackerProperties, St
                 }
             }
 
-            trackingContext.metricContext().getProgress().set((long) (successfullChunks.size() / currentChunks.size()) * PROGRESS_FACTOR);
+            // currentChunks is empty when every statistics fetch of this run failed to parse (see the
+            // ResponseProcessingException above): there is nothing left to write, so the run is done -
+            // and dividing by it would abort the run with an ArithmeticException.
+            double progress = currentChunks.isEmpty()
+                    ? 100.0d
+                    : (double) successfullChunks.size() / currentChunks.size() * 100.0d;
+            trackingContext.metricContext().getProgress().set((long) (progress * PROGRESS_FACTOR));
             trackingContext.metricContext().getTimestamp().set(System.currentTimeMillis());
 
             successfullChunks.forEach(c -> currentChunks.remove(c));
