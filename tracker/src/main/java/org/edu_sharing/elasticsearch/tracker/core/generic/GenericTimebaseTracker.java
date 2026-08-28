@@ -2,6 +2,8 @@ package org.edu_sharing.elasticsearch.tracker.core.generic;
 
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.edu_sharing.elasticsearch.metric.MetricContext;
+import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractTracker;
 import org.edu_sharing.elasticsearch.tracker.core.TrackingContext;
 import org.edu_sharing.elasticsearch.tracker.strategy.CommitTimeStatus;
@@ -33,6 +35,18 @@ public class GenericTimebaseTracker<PROPS extends GenericTimebaseTrackerProperti
         return TimeBasedStatus.class;
     }
 
+    /**
+     * A time windowed data source hands out the next batch but never says how many entries are still
+     * behind it, so there is no total this tracker could report a percentage of. Anything it could
+     * derive from the time axis instead would answer a different question than the same gauge does
+     * for the transaction based trackers ("position in the whole source"), so it stays with
+     * {@code trackerDelay}, which it can state exactly.
+     */
+    @Override
+    public boolean reportsProgress() {
+        return false;
+    }
+
     @Override
     public State track(TrackingContext<TimeBasedStatus> context) {
         try {
@@ -45,8 +59,9 @@ public class GenericTimebaseTracker<PROPS extends GenericTimebaseTrackerProperti
                     ZoneOffset.UTC);
             Long lastId = Optional.ofNullable(trackerStatus).map(TimeBasedStatus::getLastId).orElse(null);
 
-            OffsetDateTime toTimeStamp = context.strategy().getLimit() != null
-                    ? OffsetDateTime.ofInstant(Instant.ofEpochMilli(context.strategy().getLimit()), ZoneOffset.UTC)
+            Long limit = context.strategy().getLimit();
+            OffsetDateTime toTimeStamp = limit != null
+                    ? OffsetDateTime.ofInstant(Instant.ofEpochMilli(limit), ZoneOffset.UTC)
                     : null;
 
             log.info("{} starting from: {}", getName(), dateFormat.format(lastTimestampDate));
@@ -56,6 +71,7 @@ public class GenericTimebaseTracker<PROPS extends GenericTimebaseTrackerProperti
                 List<TimedData<DATA>> trackingData = trackingSupport.getData(lastTimestampDate, lastId, toTimeStamp, props.getBatchSize());
                 if (trackingData.isEmpty()) {
                     log.info("{} no new data found", getName());
+                    trackCaughtUp(context.metricContext(), limit);
                     return State.FINISHED;
                 }
 
@@ -66,6 +82,12 @@ public class GenericTimebaseTracker<PROPS extends GenericTimebaseTrackerProperti
                 trackingSupport.onHandleData(trackingData.stream().map(TimedData::data).toList());
                 log.info("{} handled {} entries", getName(), trackingData.size());
                 context.statusIndexService().setState(new TimeBasedStatus(lastTimestampDate.toInstant().toEpochMilli(), lastId));
+
+                context.metricContext().getTimestamp().set(lastData.timestamp());
+                log.info("{} finished up to {} ({} hours behind)",
+                        getName(),
+                        dateFormat.format(lastTimestampDate),
+                        Tools.df.format((System.currentTimeMillis() - lastData.timestamp()) / 1000.0 / 60 / 60));
             } while (i++ < props.getMaxIterations());
             log.info("finished {} until: {}", getName(), dateFormat.format(lastTimestampDate));
         } catch (Exception e) {
@@ -74,6 +96,14 @@ public class GenericTimebaseTracker<PROPS extends GenericTimebaseTrackerProperti
         }
         return State.IN_PROGRESS;
     }
+
+    /**
+     * Everything the tracker is currently allowed to see is indexed. Without a strategy limit that
+     * means "up to date with the data source", so the delay is measured against now. With a limit
+     * the tracker is only up to date with its dependency, and reporting now would hide how far that
+     * dependency itself is lagging - so the limit stays the reference point.
+     */
+    private void trackCaughtUp(MetricContext metricContext, Long limit) {
+        metricContext.getTimestamp().set(limit != null ? limit : System.currentTimeMillis());
+    }
 }
-
-
