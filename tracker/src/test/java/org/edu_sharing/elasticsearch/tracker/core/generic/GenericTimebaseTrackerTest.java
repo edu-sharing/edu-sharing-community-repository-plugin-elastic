@@ -154,4 +154,77 @@ class GenericTimebaseTrackerTest {
         // row 3 must be delivered, but rows 1/2 (already at/behind the cursor) must not repeat
         assertThat(firstRunSupport.delivered).containsExactly(1L, 2L, 3L);
     }
+
+    /**
+     * A time based tracker feeds only {@code trackerDelay}: while it is working through a backlog the
+     * gauge carries the timestamp of the last indexed entry, so the delay is that entry's real age.
+     */
+    @Test
+    void reportsTheAgeOfTheLastIndexedEntryWhileWorkingThroughABacklog() {
+        List<Row> rows = new ArrayList<>(List.of(
+                new Row(1, 1000), new Row(2, 2000), new Row(3, 3000)
+        ));
+        FakeSupport support = new FakeSupport(rows);
+        GenericTimebaseTrackerProperties props = new GenericTimebaseTrackerProperties();
+        props.setBatchSize(1);
+        props.setMaxIterations(0); // one fetch per track() call
+        GenericTimebaseTracker<GenericTimebaseTrackerProperties, Long> tracker = new GenericTimebaseTracker<>(props, support);
+        tracker.setName("test");
+
+        MetricContext metricContext = MetricContext.builder().name("test").build();
+        TrackingContext<TimeBasedStatus> context = new TrackingContext<>(
+                "test", () -> 5000L, new InMemoryStatus(), metricContext);
+
+        tracker.track(context);
+        assertThat(metricContext.getTimestamp()).hasValue(1000L);
+
+        tracker.track(context);
+        assertThat(metricContext.getTimestamp()).hasValue(2000L);
+
+        tracker.track(context);
+        assertThat(metricContext.getTimestamp()).hasValue(3000L);
+
+        // caught up: the delay falls back to the frontier the tracker was allowed to reach, which
+        // under a dependent tracker strategy is that dependency's commit time - not now, so its own
+        // lag stays visible.
+        assertThat(tracker.track(context)).isEqualTo(Tracker.State.FINISHED);
+        assertThat(metricContext.getTimestamp()).hasValue(5000L);
+    }
+
+    /**
+     * Without a dependent tracker limiting it, being out of data means being up to date with the
+     * source - the delay has to drop to ~0 instead of freezing at the last indexed entry.
+     */
+    @Test
+    void reportsZeroDelayWhenCaughtUpWithoutStrategyLimit() {
+        FakeSupport support = new FakeSupport(List.of(new Row(1, 1000)));
+        GenericTimebaseTrackerProperties props = new GenericTimebaseTrackerProperties();
+        props.setBatchSize(10);
+        props.setMaxIterations(50);
+        GenericTimebaseTracker<GenericTimebaseTrackerProperties, Long> tracker = new GenericTimebaseTracker<>(props, support);
+        tracker.setName("test");
+
+        MetricContext metricContext = MetricContext.builder().name("test").build();
+        TrackingContext<TimeBasedStatus> context = new TrackingContext<>(
+                "test", () -> null, new InMemoryStatus(), metricContext);
+
+        long before = System.currentTimeMillis();
+        while (tracker.track(context) == Tracker.State.IN_PROGRESS) {
+            // drain
+        }
+
+        assertThat(metricContext.getTimestamp().get()).isBetween(before, System.currentTimeMillis());
+    }
+
+    /**
+     * The progress gauge must not be registered for this tracker - an unfed gauge would sit at 0 and
+     * keep the shared "low tracking progress" alert firing forever.
+     */
+    @Test
+    void reportsNoProgress() {
+        GenericTimebaseTracker<GenericTimebaseTrackerProperties, Long> tracker =
+                new GenericTimebaseTracker<>(new GenericTimebaseTrackerProperties(), new FakeSupport(List.of()));
+
+        assertThat(tracker.reportsProgress()).isFalse();
+    }
 }

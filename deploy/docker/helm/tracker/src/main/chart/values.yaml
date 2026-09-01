@@ -111,8 +111,10 @@ config:
           ## @param config.metrics.rules.jvmHighGCRate.labels.severity Set metric rule jvmHighGCRate severity level
           severity: critical
 
-      ## the tracker exposes one gauge per dimension for all trackers, told apart by the `tracker` label,
-      ## so these rules cover every tracker at once - the alert carries the tracker name in its labels.
+      ## the tracker exposes one gauge per dimension, told apart by the `tracker` label, so these rules
+      ## cover every tracker at once - the alert carries the tracker name in its labels. Trackers whose
+      ## data source reports no total (the time based ones, e.g. share/useractivity) expose only
+      ## trackerDelay and are therefore simply absent from the trackingProgress rule - no exclude needed.
       trackingDelay:
         ## @param config.metrics.rules.trackingDelay.enabled Enable metric rule trackingDelay
         enabled: true

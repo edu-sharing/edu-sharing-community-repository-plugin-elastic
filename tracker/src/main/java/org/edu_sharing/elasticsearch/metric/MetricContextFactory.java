@@ -22,15 +22,23 @@ public class MetricContextFactory {
 
     private final MeterRegistry meterRegistry;
 
-    public MetricContext createMetric(String name){
+    /**
+     * @param withProgress see {@link org.edu_sharing.elasticsearch.tracker.core.Tracker#reportsProgress()}.
+     *                     A tracker that cannot compute a progress must not get the gauge registered at
+     *                     all: an unfed gauge would sit at 0 and keep the shared "low tracking progress"
+     *                     alert firing forever, which is worse than having no series for it.
+     */
+    public MetricContext createMetric(String name, boolean withProgress) {
         MetricContext metric = MetricContext.builder()
                 .name(name)
                 .build();
 
-        Gauge.builder(GAUGE_PROGRESS, metric.getProgress(), (p) -> p.get() / ((double) PROGRESS_FACTOR))
-                .tag(TAG_TRACKER, name)
-                .description("tracking progress in percent")
-                .register(meterRegistry);
+        if (withProgress) {
+            Gauge.builder(GAUGE_PROGRESS, metric.getProgress(), (p) -> p.get() / ((double) PROGRESS_FACTOR))
+                    .tag(TAG_TRACKER, name)
+                    .description("tracking progress in percent")
+                    .register(meterRegistry);
+        }
 
         Gauge.builder(GAUGE_DELAY, metric.getTimestamp(), p -> (System.currentTimeMillis() - p.get()) / 1000.)
                 .tag(TAG_TRACKER, name)

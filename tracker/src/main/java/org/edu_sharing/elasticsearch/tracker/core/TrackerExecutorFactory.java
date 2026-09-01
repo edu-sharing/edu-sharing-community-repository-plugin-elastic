@@ -92,7 +92,7 @@ public class TrackerExecutorFactory {
                     new TrackingContext<>(tackerCoroutineConfig.getName(),
                     null,
                     null,
-                    metricContextFactory.createMetric(tackerCoroutineConfig.getName())) );
+                    metricContextFactory.createMetric(tackerCoroutineConfig.getName(), tackerCoroutineConfig.getTracker().reportsProgress())) );
             result.put(tackerCoroutineConfig, trackingExecutor);
         }
 
@@ -123,7 +123,7 @@ public class TrackerExecutorFactory {
         return new TrackingContext<>(trackerConfig.getName(),
                 trackerStrategy,
                 statusIndexServiceRegistry.getCommitTimeStatusIndex(trackerConfig),
-                metricContextFactory.createMetric(trackerConfig.getName()));
+                metricContextFactory.createMetric(trackerConfig.getName(), trackerConfig.getTracker().reportsProgress()));
     }
 
 

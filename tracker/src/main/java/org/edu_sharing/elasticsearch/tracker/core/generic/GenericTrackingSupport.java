@@ -7,6 +7,9 @@ import java.util.List;
 public interface GenericTrackingSupport<DATA> {
 
     /**
+     * Must return at most {@code batchSize} entries, ordered by (timestamp, sortKey) ascending -
+     * {@link GenericTimebaseTracker} takes the last one as its new cursor.
+     *
      * @param afterId tiebreaker cursor for entries sharing the exact same fromTimeStamp (see
      *                {@link TimedData#sortKey()}); null if the previous batch's last entry had
      *                no sort key, or no entry has been processed yet. Data sources without a

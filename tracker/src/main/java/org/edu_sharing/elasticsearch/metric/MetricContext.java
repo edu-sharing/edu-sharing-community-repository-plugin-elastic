@@ -10,6 +10,9 @@ import java.util.concurrent.atomic.AtomicLong;
 public class MetricContext {
     public static final long PROGRESS_FACTOR = 1000000;
 
+    /**
+     * ignored for trackers that report no progress - see {@link org.edu_sharing.elasticsearch.tracker.core.Tracker#reportsProgress()}
+     */
     @Builder.Default
     AtomicLong progress = new AtomicLong();
     @Builder.Default
