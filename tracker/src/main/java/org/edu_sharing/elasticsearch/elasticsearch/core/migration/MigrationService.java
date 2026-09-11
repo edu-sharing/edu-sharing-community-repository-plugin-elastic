@@ -248,16 +248,14 @@ public class MigrationService {
                     this::setMigrationContentDelegate
             );
 
-            boolean shouldMigrateAuthorities = !sourceAuthoritiesIndex.split("_")[1].equals("9.1");
-
             jobs = Stream.of( // Jobs needs to be ordered by MigrationStep (see requires migration)
                             new ReindexMigrationJob(MigrationStep.REINDEX_WORKSPACE_INDEX_PROGRESS_STEP, client, context.getSourceWorkspaceIndex(), context.getTargetWorkspaceIndex(),reindexBatchSize,requestsPerSecond, tickService),
-                            shouldMigrateAuthorities ? new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),reindexBatchSize,requestsPerSecond, tickService) : null,
+                            new ReindexMigrationJob(MigrationStep.REINDEX_AUTHORITIES_INDEX_PROGRESS_STEP, client, context.getSourceAuthoritiesIndex(), context.getTargetAuthoritiesIndex(),reindexBatchSize,requestsPerSecond, tickService),
                             new ReindexMigrationJob(MigrationStep.REINDEX_TRANSACTIONS_INDEX_PROGRESS_STEP, client, context.getSourceTrackerStateIndex(), context.getTargetTrackerStateIndex(),reindexBatchSize,requestsPerSecond, tickService),
                             new CallbackMigrationJob(client, context.getMigrationCallbacks(), tickService),
                             new DocumentsMigrationJob(adminService, context.getMigrationTrackerStateIndex(), trackerRegistry, context.getMigrationTracker(), statusIndexServiceFactory, trackerExecutorFactory, tickService),
                             new CompleteMigrationJob())
-                    .filter(Objects::nonNull).toList();
+                    .toList();
 
             validateMigrationJobs();
         }
@@ -301,14 +299,21 @@ public class MigrationService {
                 migrationState.setStatusMessage(migrationJob.getMigrationStep().message);
                 setMigrationState(context.getToVersion(), migrationState);
 
-                log.info("Start MigrationJob: {}", migrationJob.getMigrationStep());
-                migrationJob.onEnterState(context);
+                try {
+                    log.info("Start MigrationJob: {}", migrationJob.getMigrationStep());
+                    migrationJob.onEnterState(context);
 
-                log.info("Run MigrationJob: {}", migrationJob.getMigrationStep());
-                migrationJob.onProgressState(context);
+                    log.info("Run MigrationJob: {}", migrationJob.getMigrationStep());
+                    migrationJob.onProgressState(context);
 
-                log.info("Finish MigrationJob: {}", migrationJob.getMigrationStep());
-                migrationJob.onExitState(context);
+                    log.info("Finish MigrationJob: {}", migrationJob.getMigrationStep());
+                    migrationJob.onExitState(context);
+                } catch (MigrationException ex) {
+                    migrationState.setStatusMessage(String.format("%s failed: %s", migrationJob.getMigrationStep().message, ex.getMessage()));
+                    setMigrationState(context.getToVersion(), migrationState);
+                    throw ex;
+                }
+
 
                 migrationState = new MigrationState();
             }
