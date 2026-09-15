@@ -176,7 +176,7 @@ public class EduSharingService {
         NodePreview preview = new NodePreview();
         PreviewData previewSmall = previewApi.getPreviewData(storeProtocol, storeId, nodeId, 400, 400, 60);
 
-        if (previewSmall != null && !preview.isIcon()) {
+        if (previewSmall != null && !previewSmall.isIcon()) {
             if (previewSmall.getData() != null && (previewSmall.getData().length / 1024) > previewMaxKiloBytes) {
                 log.info("Skipping preview for {} cause size {}kb exceeds limit {}kb", nodeRef, previewSmall.getData().length / 1024, previewMaxKiloBytes);
                 return null;
