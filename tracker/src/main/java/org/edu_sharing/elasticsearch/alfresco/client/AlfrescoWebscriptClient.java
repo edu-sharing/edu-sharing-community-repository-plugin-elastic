@@ -1,5 +1,7 @@
 package org.edu_sharing.elasticsearch.alfresco.client;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jakarta.rs.json.JacksonJsonProvider;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.*;
@@ -64,10 +66,15 @@ public class AlfrescoWebscriptClient implements AlfrescoApi{
 
     @PostConstruct
     void init() {
+        ObjectMapper mapper = new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        JacksonJsonProvider provider = new JacksonJsonProvider();
+        provider.setMapper(mapper);
+
         client = ClientBuilder.newBuilder()
                 .connectTimeout(alfrescoReadTimeout, TimeUnit.MILLISECONDS)
                 .readTimeout(alfrescoReadTimeout, TimeUnit.MILLISECONDS)
-                .register(JacksonJsonProvider.class).build();
+                .register(provider).build();
         //client.property("use.async.http.conduit", Boolean.TRUE);
         //client.property("org.apache.cxf.transport.http.async.usePolicy", AsyncHTTPConduitFactory.UseAsyncPolicy.ALWAYS);
         if (Boolean.parseBoolean(logRequests)) {
@@ -84,7 +91,7 @@ public class AlfrescoWebscriptClient implements AlfrescoApi{
                     .post(Entity.json(p))) {
             Nodes node = resp.readEntity(Nodes.class);
             return node.getNodes();
-        } catch (ResponseProcessingException e) {
+        } catch (ProcessingException e) {
             logger.warn("Could not parse nodes for all transaction ids, will fetch individually...", e);
             List<Node> result = new ArrayList<>();
             for (Long transactionId : p.getTxnIds()) {
@@ -95,7 +102,7 @@ public class AlfrescoWebscriptClient implements AlfrescoApi{
                         .post(Entity.json(p))) {
                     Nodes node = resp.readEntity(Nodes.class);
                     result.addAll(node.getNodes());
-                } catch (ResponseProcessingException e2) {
+                } catch (ProcessingException e2) {
                     logger.warn("Error reading node for transaction id " + transactionId, e2);
                 }
             }
