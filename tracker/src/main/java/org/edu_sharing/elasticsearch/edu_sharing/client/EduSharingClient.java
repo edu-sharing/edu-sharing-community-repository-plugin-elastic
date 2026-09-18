@@ -3,9 +3,6 @@ package org.edu_sharing.elasticsearch.edu_sharing.client;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jakarta.rs.json.JacksonJsonProvider;
-import com.google.gson.ExclusionStrategy;
-import com.google.gson.FieldAttributes;
-import com.google.gson.GsonBuilder;
 import jakarta.annotation.PostConstruct;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.Client;
@@ -19,12 +16,11 @@ import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
 import org.edu_sharing.elasticsearch.alfresco.client.NodePreview;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.Node;
-import org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeEntry;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.glassfish.jersey.logging.LoggingFeature;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.threeten.bp.OffsetDateTime;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -75,6 +71,8 @@ public class EduSharingClient {
     @Value("${preview.maxKiloBytes : 100}")
     long previewMaxKiloBytes;
 
+    @Autowired
+    private EduSharingAuthentication eduSharingAuthentication;
 
     private Client educlient;
 
@@ -85,7 +83,6 @@ public class EduSharingClient {
     String URL_PREVIEW = "/edu-sharing/preview?nodeId=${nodeId}&storeProtocol=${storeProtocol}&storeId=${storeId}&crop=true&maxWidth=${width}&maxHeight=${height}&quality=${quality}";
 
     String URL_MDS = "/edu-sharing/rest/mds/v1/metadatasets/-home-/${mds}";
-    String URL_NODE = "/edu-sharing/rest/node/v1/nodes/-home-/${node}/metadata";
 
     String URL_MDS_ALL = "/edu-sharing/rest/mds/v1/metadatasets/-home-";
 
@@ -103,7 +100,7 @@ public class EduSharingClient {
 
     String URL_GET_TEXT = "/edu-sharing/rest/node/v1/nodes/-home-/${uuid}/textContent";
 
-    NewCookie jsessionId = null;
+    volatile NewCookie jsessionId = null;
 
     Map<String, Map<String, Map<String, ValuespaceEntries>>> cache = new HashMap<>();
 
@@ -274,12 +271,14 @@ public class EduSharingClient {
         params.setValueParameters(vp);
 
         // TODO Autocloseable
-        entries = educlient
+        Response response = educlient
                 .target(url)
                 .request(MediaType.APPLICATION_JSON)
                 .header("locale", language)
                 .cookie(jsessionId.getName(), jsessionId.getValue())
-                .post(Entity.json(params)).readEntity(ValuespaceEntries.class);
+                .post(Entity.json(params));
+        ensureSuccessful(response, "getValuespace");
+        entries = response.readEntity(ValuespaceEntries.class);
         addValuespaceToCache(mds, language, property, entries);
         return entries;
     }
@@ -289,11 +288,13 @@ public class EduSharingClient {
         String url = URL_MDS;
         url = url.replace("${mds}", mds);
         url = getUrl(url);
-        MdsV2 mdsV2 = educlient
+        Response response = educlient
                 .target(url)
                 .request(MediaType.APPLICATION_JSON)
                 .cookie(jsessionId.getName(), jsessionId.getValue())
-                .get().readEntity(MdsV2.class);
+                .get();
+        ensureSuccessful(response, "getValuespaceProperties");
+        MdsV2 mdsV2 = response.readEntity(MdsV2.class);
 
         List<String> result = new ArrayList<>();
         for (WidgetV2 widget : mdsV2.getWidgets()) {
@@ -354,28 +355,6 @@ public class EduSharingClient {
         }
     }
 
-
-    private NodeEntry getNode(String nodeId) {
-        log.debug("calling getNode");
-        String result = educlient.target(getUrl(URL_NODE.replace("${node}", nodeId))).
-                request(MediaType.APPLICATION_JSON).
-                accept(MediaType.APPLICATION_JSON).
-                cookie(jsessionId.getName(), jsessionId.getValue()).
-                get().readEntity(String.class);
-        log.debug(result);
-        return new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
-            @Override
-            public boolean shouldSkipField(FieldAttributes fieldAttributes) {
-                return false;
-            }
-
-            @Override
-            public boolean shouldSkipClass(Class<?> aClass) {
-                return aClass.equals(OffsetDateTime.class)
-                        || aClass.equals(java.time.OffsetDateTime.class);
-            }
-        }).create().fromJson(result, NodeEntry.class);
-    }
 
     public About getAbout() {
         String url = URL_ABOUT;
@@ -473,23 +452,25 @@ public class EduSharingClient {
     public MetadataSets getMetadataSets() {
         String url = URL_MDS_ALL;
         url = getUrl(url);
-        return educlient.target(url)
+        Response response = educlient.target(url)
                 .request(MediaType.APPLICATION_JSON)
                 .cookie(jsessionId.getName(), jsessionId.getValue())
                 .accept(MediaType.APPLICATION_JSON)
-                .get()
-                .readEntity(MetadataSets.class);
+                .get();
+        ensureSuccessful(response, "getMetadataSets");
+        return response.readEntity(MetadataSets.class);
     }
 
     @EduSharingAuthentication.ManageAuthentication
     public Repository getHomeRepository() {
         String url = URL_REPOSITORIES;
         url = getUrl(url);
-        Repositories repositories = educlient.target(url)
+        Response response = educlient.target(url)
                 .request(MediaType.APPLICATION_JSON)
                 .cookie(jsessionId.getName(), jsessionId.getValue())
-                .get()
-                .readEntity(Repositories.class);
+                .get();
+        ensureSuccessful(response, "getHomeRepository");
+        Repositories repositories = response.readEntity(Repositories.class);
         for (Repository rep : repositories.getRepositories()) {
             if (rep.isHomeRepo()) return rep;
         }
@@ -501,13 +482,14 @@ public class EduSharingClient {
         String url = URL_STATISTICS_ALTERED;
         url = getUrl(url);
 
-        return educlient.target(url).
+        Response response = educlient.target(url).
                 queryParam("dateFrom", tsFrom)
                 .queryParam("dateTo", tsTo)
                 .request(MediaType.APPLICATION_JSON)
                 .cookie(jsessionId.getName(), jsessionId.getValue())
-                .get()
-                .readEntity(List.class);
+                .get();
+        ensureSuccessful(response, "getStatisticsNodeIds");
+        return response.readEntity(List.class);
     }
 
 
@@ -516,23 +498,27 @@ public class EduSharingClient {
         String url = URL_STATISTICS_NODE;
         url = getUrl(url);
 
-        return educlient.target(url).
+        Response response = educlient.target(url).
                 path(nodeId).
                 queryParam("dateFrom", timestamp).
                 request(MediaType.APPLICATION_JSON).
                 cookie(jsessionId.getName(), jsessionId.getValue()).
-                get().readEntity(new GenericType<List<NodeStatistic>>() {
-                });
+                get();
+        ensureSuccessful(response, "getStatisticsForNode");
+        return response.readEntity(new GenericType<List<NodeStatistic>>() {
+        });
     }
 
     @EduSharingAuthentication.ManageAuthentication
     public String getTextContent(String uuid){
         String url = URL_GET_TEXT.replace("${uuid}", uuid);
         url = getUrl(url);
-        return educlient
+        Response response = educlient
                 .target(url)
                 .request(MediaType.APPLICATION_JSON)
-                .cookie(jsessionId.getName(), jsessionId.getValue()).get().readEntity(Text.class).getText();
+                .cookie(jsessionId.getName(), jsessionId.getValue()).get();
+        ensureSuccessful(response, "getTextContent");
+        return response.readEntity(Text.class).getText();
     }
 
 
@@ -553,6 +539,26 @@ public class EduSharingClient {
             valuespaceCacheLastChecked = System.currentTimeMillis();
         }
 
+    }
+
+    /**
+     * Checks a response that requires an authenticated (admin) session before its body is read.
+     * Deserializing an error body into the expected type fails with a confusing Jackson error,
+     * so fail fast with the actual status and body instead - and, when the session silently fell
+     * back to guest, hand the response to the authentication component so the next run already
+     * uses a fresh session.
+     */
+    private void ensureSuccessful(Response response, String operation) {
+        if (eduSharingAuthentication.recoverIfSessionLost(response)) {
+            response.close();
+            throw new RuntimeException("edu-sharing " + operation + " failed: the session had fallen back to guest"
+                    + " (status " + response.getStatus() + ") and has been renewed, retrying on the next run");
+        }
+        if (response.getStatus() != 200) {
+            String message = "edu-sharing " + operation + " failed: " + response.getStatus() + " " + response.readEntity(String.class);
+            log.error(message);
+            throw new RuntimeException(message);
+        }
     }
 
     private String getUrl(String path) {
