@@ -22,6 +22,7 @@ import org.edu_sharing.generated.repository.backend.services.rest.client.model.N
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.NodeEntry;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.glassfish.jersey.logging.LoggingFeature;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.threeten.bp.OffsetDateTime;
@@ -75,6 +76,8 @@ public class EduSharingClient {
     @Value("${preview.maxKiloBytes : 100}")
     long previewMaxKiloBytes;
 
+    @Autowired
+    private EduSharingAuthentication eduSharingAuthentication;
 
     private Client educlient;
 
@@ -507,11 +510,7 @@ public class EduSharingClient {
                 .request(MediaType.APPLICATION_JSON)
                 .cookie(jsessionId.getName(), jsessionId.getValue())
                 .get();
-        if (response.getStatus() != 200) {
-            String message = "edu-sharing getStatisticsNodeIds failed: " + response.getStatus() + " " + response.readEntity(String.class);
-            log.error(message);
-            throw new RuntimeException(message);
-        }
+        ensureSuccessful(response, "getStatisticsNodeIds");
         return response.readEntity(List.class);
     }
 
@@ -521,13 +520,15 @@ public class EduSharingClient {
         String url = URL_STATISTICS_NODE;
         url = getUrl(url);
 
-        return educlient.target(url).
+        Response response = educlient.target(url).
                 path(nodeId).
                 queryParam("dateFrom", timestamp).
                 request(MediaType.APPLICATION_JSON).
                 cookie(jsessionId.getName(), jsessionId.getValue()).
-                get().readEntity(new GenericType<List<NodeStatistic>>() {
-                });
+                get();
+        ensureSuccessful(response, "getStatisticsForNode");
+        return response.readEntity(new GenericType<List<NodeStatistic>>() {
+        });
     }
 
     @EduSharingAuthentication.ManageAuthentication
@@ -558,6 +559,26 @@ public class EduSharingClient {
             valuespaceCacheLastChecked = System.currentTimeMillis();
         }
 
+    }
+
+    /**
+     * Checks a response that requires an authenticated (admin) session before its body is read.
+     * Deserializing an error body into the expected type fails with a confusing Jackson error,
+     * so fail fast with the actual status and body instead - and, when the session silently fell
+     * back to guest, hand the response to the authentication component so the next run already
+     * uses a fresh session.
+     */
+    private void ensureSuccessful(Response response, String operation) {
+        if (eduSharingAuthentication.recoverIfSessionLost(response)) {
+            response.close();
+            throw new RuntimeException("edu-sharing " + operation + " failed: the session had fallen back to guest"
+                    + " (status " + response.getStatus() + ") and has been renewed, retrying on the next run");
+        }
+        if (response.getStatus() != 200) {
+            String message = "edu-sharing " + operation + " failed: " + response.getStatus() + " " + response.readEntity(String.class);
+            log.error(message);
+            throw new RuntimeException(message);
+        }
     }
 
     private String getUrl(String path) {
