@@ -55,14 +55,25 @@ public class EduSharingAuthentication {
     @Component
     public class EduSharingAuthenticationResponseFilter implements ClientResponseFilter{
 
+        /**
+         * set by ApiAuthenticationFilter on every response, tells us whether the
+         * request was answered as a real authenticated user ("true") or fell
+         * back to guest ("false") - even when the status is 200/403/... so the
+         * status code alone cannot reveal it.
+         */
+        private static final String HEADER_AUTHENTICATED = "X-Edu-Authenticated";
+
         @Autowired
         EduSharingAuthentication auth;
 
         @Override
         public void filter(ClientRequestContext requestContext, ClientResponseContext responseContext) {
-            if(responseContext.getStatus() == HttpURLConnection.HTTP_UNAUTHORIZED){
+            boolean authenticated = !"false".equalsIgnoreCase(responseContext.getHeaderString(HEADER_AUTHENTICATED));
+            if(responseContext.getStatus() == HttpURLConnection.HTTP_UNAUTHORIZED || !authenticated){
+                //session died server-side (e.g. repo restart) and fell back to guest
                 //force reauth
-                logger.info("got "+responseContext.getStatus() +" force authentication");
+                logger.info("got status {} authenticated header={} -> force authentication",
+                        responseContext.getStatus(), responseContext.getHeaderString(HEADER_AUTHENTICATED));
                 auth.lastTimeAuthChecked = 0;
             }
         }

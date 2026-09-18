@@ -501,13 +501,18 @@ public class EduSharingClient {
         String url = URL_STATISTICS_ALTERED;
         url = getUrl(url);
 
-        return educlient.target(url).
+        Response response = educlient.target(url).
                 queryParam("dateFrom", tsFrom)
                 .queryParam("dateTo", tsTo)
                 .request(MediaType.APPLICATION_JSON)
                 .cookie(jsessionId.getName(), jsessionId.getValue())
-                .get()
-                .readEntity(List.class);
+                .get();
+        if (response.getStatus() != 200) {
+            String message = "edu-sharing getStatisticsNodeIds failed: " + response.getStatus() + " " + response.readEntity(String.class);
+            log.error(message);
+            throw new RuntimeException(message);
+        }
+        return response.readEntity(List.class);
     }
 
 
