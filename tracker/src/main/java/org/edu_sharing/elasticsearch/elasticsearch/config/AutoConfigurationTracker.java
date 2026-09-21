@@ -480,7 +480,8 @@ public class AutoConfigurationTracker {
                                 .properties("version", prop -> prop.keyword(v -> v))
                                 .properties("status", prop -> prop.keyword(v -> v))
                         ))
-                .properties("extendedData", prop -> prop.nested(nested -> nested));
+                .properties("extendedData", prop -> prop.nested(nested -> nested))
+                .properties("flattenedData", prop -> prop.flattened(flattened -> flattened));
     }
 
 
