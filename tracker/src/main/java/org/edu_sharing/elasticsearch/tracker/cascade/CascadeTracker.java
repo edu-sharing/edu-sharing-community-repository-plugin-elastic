@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
+import co.elastic.clients.elasticsearch._types.mapping.FieldType;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.AlfrescoWebscriptClient;
 import org.edu_sharing.elasticsearch.alfresco.client.NodeMetadata;
@@ -69,7 +70,8 @@ public class CascadeTracker extends AbstractTrackerCoroutine<TrackerScheduleProp
     private final SortOptions resolveCascadeSortOptions = SortOptions.of(s -> s
             .field(FieldSort.of(f -> f
                     .field(elasticPropCascadeTx)
-                    .order(SortOrder.Asc))));
+                    .order(SortOrder.Asc)
+                    .unmappedType(FieldType.Keyword))));
 
     long metricCalculated = 0;
 
@@ -95,10 +97,6 @@ public class CascadeTracker extends AbstractTrackerCoroutine<TrackerScheduleProp
             return State.FINISHED;
         } catch (ElasticsearchException e) {
             if (e.error() != null) {
-                if (e.error().toString().contains("No mapping found for [properties.sys:cascadeTx.keyword]")) {
-                    log.warn("No mapping found for [properties.sys:cascadeTx.keyword]. presumable new index.");
-                    return State.EXCEPTION;
-                }
                 log.error(e.error().toString(), e);
             }
             throw e;
@@ -150,6 +148,9 @@ public class CascadeTracker extends AbstractTrackerCoroutine<TrackerScheduleProp
     }
 
     private Double calcProgress(long hitsProcessed, long all) {
+        if(all == 0){
+            return 100.0d;
+        }
         return (double) hitsProcessed / all * 100.0d;
     }
 
