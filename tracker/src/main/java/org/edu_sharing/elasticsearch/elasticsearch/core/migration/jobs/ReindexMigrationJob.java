@@ -29,6 +29,7 @@ public class ReindexMigrationJob implements MigrationJob {
     private final Script migrationScript;
 
     private String taskId;
+    private boolean skipped;
 
     private final Integer reindexBatchSize;
     private final Float requestsPerSecond;
@@ -45,6 +46,12 @@ public class ReindexMigrationJob implements MigrationJob {
         }
 
         try {
+            if (!client.indices().exists(req -> req.index(sourceIndex)).value()) {
+                log.info("Source index {} does not exist, nothing to reindex into {}", sourceIndex, targetIndex);
+                skipped = true;
+                return;
+            }
+
             taskId = client.reindex(req -> req
                             .waitForCompletion(false)
                             .conflicts(Conflicts.Proceed)
@@ -64,13 +71,18 @@ public class ReindexMigrationJob implements MigrationJob {
 
     @Override
     public void onProgressState(MigrationContext context) {
+        if (skipped) {
+            return;
+        }
+
         while (true) {
             try {
                 tickService.tick(MigrationJob.tickName(this));
                 GetTasksResponse tasksResponse = client.tasks().get(req -> req.taskId(taskId));
                 TaskInfo task = tasksResponse.task();
                 if (tasksResponse.error() != null) {
-                    throw new MigrationException(String.format("Task failed: %s", task));
+                    throw new MigrationException(String.format("Task failed: %s: %s (task: %s)",
+                            tasksResponse.error().type(), tasksResponse.error().reason(), task));
                 }
 
                 if (Boolean.TRUE.equals(task.cancelled())) {

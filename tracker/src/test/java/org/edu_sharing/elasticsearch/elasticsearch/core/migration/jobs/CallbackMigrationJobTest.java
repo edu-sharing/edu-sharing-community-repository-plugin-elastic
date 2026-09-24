@@ -4,7 +4,6 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import org.edu_sharing.elasticsearch.TrackerAvailabilityTickService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationCallback;
 import org.edu_sharing.elasticsearch.elasticsearch.core.migration.MigrationContext;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
