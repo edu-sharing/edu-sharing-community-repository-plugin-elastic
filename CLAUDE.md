@@ -17,7 +17,7 @@ Declared in `pom.xml`:
 
 - **`Backend/`** — Alfresco AMP modules (`Backend/alfresco/module`, `Backend/services/module`).
   Alfresco dependencies are `provided`; these contain little/no own Java code (Alfresco-side hooks/assembly).
-- **`tracker/`** — Spring Boot 3.5.3 standalone service, **Java 17**. This is where essentially all
+- **`tracker/`** — Spring Boot 3.5.3 standalone service, **Java 21**. This is where essentially all
   application code lives. See `tracker/CLAUDE.md`.
 - **`config/`** — default configuration artifacts (`config/defaults`).
 - **`deploy/`** — Docker Compose, Docker build, and Helm charts (`deploy/docker/helm/index`, `.../helm/tracker`).

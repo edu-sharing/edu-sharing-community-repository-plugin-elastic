@@ -22,7 +22,7 @@ deploy/docker/
 
 Shared base images & versions are centralized in `deploy/docker/pom.xml` — notably
 `elastic.stack.version` (8.18.1, must match the client version in `tracker/`) and
-`docker.from.openjdk.17.liberica.debian` (the tracker base image).
+`docker.from.openjdk.21.liberica.debian` (the tracker base image).
 
 ## docker/build/tracker (focus)
 
@@ -35,7 +35,7 @@ Builds the runtime Docker image for the tracker Spring Boot service.
      → image `${docker.repository}/${docker.prefix}-deploy-docker-build-tracker:${docker.tag}`.
   - Therefore the tracker jar must be built first; running from repo root with `-am` handles this:
     `mvn -s .mvn/settings.xml -Pdev -pl deploy/docker/build/tracker -am install`.
-- **`src/main/build/Dockerfile`** — based on Liberica OpenJDK 17 (Debian). Installs `curl`/`wget`/
+- **`src/main/build/Dockerfile`** — based on Liberica OpenJDK 21 (Debian). Installs `curl`/`wget`/
   `wait-for-it`, runs as non-root user `worker` under `/opt/alfresco`, copies the tracker jar,
   bundles async-profiler, exposes **8080** (service) and **8081** (management/metrics).
   Note: Maven resource filtering (`build/pom.xml`) substitutes `${...}` placeholders (e.g. the jar

@@ -4,7 +4,7 @@ Alfresco-side integration of the elastic plugin, packaged as **AMP** (Alfresco M
 These modules hook the plugin into a running Alfresco/edu-sharing repository; they are *not* the
 tracker service (that's `tracker/`, see `tracker/CLAUDE.md`).
 
-Java 17 (`maven.compiler.*` set in `Backend/pom.xml`). License: LGPL v3.0+.
+Java 21 (`maven.compiler.*` set in `Backend/pom.xml`). License: LGPL v3.0+.
 
 ## Submodules
 

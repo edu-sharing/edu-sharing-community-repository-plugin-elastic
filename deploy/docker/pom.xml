@@ -56,9 +56,9 @@
       12.0.1
     </docker.edu_sharing.community.common.minideb.tag>
 
-    <docker.from.openjdk.17.liberica.debian>
-      dockerio.mirror.docker.edu-sharing.com/bellsoft/liberica-openjdk-debian:17.0.20
-    </docker.from.openjdk.17.liberica.debian>
+    <docker.from.openjdk.21.liberica.debian>
+      dockerio.mirror.docker.edu-sharing.com/bellsoft/liberica-openjdk-debian:21.0.12
+    </docker.from.openjdk.21.liberica.debian>
 
     <helm.kube.version>&gt;= 1.20.0-0</helm.kube.version>
     <helm.version>3.14.2</helm.version>

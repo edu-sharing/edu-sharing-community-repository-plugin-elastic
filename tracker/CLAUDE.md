@@ -1,6 +1,6 @@
 # CLAUDE.md — tracker module
 
-The tracker is a standalone Spring Boot 3.5.3 CLI service (Java 17) that indexes and synchronizes
+The tracker is a standalone Spring Boot 3.5.3 CLI service (Java 21) that indexes and synchronizes
 Alfresco nodes into Elasticsearch. This file captures the non-obvious architecture; conceptual docs
 (migrations, modes, indices) live in `README.md` in this directory.
 
