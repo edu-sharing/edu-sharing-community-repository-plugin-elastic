@@ -78,7 +78,8 @@ public class WorkspaceService implements SearchHitsRunner {
     @Value("${elastic.update.retryOnConflict:5}")
     int updateRetryOnConflict;
 
-    private final SimpleDateFormat statisticDateFormatter = new SimpleDateFormat("yyyy-MM-dd");
+    // SimpleDateFormat is not thread-safe and this service is a singleton, so only share the pattern
+    private static final String STATISTIC_DATE_PATTERN = "yyyy-MM-dd";
     private final EduSharingService eduSharingService;
     private volatile String homeRepoId;
     private final ElasticsearchClient client;
@@ -709,7 +710,7 @@ public class WorkspaceService implements SearchHitsRunner {
                 ratingAll = ratingsAtDayAverage.values().stream().mapToDouble(x -> x).summaryStatistics().getAverage();
 
                 for (Map.Entry<Date, Double> rating : ratingsAtDayAverage.entrySet()) {
-                    builder.field("statistic_RATING_" + statisticDateFormatter.format(rating.getKey()), rating.getValue());
+                    builder.field("statistic_RATING_" + new SimpleDateFormat(STATISTIC_DATE_PATTERN).format(rating.getKey()), rating.getValue());
                 }
                 if ("ccm:io".equals(nodeData.getNodeMetadata().getType())) {
                     builder.field("statistic_RATING_null", ratingAll);
@@ -1661,7 +1662,7 @@ public class WorkspaceService implements SearchHitsRunner {
 
                     String[] split = Pattern.compile(prefixPattern).split(propEntry.getKey());
                     try {
-                        Date date = statisticDateFormatter.parse(split[1]);
+                        Date date = new SimpleDateFormat(STATISTIC_DATE_PATTERN).parse(split[1]);
                         if (cal.getTime().getTime() > date.getTime()) {
                             propsToRemove.add(propEntry.getKey());
                         }

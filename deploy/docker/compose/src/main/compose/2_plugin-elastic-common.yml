@@ -27,14 +27,15 @@ services:
   repository-search-elastic-tracker:
     image: "${docker.repository}/${docker.prefix}-deploy-docker-build-tracker:${docker.tag}"
     container_name: "repository-search-elastic-tracker_${COMPOSE_PROJECT_NAME}"
-    command:
-      - -Xms${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMS:-512m}
-      - -Xmx${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMX:-512m}
-      - -Dcom.sun.management.jmxremote
-      - -Dcom.sun.management.jmxremote.authenticate=false
-      - -Dcom.sun.management.jmxremote.port=7199
-      - -Dcom.sun.management.jmxremote.ssl=false
     environment:
+      # JVM flags must be passed via JAVA_OPTS, arguments in "command" are appended after "-jar" (program arguments)
+      JAVA_OPTS: >-
+        -Xms${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMS:-512m}
+        -Xmx${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMX:-512m}
+        -Dcom.sun.management.jmxremote
+        -Dcom.sun.management.jmxremote.authenticate=false
+        -Dcom.sun.management.jmxremote.port=7199
+        -Dcom.sun.management.jmxremote.ssl=false
       REPOSITORY_SEARCH_ELASTIC_INDEX_HOST: repository-search-elastic-index
       REPOSITORY_SEARCH_ELASTIC_INDEX_PORT: "9200"
       REPOSITORY_SERVICE_HOST: repository-service
@@ -51,14 +52,16 @@ services:
     image: "${docker.repository}/${docker.prefix}-deploy-docker-build-tracker:${docker.tag}"
     container_name: "repository-search-elastic-migration_${COMPOSE_PROJECT_NAME}"
     command:
-      - -Xms${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMS:-512m}
-      - -Xmx${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMX:-512m}
-      - -Dcom.sun.management.jmxremote
-      - -Dcom.sun.management.jmxremote.authenticate=false
-      - -Dcom.sun.management.jmxremote.port=7199
-      - -Dcom.sun.management.jmxremote.ssl=false
       - --mode=migration-only
     environment:
+      # JVM flags must be passed via JAVA_OPTS, arguments in "command" are appended after "-jar" (program arguments)
+      JAVA_OPTS: >-
+        -Xms${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMS:-512m}
+        -Xmx${REPOSITORY_SEARCH_ELASTIC_TRACKER_JAVA_XMX:-512m}
+        -Dcom.sun.management.jmxremote
+        -Dcom.sun.management.jmxremote.authenticate=false
+        -Dcom.sun.management.jmxremote.port=7199
+        -Dcom.sun.management.jmxremote.ssl=false
       REPOSITORY_SEARCH_ELASTIC_INDEX_HOST: repository-search-elastic-index
       REPOSITORY_SEARCH_ELASTIC_INDEX_PORT: "9200"
       REPOSITORY_SERVICE_HOST: repository-service
