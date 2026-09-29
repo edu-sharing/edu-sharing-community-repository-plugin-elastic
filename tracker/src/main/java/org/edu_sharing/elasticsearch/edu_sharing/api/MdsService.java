@@ -42,15 +42,26 @@ public class MdsService {
 
     @Cacheable(cacheNames = "mdsJsonDataPropertyIds", key = "#mdsId", cacheManager = "mdsCacheManager")
     public Set<String> getJsonDataPropertyIds(String mdsId) {
+        return getPropertyIdsByDatatyoe(mdsId,MdsIndex.DataTypeEnum.JSON_DATA);
+    }
+
+    @Cacheable(cacheNames = "mdsFlattenedDataPropertyIds", key = "#mdsId", cacheManager = "mdsCacheManager")
+    public Set<String> getFlattenedDataPropertyIds(String mdsId) {
+        return getPropertyIdsByDatatyoe(mdsId,MdsIndex.DataTypeEnum.FLATTENED_DATA);
+    }
+
+    private Set<String> getPropertyIdsByDatatyoe(String mdsId,MdsIndex.DataTypeEnum dataTypeEnum) {
         Mds metadataSet = mdsCachedApi.getMetadataSet(mdsId);
         return metadataSet.getWidgets()
                 .stream()
                 .filter(Objects::nonNull)
                 .filter(x -> x.getIndex() != null)
-                .filter(x -> x.getIndex().getDataType() == MdsIndex.DataTypeEnum.JSON_DATA)
+                .filter(x -> x.getIndex().getDataType() == dataTypeEnum)
                 .map(MdsWidget::getId)
                 .collect(Collectors.toSet());
     }
+
+
 
     public Suggestions getValuespace(String mds, String language, String property) {
         return mdsCachedApi.getValuespace(mds, language, property);

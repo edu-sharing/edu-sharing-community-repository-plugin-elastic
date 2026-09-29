@@ -501,6 +501,11 @@ public class WorkspaceService implements SearchHitsRunner {
                 builder.field("extendedData", nodeData.getExtendedData());
             }
 
+            //flattenedData
+            if (nodeData.getFlattenedData() != null && !nodeData.getFlattenedData().isEmpty()) {
+                builder.field("flattenedData", nodeData.getFlattenedData());
+            }
+
             if (node.getPaths() != null && !node.getPaths().isEmpty()) {
                 addNodePath(builder, node);
             }
@@ -1485,7 +1490,11 @@ public class WorkspaceService implements SearchHitsRunner {
         } finally {
             String fscrollId = scrollId;
             if (scrollId != null && !scrollId.isEmpty()) {
-                client.clearScroll(cs -> cs.scrollId(fscrollId));
+                try {
+                    client.clearScroll(cs -> cs.scrollId(fscrollId));
+                } catch (Exception e) {
+                    log.warn("failed to clear scroll {}: {}", fscrollId, e.getMessage(), e);
+                }
             }
         }
     }
