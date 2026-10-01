@@ -23,6 +23,10 @@ stages:
 check-helmreadme:
   stage: test
   image: node:lts-alpine3.20
+  rules:
+    - if: $SKIP_TESTS == "true"
+      when: never
+    - when: on_success
   before_script:
     - ln -s $CI_PROJECT_DIR/deploy/docker/helm/index/src/main/chart /tmp/index && cp /tmp/index/README.md /tmp/README_index.md
     - ln -s $CI_PROJECT_DIR/deploy/docker/helm/tracker/src/main/chart /tmp/tracker && cp /tmp/tracker/README.md /tmp/README_tracker.md
