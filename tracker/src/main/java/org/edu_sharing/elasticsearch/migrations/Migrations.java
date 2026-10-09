@@ -98,4 +98,14 @@ public class Migrations {
                         .source(authorityScript)))
                 .build();
     }
+
+    @Bean
+    @Order(5)
+    public MigrationInfo migration12_0() {
+        // scopes: new fields scope_ids*, scope_overrides, nested scopes and the scopes_properties_type dynamic template.
+        // existing documents have no scope data yet, so a plain reindex into the new mapping is sufficient
+        return MigrationInfo.builder()
+                .version("12.0")
+                .build();
+    }
 }

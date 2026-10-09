@@ -411,9 +411,40 @@ public class AutoConfigurationTracker {
             );
         }
 
+        // scopes: values of scope entries must stay inside the scopes object. Must be the first template, otherwise
+        // the generic "*properties.*" templates would match scopes.properties.* and copy_to (e.g. cclom:title)
+        // would leak scope specific (replacing) values into the global properties_aggregated fields
+        templates.add(0,
+                new NamedValue<>("scopes_properties_type", DynamicTemplate.of(dt -> dt
+                        .matchMappingType("*")
+                        .pathMatch("scopes.properties.*")
+                        .mapping(mp -> mp.text(t -> t
+                                .store(true)
+                                .fields("keyword", f -> f.keyword(kw -> kw.ignoreAbove(256)))
+                                .fields("sort", f -> f.keyword(kw -> kw.ignoreAbove(256).normalizer("lowercase"))))))));
+
         return mapping.dynamic(DynamicMapping.True)
                 .numericDetection(true)
                 .dynamicTemplates(templates)
+                // scopes (see ScopeIndexData in the repository): flat keyword fields for visibility and work sets,
+                // nested entries for the scope properties
+                .properties("scope_ids", prop -> prop.keyword(v -> v))
+                .properties("scope_ids_published", prop -> prop.keyword(v -> v))
+                .properties("scope_ids_excluded", prop -> prop.keyword(v -> v))
+                .properties("scope_overrides", prop -> prop.keyword(v -> v))
+                .properties("scopes", scopesProp -> scopesProp
+                        .nested(nested -> nested
+                                .properties("scopeId", prop -> prop.keyword(v -> v))
+                                .properties("published", prop -> prop.boolean_(v -> v))
+                                .properties("excluded", prop -> prop.boolean_(v -> v))
+                                .properties("created", prop -> prop.date(v -> v))
+                                .properties("createdBy", prop -> prop.keyword(v -> v))
+                                .properties("modified", prop -> prop.date(v -> v))
+                                .properties("modifiedBy", prop -> prop.keyword(v -> v))
+                                // properties that are searchable outside of the own scope (public, not replacing)
+                                .properties("publicFields", prop -> prop.keyword(v -> v))
+                                .properties("properties", prop -> prop.object(o -> o.dynamic(DynamicMapping.True)))
+                        ))
                 .properties("workflow", workProp -> workProp
                         .nested(nt -> nt
                                 .properties("comment", prop -> prop.keyword(v -> v))

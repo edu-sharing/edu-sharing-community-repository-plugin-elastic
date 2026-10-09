@@ -7,6 +7,7 @@ import org.edu_sharing.elasticsearch.edu_sharing.api.authorization.Authorization
 import org.edu_sharing.elasticsearch.edu_sharing.api.authorization.AuthorizationFilterFunction;
 import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewApi;
 import org.edu_sharing.elasticsearch.edu_sharing.api.preview.PreviewDataDecoder;
+import org.edu_sharing.elasticsearch.edu_sharing.api.scope.ScopeApi;
 import org.edu_sharing.generated.repository.backend.services.rest.client.api.*;
 import org.edu_sharing.generated.repository.backend.services.rest.client.handler.ApiClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -91,6 +92,11 @@ public class EduSharingConfig {
     @Bean
     public PreviewApi previewApi(WebClient webClient) {
         return new PreviewApi(webClient);
+    }
+
+    @Bean
+    public ScopeApi scopeApi(WebClient webClient) {
+        return new ScopeApi(webClient);
     }
 
     @Bean
