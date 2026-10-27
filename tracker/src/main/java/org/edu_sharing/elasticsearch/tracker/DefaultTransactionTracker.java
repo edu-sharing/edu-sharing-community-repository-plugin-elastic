@@ -109,7 +109,9 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
         List<NodeMetadata> toIndexUsagesProposalsMd = nodeData.stream()
                 .filter(n -> "ccm:usage".equals(n.getType())
                         || "ccm:collection_proposal".equals(n.getType()))
+                .filter(n -> n.getNodeRef().startsWith(CCConstants.STORE_WORKSPACES_SPACES))
                 .collect(Collectors.toList());
+
 
         List<NodeMetadata> toIndexMd = new ArrayList<>();
         List<Node> ioSubobjectChange = new ArrayList<>();
@@ -137,15 +139,23 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
                 }//else io does not exist in index
             }
 
+            // filter disalowed types
+            String type = data.getType();
             if (StringUtils.isNotBlank(allowedTypes)) {
                 String[] allowedTypesArray = allowedTypes.split(",");
-                String type = data.getType();
-
                 if (!Arrays.asList(allowedTypesArray).contains(type)) {
                     logger.debug("ignoring type:" + type);
                     continue;
                 }
             }
+
+            // filter archived nodes for some types
+            List<String> noArchive = List.of("ccm:usage", "ccm:collection_proposal");
+            if(noArchive.contains(type)){
+                logger.info("ignoring archived type:" + type);
+                continue;
+            }
+
             toIndexMd.add(data);
         }
 
