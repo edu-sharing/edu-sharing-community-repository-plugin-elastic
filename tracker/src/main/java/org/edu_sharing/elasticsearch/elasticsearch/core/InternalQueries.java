@@ -30,14 +30,20 @@ public class InternalQueries {
     public static Query queryUsages(NodeMetadataSimple node, String query) {
         return Query.of(q -> q.bool(b -> b
                 .must(m -> m.term(t -> t.field(query).value(Tools.getUUID(node.getNodeRef()))))
-                .must(m -> m.term(t -> t.field("type").value("ccm:usage")))));
+                .must(m -> m.term(t -> t.field("type").value("ccm:usage")))
+                .must(m -> m.term(t -> t.field("nodeRef.storeRef.protocol").value(Tools.getProtocol(node.getNodeRef()))))
+                .must(m -> m.term(t -> t.field("nodeRef.storeRef.identifier").value(Tools.getIdentifier(node.getNodeRef()))))
+                )
+        );
     }
 
     public static Query queryByUUID(String uuid, String protocol, String identifier) {
         return Query.of(q -> q.bool(b -> b
                 .must(must -> must.term(t -> t.field("nodeRef.id").value(uuid)))
                 .must(must -> must.term(t -> t.field("nodeRef.storeRef.protocol").value(protocol)))
-                .must(must -> must.term(t -> t.field("nodeRef.storeRef.identifier").value(identifier)))));
+                .must(must -> must.term(t -> t.field("nodeRef.storeRef.identifier").value(identifier)))
+                )
+        );
     }
 
 
@@ -46,6 +52,11 @@ public class InternalQueries {
                 ? queryByUUID(queryProposal, node.getNodeRef())
                 : queryByUUID(queryProposal, Tools.getUUID(node.getNodeRef()));
 
-        return Query.of(q -> q.bool(b -> b.must(queryProposalBase).must(m -> m.term(t -> t.field("type").value("ccm:collection_proposal")))));
+        return Query.of(q -> q.bool(b -> b
+                .must(queryProposalBase)
+                .must(m -> m.term(t -> t.field("type").value("ccm:collection_proposal")))
+                .must(m -> m.term(t -> t.field("nodeRef.storeRef.protocol").value(Tools.getProtocol(node.getNodeRef()))))
+                .must(m -> m.term(t -> t.field("nodeRef.storeRef.identifier").value(Tools.getIdentifier(node.getNodeRef()))))
+        ));
     }
 }
