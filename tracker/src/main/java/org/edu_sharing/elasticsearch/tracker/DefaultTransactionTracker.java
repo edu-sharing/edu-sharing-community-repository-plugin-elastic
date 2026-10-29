@@ -151,8 +151,8 @@ public class DefaultTransactionTracker extends TransactionTrackerBase {
 
             // filter archived nodes for some types
             List<String> noArchive = List.of("ccm:usage", "ccm:collection_proposal");
-            if(noArchive.contains(type)){
-                logger.info("ignoring archived type:" + type);
+            if(!CCConstants.STORE_WORKSPACES_SPACES.equals(Tools.getStoreRef(data.getNodeRef())) && noArchive.contains(type) ){
+                logger.debug("ignoring archived type:" + type);
                 continue;
             }
 
