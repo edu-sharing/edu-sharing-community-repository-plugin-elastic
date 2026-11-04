@@ -14,6 +14,8 @@ import org.edu_sharing.elasticsearch.tracker.core.config.AlfTransactionTrackerPr
 import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.jetbrains.annotations.NotNull;
+import org.edu_sharing.elasticsearch.tracker.scope.ScopeFieldsWriter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -26,6 +28,8 @@ import java.util.stream.Collectors;
 public class MainTracker extends AbstractAlfTransactionTracker<AlfTransactionTrackerProperties> {
 
     private final TypesConfig typesConfig;
+    @Autowired(required = false)
+    private ScopeFieldsWriter scopeFieldsWriter;
 
     public MainTracker(AlfTransactionTrackerProperties mainTrackerProperties, TypesConfig typesConfig) {
         super(mainTrackerProperties);
@@ -105,7 +109,17 @@ public class MainTracker extends AbstractAlfTransactionTracker<AlfTransactionTra
                     true,
                     true);
             log.info("index bulkOperations: {}", operations.size());
-            workspaceService.index(operations, getName(), p);
+            Set<String> created = workspaceService.index(operations, getName(), p);
+            if (scopeFieldsWriter != null) {
+                // scope fields are not part of the node data: new documents (upload, restore from the trashcan,
+                // new published copies) get them here, existing documents keep theirs
+                scopeFieldsWriter.writeForNewDocuments(p.stream()
+                        .map(NodeData::getNodeMetadata)
+                        .filter(n -> n != null && n.getNodeRef() != null && "ccm:io".equals(n.getType()))
+                        .map(n -> Tools.getUUID(n.getNodeRef()))
+                        .filter(created::contains)
+                        .toList());
+            }
             log.info("finished partition {}", pIdx);
             pIdx++;
         }

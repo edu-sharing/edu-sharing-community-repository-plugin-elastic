@@ -186,6 +186,74 @@ public class WorkspaceService implements SearchHitsRunner {
     }
 
     /**
+     * writes the scope fields (scope_ids*, scope_overrides, scopes) of the node and its published copies
+     */
+    public FieldUpdateOutcome updateNodesWithScopes(final String nodeId, final Map<String, Object> scopeFields) throws IOException {
+        return updateNodeAndPublishedCopies(nodeId, "scopes", scopeFields);
+    }
+
+    /**
+     * a scope group was deleted: remove the scope from every document (concept §4.6)
+     *
+     * @return number of updated documents
+     */
+    public long removeScope(final String scopeId) throws IOException {
+        // language=painless
+        final String script = """
+                for (def field : ['scope_ids', 'scope_ids_published', 'scope_ids_excluded']) {
+                    if (ctx._source[field] != null) {
+                        ctx._source[field].removeIf(id -> id == params.scopeId);
+                    }
+                }
+                if (ctx._source.scope_overrides != null) {
+                    ctx._source.scope_overrides.removeIf(o -> o.startsWith(params.scopeId + '|'));
+                }
+                if (ctx._source.scopes != null) {
+                    ctx._source.scopes.removeIf(s -> s.scopeId == params.scopeId);
+                }
+                """;
+        UpdateByQueryResponse response = client.updateByQuery(req -> req
+                .index(index)
+                .query(q -> q.term(t -> t.field("scope_ids").value(scopeId)))
+                .conflicts(Conflicts.Proceed)
+                .refresh(false)
+                .script(src -> src.source(script).params("scopeId", JsonData.of(scopeId))));
+        for (BulkIndexByScrollFailure failure : response.failures()) {
+            log.error("scopes: removing scope {} failed: {}", scopeId, failure.cause());
+        }
+        long conflicts = Objects.requireNonNullElse(response.versionConflicts(), 0L);
+        if (conflicts > 0) {
+            log.warn("scopes: {} version conflicts while removing scope {}", conflicts, scopeId);
+        }
+        return Objects.requireNonNullElse(response.updated(), 0L);
+    }
+
+    /**
+     * @return the ids of the child objects (ccm:io_childobject) of the given nodes
+     */
+    public Set<String> findChildObjectIds(final Collection<String> parentIds) throws IOException {
+        if (parentIds.isEmpty()) {
+            return Set.of();
+        }
+        List<FieldValue> parents = parentIds.stream().map(FieldValue::of).toList();
+        SearchResponse<Map> response = client.search(req -> req
+                .index(index)
+                .size(10000)
+                .source(src -> src.filter(f -> f.includes("nodeRef.id")))
+                .query(q -> q.bool(b -> b
+                        .filter(f -> f.terms(t -> t.field("path").terms(v -> v.value(parents))))
+                        .filter(f -> f.term(t -> t.field("aspects").value(CCConstants.getValidLocalName(CCConstants.CCM_ASPECT_IO_CHILDOBJECT)))))), Map.class);
+        Set<String> result = new HashSet<>();
+        for (Hit<Map> hit : response.hits().hits()) {
+            Object nodeRef = hit.source() == null ? null : hit.source().get("nodeRef");
+            if (nodeRef instanceof Map<?, ?> ref && ref.get("id") != null) {
+                result.add(ref.get("id").toString());
+            }
+        }
+        return result;
+    }
+
+    /**
      * Outcome of {@link #updateNodeAndPublishedCopies(String, String, JsonData)}, meant to be logged
      * (and, where useful, counted) by the calling tracker so a silently dropped write becomes visible.
      */
@@ -212,6 +280,21 @@ public class WorkspaceService implements SearchHitsRunner {
     private FieldUpdateOutcome updateNodeAndPublishedCopies(String nodeId, String field, JsonData value) throws IOException {
         // language=painless
         final String script = "ctx._source." + field + " = params.value;";
+        return updateNodeAndPublishedCopies(nodeId, field, script, value);
+    }
+
+    /**
+     * like {@link #updateNodeAndPublishedCopies(String, String, JsonData)} for several fields in one write
+     *
+     * @param label used for logging
+     */
+    private FieldUpdateOutcome updateNodeAndPublishedCopies(String nodeId, String label, Map<String, Object> fields) throws IOException {
+        // language=painless
+        final String script = "for (def entry : params.value.entrySet()) { ctx._source[entry.getKey()] = entry.getValue(); }";
+        return updateNodeAndPublishedCopies(nodeId, label, script, JsonData.of(fields));
+    }
+
+    private FieldUpdateOutcome updateNodeAndPublishedCopies(String nodeId, String field, String script, JsonData value) throws IOException {
 
         Result primary = null;
         try {
@@ -300,9 +383,13 @@ public class WorkspaceService implements SearchHitsRunner {
      * @param nodeData the nodes the operations were built from, used to resolve a failed item back
      *                 to its dbid and transaction
      */
-    public void index(List<BulkOperation> operations, String tracker, List<NodeData> nodeData) throws IOException {
+    /**
+     * @return the ids of the documents created by this bulk (not updated ones). Fields that are not part of the node
+     * data (e.g. scopes) are kept on updated documents, but missing on created ones
+     */
+    public Set<String> index(List<BulkOperation> operations, String tracker, List<NodeData> nodeData) throws IOException {
         if (operations.isEmpty()) {
-            return;
+            return Set.of();
         }
 
         log.info("starting bulk update:");
@@ -315,8 +402,12 @@ public class WorkspaceService implements SearchHitsRunner {
                 .collect(Collectors.toMap(n -> Tools.getUUID(n.getNodeRef()), n -> n, (a, b) -> a));
 
         ElasticsearchException fatal = null;
+        Set<String> created = new HashSet<>();
         for (BulkResponseItem item : bulkResponse.items()) {
             if (item.error() == null) {
+                if ("created".equals(item.result())) {
+                    created.add(item.id());
+                }
                 continue;
             }
 
@@ -346,6 +437,7 @@ public class WorkspaceService implements SearchHitsRunner {
         if (fatal != null) {
             throw fatal;
         }
+        return created;
     }
 
     public void addBulkOperation(NodeData nodeData, List<BulkOperation> operations) throws IOException {
