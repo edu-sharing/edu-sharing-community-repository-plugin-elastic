@@ -5,7 +5,10 @@ variables:
   DOCKER_DRIVER: "$DIND_DRIVER"
   DOCKER_HOST: "$DIND_HOST"
   DOCKER_TLS_CERTDIR: "$DIND_TLS_CERTDIR"
-  MAVEN_CLI: "-T 4 -Ddocker.registry=$DOCKER_REGISTRY -Dhelm.deploy.url=$HELM_REGISTRY -Dhelm.deploy.type=$HELM_TYPE -Dmaven.deploy.releases=$MAVEN_DEPLOY_RELEASES -Dmaven.deploy.snapshots=$MAVEN_DEPLOY_SNAPSHOTS -Dversioning.configFile=maven-git-versioning-extension-ci.xml --batch-mode --errors --fail-fast --show-version"
+  # -U: the local repository is cached (cache: m2-*) and the edu-sharing repositories set
+  # snapshots to updatePolicy never - without it a cached SNAPSHOT of an upstream project
+  # (community repository, plugins) would never be refreshed
+  MAVEN_CLI: "-U -T 4 -Ddocker.registry=$DOCKER_REGISTRY -Dhelm.deploy.url=$HELM_REGISTRY -Dhelm.deploy.type=$HELM_TYPE -Dmaven.deploy.releases=$MAVEN_DEPLOY_RELEASES -Dmaven.deploy.snapshots=$MAVEN_DEPLOY_SNAPSHOTS -Dversioning.configFile=maven-git-versioning-extension-ci.xml --batch-mode --errors --fail-fast --show-version"
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
 
 default:
