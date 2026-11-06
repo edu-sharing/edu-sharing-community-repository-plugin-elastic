@@ -5,7 +5,7 @@ variables:
   DOCKER_DRIVER: "$DIND_DRIVER"
   DOCKER_HOST: "$DIND_HOST"
   DOCKER_TLS_CERTDIR: "$DIND_TLS_CERTDIR"
-  MAVEN_CLI: "-Ddocker.registry=$DOCKER_REGISTRY -Dhelm.deploy.url=$HELM_REGISTRY -Dhelm.deploy.type=$HELM_TYPE -Dmaven.deploy.releases=$MAVEN_DEPLOY_RELEASES -Dmaven.deploy.snapshots=$MAVEN_DEPLOY_SNAPSHOTS -Dversioning.configFile=maven-git-versioning-extension-ci.xml --batch-mode --errors --fail-fast --show-version"
+  MAVEN_CLI: "-T 4 -Ddocker.registry=$DOCKER_REGISTRY -Dhelm.deploy.url=$HELM_REGISTRY -Dhelm.deploy.type=$HELM_TYPE -Dmaven.deploy.releases=$MAVEN_DEPLOY_RELEASES -Dmaven.deploy.snapshots=$MAVEN_DEPLOY_SNAPSHOTS -Dversioning.configFile=maven-git-versioning-extension-ci.xml --batch-mode --errors --fail-fast --show-version"
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
 
 default:
@@ -40,6 +40,10 @@ check-helmreadme:
 
 deploy:
   stage: deploy
+  cache:
+    - key: m2-$CI_COMMIT_REF_SLUG
+      paths:
+        - .m2/repository
   rules:
     - if: $CI_COMMIT_BRANCH =~ /^maven\/release\/.*/ && $CI_PIPELINE_SOURCE == "pipeline"
     - if: $CI_COMMIT_TAG && $CI_PIPELINE_SOURCE == "pipeline"

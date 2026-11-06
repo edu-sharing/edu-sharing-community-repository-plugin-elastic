@@ -21,6 +21,9 @@
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
     <spring.boot.version>3.5.16</spring.boot.version>
+    <!-- the 80+ MB fat jar is only consumed within this reactor (docker image, compose);
+         nothing pulls it from the maven repository, so the upload is skipped -->
+    <maven.deploy.skip>true</maven.deploy.skip>
   </properties>
 
 
