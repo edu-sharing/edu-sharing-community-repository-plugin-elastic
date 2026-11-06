@@ -22,6 +22,10 @@ stages:
 
 check-helmreadme:
   stage: test
+  rules:
+    - if: $SKIP_TESTS == "true"
+      when: never
+    - when: on_success
   image: node:lts-alpine3.20
   before_script:
     - ln -s $CI_PROJECT_DIR/deploy/docker/helm/index/src/main/chart /tmp/index && cp /tmp/index/README.md /tmp/README_index.md
@@ -41,4 +45,5 @@ deploy:
     - if: $CI_COMMIT_TAG && $CI_PIPELINE_SOURCE == "pipeline"
     - if: $CI_COMMIT_BRANCH !~ /^maven\/release\/.*/ && $CI_COMMIT_TAG == null
   script:
+    - if [ "$SKIP_TESTS" = "true" ]; then MAVEN_CLI="$MAVEN_CLI -DskipTests"; fi
     - mvn $MAVEN_CLI -s .mvn/settings.xml deploy
