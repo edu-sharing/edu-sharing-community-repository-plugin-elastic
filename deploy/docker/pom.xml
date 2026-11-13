@@ -21,12 +21,12 @@
   <properties>
 
     <elastic.stack.version>
-      8.15.5
+      8.19.25-1
     </elastic.stack.version>
 
-    <!-- image revision of the base images, includes the emSign (eMudhra) trust fix; keep separate from the stack version -->
+    <!-- tag of the edu-sharing base images (includes the emSign (eMudhra) trust fix); append a revision suffix (e.g. -1) when an image is rebuilt for the same stack version -->
     <elastic.stack.image.tag>
-      ${elastic.stack.version}-2
+      ${elastic.stack.version}
     </elastic.stack.image.tag>
 
     <docker.edu_sharing.community.common.elasticsearch.name>
