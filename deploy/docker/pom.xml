@@ -21,15 +21,20 @@
   <properties>
 
     <elastic.stack.version>
-      8.18.1
+      8.19.25-1
     </elastic.stack.version>
+
+    <!-- tag of the edu-sharing base images (includes the emSign (eMudhra) trust fix); append a revision suffix (e.g. -1) when an image is rebuilt for the same stack version -->
+    <elastic.stack.image.tag>
+      ${elastic.stack.version}
+    </elastic.stack.image.tag>
 
     <docker.edu_sharing.community.common.elasticsearch.name>
       edu_sharing-community-common-docker-elasticsearch
     </docker.edu_sharing.community.common.elasticsearch.name>
 
     <docker.edu_sharing.community.common.elasticsearch.tag>
-      ${elastic.stack.version}
+      ${elastic.stack.image.tag}
     </docker.edu_sharing.community.common.elasticsearch.tag>
 
     <docker.edu_sharing.community.common.kibana.name>
@@ -37,7 +42,7 @@
     </docker.edu_sharing.community.common.kibana.name>
 
     <docker.edu_sharing.community.common.kibana.tag>
-      ${elastic.stack.version}
+      ${elastic.stack.image.tag}
     </docker.edu_sharing.community.common.kibana.tag>
 
     <docker.edu_sharing.community.common.elasticsearch.exporter.name>
@@ -57,7 +62,7 @@
     </docker.edu_sharing.community.common.minideb.tag>
 
     <docker.from.openjdk.21.liberica.debian>
-      dockerio.mirror.docker.edu-sharing.com/bellsoft/liberica-openjdk-debian:21.0.12
+      ${docker.registry}/${docker.common}/edu_sharing-community-common-docker-openjdk-liberica:21.0.12
     </docker.from.openjdk.21.liberica.debian>
 
     <helm.kube.version>&gt;= 1.20.0-0</helm.kube.version>
