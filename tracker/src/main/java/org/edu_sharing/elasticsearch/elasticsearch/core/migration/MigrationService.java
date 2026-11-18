@@ -276,7 +276,7 @@ public class MigrationService {
         String lhsScript = lhs.source().scriptString();
         String rhsScript = rhs.source().scriptString();
         String lhsSource = lhsScript.trim().endsWith(";") ? lhsScript : lhsScript + ";";
-        String rhsSource = rhsScript.trim().endsWith(";") ? lhsScript : lhsScript + ";";
+        String rhsSource = rhsScript.trim().endsWith(";") ? rhsScript : rhsScript + ";";
         builder.source(ss -> ss.scriptString(String.join("\n", lhsSource, rhsSource)));
 
         Map<String, JsonData> params = new HashMap<>(lhs.params());
