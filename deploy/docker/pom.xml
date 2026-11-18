@@ -62,7 +62,7 @@
     </docker.edu_sharing.community.common.minideb.tag>
 
     <docker.from.openjdk.21.liberica.debian>
-      ${docker.registry}/${docker.common}/edu_sharing-community-common-docker-openjdk-liberica:21.0.12
+      ${docker.registry}/${docker.common}/edu_sharing-community-common-docker-openjdk-liberica:21.0.13
     </docker.from.openjdk.21.liberica.debian>
 
     <helm.kube.version>&gt;= 1.20.0-0</helm.kube.version>
