@@ -1,14 +1,14 @@
 package org.edu_sharing.elasticsearch.alfresco.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 class AlfrescoWebscriptClientObjectMapperTest {
 
-    private final ObjectMapper objectMapper = new AlfrescoWebscriptClient(null).buildObjectMapper();
+    private final JsonMapper objectMapper = new AlfrescoWebscriptClient(null).buildObjectMapper();
 
     @Test
     void deserializesNodeMetadatasIgnoringUnknownTopLevelField() throws Exception {

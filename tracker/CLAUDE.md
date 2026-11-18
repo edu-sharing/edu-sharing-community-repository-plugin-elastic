@@ -1,6 +1,6 @@
 # CLAUDE.md — tracker module
 
-The tracker is a standalone Spring Boot 3.5.3 CLI service (Java 21) that indexes and synchronizes
+The tracker is a standalone Spring Boot 4.1 CLI service (Java 21) that indexes and synchronizes
 Alfresco nodes into Elasticsearch. This file captures the non-obvious architecture; conceptual docs
 (migrations, modes, indices) live in `README.md` in this directory.
 
@@ -69,14 +69,16 @@ after API spec changes — never edit the generated sources.
 
 ## Elasticsearch client
 
-`co.elastic.clients:elasticsearch-java` + `org.elasticsearch.client:elasticsearch-rest-client` (8.18.1),
-configured in `ElasticsearchConfig.java`. Connection props (`elastic.host`, `elastic.port`, …) live in
+`co.elastic.clients:elasticsearch-java` + `org.elasticsearch.client:elasticsearch-rest-client` (9.5.6, property `elasticsearch-client.version`),
+configured in `ElasticsearchConfig.java` (legacy `RestClientTransport` + `Jackson3JsonpMapper`).
+JSON is Jackson 3 (`tools.jackson.*`, annotations stay `com.fasterxml.jackson.annotation`); hand-built
+mappers use `JsonMapper.builderWithJackson2Defaults()` to keep the serialized format stable. Connection props (`elastic.host`, `elastic.port`, …) live in
 `src/main/resources/application.properties`, with profile overrides
 `application-k8s.properties` / `application-debug.properties` / `application-dev.properties`.
 
 ## Tests
 
-JUnit 5 + Mockito + AssertJ (via `spring-boot-starter-test`). Tests under `src/test/java` and
+JUnit 6 + Mockito + AssertJ (via `spring-boot-starter-test`). Tests under `src/test/java` and
 `src/test/groovy`.
 
 Always build/test with the `dev` profile (`-Pdev`).

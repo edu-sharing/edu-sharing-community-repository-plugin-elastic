@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.edu_sharing.elasticsearch.elasticsearch.core.IndexConfiguration;
 import org.edu_sharing.elasticsearch.tracker.core.config.TrackerScheduleProperties;
 import org.edu_sharing.elasticsearch.tracker.core.config.TrackerSchedulerSettings;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.TaskScheduler;
@@ -16,6 +15,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import org.jspecify.annotations.NonNull;
 
 @Order(0)
 @RequiredArgsConstructor
@@ -47,7 +47,7 @@ public class TrackerScheduler implements SmartInitializingSingleton {
         });
     }
 
-    @NotNull
+    @NonNull
     private static String getSchedulerName(TrackerScheduleConfig<?,?> trackerCoroutineConfig) {
         return Objects.requireNonNullElse(trackerCoroutineConfig.getConfig().getScheduler().getSchedulerName(), trackerCoroutineConfig.getName());
     }

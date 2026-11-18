@@ -1,7 +1,5 @@
 package org.edu_sharing.elasticsearch.edu_sharing.api;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -15,6 +13,8 @@ import org.edu_sharing.generated.repository.backend.services.rest.client.model.*
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.Serializable;
 import java.time.OffsetDateTime;
@@ -37,7 +37,7 @@ public class EduSharingService {
     private final RelationV1Api relationV1Api;
     private final SuggestionsV1Api suggestionsV1Api;
     private final MdsService mdsService;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper objectMapper;
     private final MdsV1Api mdsV1Api;
 
 
@@ -111,7 +111,7 @@ public class EduSharingService {
             try {
                 Map<?, ?> map = objectMapper.readValue(stringValue, Map.class);
                 target.put(key, map);
-            } catch (JsonProcessingException e) {
+            } catch (JacksonException e) {
                 log.error("error reading {}", e.getMessage(), e);
             }
         }

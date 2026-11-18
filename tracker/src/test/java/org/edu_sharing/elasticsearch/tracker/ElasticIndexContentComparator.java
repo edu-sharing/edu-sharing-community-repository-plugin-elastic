@@ -6,14 +6,14 @@ import co.elastic.clients.elasticsearch.core.ScrollRequest;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.ResponseBody;
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+import co.elastic.clients.json.jackson.Jackson3JsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -64,7 +64,7 @@ public class ElasticIndexContentComparator {
 
         // Elasticsearch client
         RestClient restClient = RestClient.builder(new HttpHost("localhost", 9200)).build();
-        ElasticsearchTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
+        ElasticsearchTransport transport = new RestClientTransport(restClient, new Jackson3JsonpMapper());
         ElasticsearchClient client = new ElasticsearchClient(transport);
 
         // Alle NodeIds eines Typs aus IndexA
@@ -297,7 +297,7 @@ public class ElasticIndexContentComparator {
     }
 
     private static void writeJsonReport(List<DiffReport> reports, String file) throws IOException {
-        ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+        JsonMapper mapper = JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT).build();
         mapper.writeValue(Path.of(file).toFile(), reports);
     }
 }

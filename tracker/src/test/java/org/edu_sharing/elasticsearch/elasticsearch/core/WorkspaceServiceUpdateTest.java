@@ -106,7 +106,7 @@ class WorkspaceServiceUpdateTest {
         assertThat(request.id()).isEqualTo("node-1");
         assertThat(request.index()).isEqualTo(INDEX);
         assertThat(request.retryOnConflict()).isEqualTo(5);
-        assertThat(request.script().source()).contains("ctx._source.suggestions");
+        assertThat(request.script().source().scriptString()).contains("ctx._source.suggestions");
         assertThat(outcome.primaryMissing()).isFalse();
     }
 
@@ -189,6 +189,6 @@ class WorkspaceServiceUpdateTest {
         // Assert
         ArgumentCaptor<UpdateRequest> captor = ArgumentCaptor.forClass(UpdateRequest.class);
         verify(client).update(captor.capture(), eq(Void.class));
-        assertThat(captor.getValue().script().source()).contains("ctx._source.relations");
+        assertThat(captor.getValue().script().source().scriptString()).contains("ctx._source.relations");
     }
 }

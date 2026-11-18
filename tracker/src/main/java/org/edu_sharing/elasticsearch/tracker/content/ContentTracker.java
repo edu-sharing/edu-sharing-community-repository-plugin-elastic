@@ -12,12 +12,12 @@ import org.edu_sharing.elasticsearch.elasticsearch.utils.DataBuilder;
 import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractAlfTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.utils.Partition;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.*;
+import org.jspecify.annotations.NonNull;
 
 @Slf4j
 @Component
@@ -80,7 +80,7 @@ public class ContentTracker extends AbstractAlfTransactionTracker<ContentTracker
                                     .id(Tools.getUUID(nodeData.getNodeMetadata().getNodeRef()))
                                     .action(a -> a.script(
                                             s -> s
-                                                    .source("ctx._source.content = params.new_content")
+                                                    .source(ss -> ss.scriptString("ctx._source.content = params.new_content"))
                                                     .params("new_content", JsonData.of(builder.build()))
                                     ))
                             )
@@ -93,7 +93,7 @@ public class ContentTracker extends AbstractAlfTransactionTracker<ContentTracker
                                     .id(Tools.getUUID(nodeData.getNodeMetadata().getNodeRef()))
                                     .action(a -> a.script(
                                             s -> s
-                                                    .source("ctx._source.remove('content');")
+                                                    .source(ss -> ss.scriptString("ctx._source.remove('content');"))
                                     ))
                             )
                     );
@@ -104,7 +104,7 @@ public class ContentTracker extends AbstractAlfTransactionTracker<ContentTracker
         }
     }
 
-    @NotNull
+    @NonNull
     private List<NodeMetadata> getNodeMetadata(List<Node> nodes) throws IOException {
         Collection<List<Node>> partitions = Partition.getPartitions(nodes, this.props.getFetchSizeAlfresco());
         List<NodeMetadata> nodeMetadata = Collections.synchronizedList(new ArrayList<>());

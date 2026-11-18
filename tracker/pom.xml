@@ -20,13 +20,12 @@
 
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
-    <spring.boot.version>3.5.16</spring.boot.version>
-    <!-- security overrides of versions managed by spring-boot-dependencies; the BOM is imported,
-       so its own properties can't be overridden and the versions are pinned explicitly below -->
-    <tomcat-embed.version>10.1.60</tomcat-embed.version>
-    <netty.version>4.1.139.Final</netty.version>
-    <jackson2.version>2.21.7</jackson2.version>
-    <log4j2.version>2.25.5</log4j2.version>
+    <spring.boot.version>4.1.2</spring.boot.version>
+    <!-- overrides the elasticsearch client managed by spring-boot-dependencies (9.4.x), must match the server -->
+    <elasticsearch-client.version>9.5.6</elasticsearch-client.version>
+    <!-- security overrides of versions managed by spring-boot-dependencies: the BOM is imported, so its own
+         properties can't be overridden. Pin them explicitly in dependencyManagement before the
+         spring-boot-dependencies import (first import wins), currently none needed for spring boot 4.1.2 -->
     <!-- the 80+ MB fat jar is only consumed within this reactor (docker image, compose);
          nothing pulls it from the maven repository, so the upload is skipped -->
     <maven.deploy.skip>true</maven.deploy.skip>
@@ -75,7 +74,7 @@
       <plugin>
         <groupId>org.openapitools</groupId>
         <artifactId>openapi-generator-maven-plugin</artifactId>
-        <version>7.13.0</version>
+        <version>7.27.0</version>
         <executions>
           <execution>
             <goals>
@@ -96,7 +95,8 @@
                 <dateLibrary>java8</dateLibrary>
                 <serializationLibrary>jackson</serializationLibrary>
                 <useJakartaEe>true</useJakartaEe>
-                <useSpringBoot3>true</useSpringBoot3>
+                <useSpringBoot4>true</useSpringBoot4>
+                <useJackson3>true</useJackson3>
                 <generateBuilders>true</generateBuilders>
                 <!--                <idea>true</idea>-->
               </configOptions>
@@ -121,49 +121,6 @@
         <type>pom</type>
       </dependency>
 
-      <!-- security overrides, must be declared before spring-boot-dependencies (first import wins) -->
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-bom</artifactId>
-        <version>${netty.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson</groupId>
-        <artifactId>jackson-bom</artifactId>
-        <version>${jackson2.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-bom</artifactId>
-        <version>${log4j2.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.tomcat.embed</groupId>
-        <artifactId>tomcat-embed-core</artifactId>
-        <version>${tomcat-embed.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.tomcat.embed</groupId>
-        <artifactId>tomcat-embed-el</artifactId>
-        <version>${tomcat-embed.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.tomcat.embed</groupId>
-        <artifactId>tomcat-embed-websocket</artifactId>
-        <version>${tomcat-embed.version}</version>
-      </dependency>
-
       <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-dependencies</artifactId>
@@ -181,20 +138,20 @@
     <dependency>
       <groupId>co.elastic.clients</groupId>
       <artifactId>elasticsearch-java</artifactId>
-      <version>8.19.24</version>
+      <version>${elasticsearch-client.version}</version>
     </dependency>
 
+    <!-- only an optional (compileOnly) dependency of elasticsearch-java 9, needed for the RestClientTransport -->
     <dependency>
       <groupId>org.elasticsearch.client</groupId>
       <artifactId>elasticsearch-rest-client</artifactId>
-      <version>8.19.25</version>
+      <version>${elasticsearch-client.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
     </dependency>
-
     <dependency>
       <groupId>org.codehaus.groovy</groupId>
       <artifactId>groovy-all</artifactId>
@@ -230,30 +187,20 @@
     </dependency>
 
 
+    <!-- jackson 3 keeps the annotations in com.fasterxml.jackson.annotation -->
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
+      <groupId>tools.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>com.fasterxml.jackson.datatype</groupId>
-      <artifactId>jackson-datatype-jsr310</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.jakarta.rs</groupId>
+      <groupId>tools.jackson.jakarta.rs</groupId>
       <artifactId>jackson-jakarta-rs-json-provider</artifactId>
-      <version>2.18.3</version>
     </dependency>
 
 
@@ -289,7 +236,6 @@
     <dependency>
       <groupId>jakarta.ws.rs</groupId>
       <artifactId>jakarta.ws.rs-api</artifactId>
-      <version>3.1.0</version>
     </dependency>
 
 <!--    <dependency>-->
@@ -320,7 +266,7 @@
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-aop</artifactId>
+      <artifactId>spring-boot-starter-aspectj</artifactId>
     </dependency>
 
     <dependency>
@@ -365,31 +311,21 @@
       <artifactId>commons-lang3</artifactId>
       <version>3.18.0</version>
     </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.jaxrs</groupId>
-      <artifactId>jackson-jaxrs-json-provider</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.module</groupId>
-      <artifactId>jackson-module-kotlin</artifactId>
-    </dependency>
-
+    <!-- 0.2.13+ contains the JsonNullableJackson3Module used by the generated client (useJackson3) -->
     <dependency>
       <groupId>org.openapitools</groupId>
       <artifactId>jackson-databind-nullable</artifactId>
-      <version>0.2.6</version>
+      <version>0.2.13</version>
     </dependency>
 
+    <!-- jersey (alfresco webscript client) and jakarta.ws.rs-api versions come from spring-boot-dependencies -->
     <dependency>
       <groupId>org.glassfish.jersey.core</groupId>
       <artifactId>jersey-client</artifactId>
-      <version>3.1.2</version>
     </dependency>
     <dependency>
       <groupId>org.glassfish.jersey.core</groupId>
       <artifactId>jersey-common</artifactId>
-      <version>3.1.3</version>
     </dependency>
     <dependency>
       <groupId>org.springframework</groupId>

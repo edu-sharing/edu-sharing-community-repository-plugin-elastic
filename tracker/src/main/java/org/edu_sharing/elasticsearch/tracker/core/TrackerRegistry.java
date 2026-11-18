@@ -2,7 +2,6 @@ package org.edu_sharing.elasticsearch.tracker.core;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -48,8 +47,8 @@ public class TrackerRegistry {
      * @return the {@link TrackerConfig} instance matching the provided name
      * @throws IllegalArgumentException if no tracker configuration is found with the specified name
      */
-    @NotNull
-    public TrackerConfig<?, ?> getTrackerConfigByName(@NonNull @NotNull String part) {
+    @org.jspecify.annotations.NonNull
+    public TrackerConfig<?, ?> getTrackerConfigByName(@NonNull String part) {
         return allTrackerConfigs.stream()
                 .filter(x -> x.getName().equals(part))
                 .findFirst()

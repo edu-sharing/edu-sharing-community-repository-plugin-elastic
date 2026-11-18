@@ -129,7 +129,7 @@ public class NodeFailureService {
                     .index(index)
                     .id(id)
                     .retryOnConflict(updateRetryOnConflict)
-                    .script(s -> s.source(SCRIPT_TOUCH).params(params))
+                    .script(s -> s.source(ss -> ss.scriptString(SCRIPT_TOUCH)).params(params))
                     .upsert(JsonData.of(initial)));
             client.update(request, JsonData.class);
         } catch (Exception e) {

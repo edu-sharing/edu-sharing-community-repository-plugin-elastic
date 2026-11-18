@@ -2,18 +2,18 @@ package org.edu_sharing.elasticsearch.elasticsearch.config;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.synonyms.ElasticsearchSynonymsClient;
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+import co.elastic.clients.json.jackson.Jackson3JsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 public class ElasticsearchConfig {
@@ -56,13 +56,15 @@ public class ElasticsearchConfig {
 
     @Bean
     public ElasticsearchTransport transport(RestClient restClient) {
-        ObjectMapper objectMapper = new ObjectMapper()
-                .configure(SerializationFeature.INDENT_OUTPUT, false)
-                .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-                .registerModule(new JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        // jackson 2 defaults keep the document format as before the switch to jackson 3,
+        // java.time support is built into jackson 3 (no JavaTimeModule needed)
+        JsonMapper jsonMapper = JsonMapper.builderWithJackson2Defaults()
+                .disable(SerializationFeature.INDENT_OUTPUT)
+                .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(JsonInclude.Include.NON_NULL))
+                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .build();
 
-        return new RestClientTransport(restClient, new JacksonJsonpMapper(objectMapper));
+        return new RestClientTransport(restClient, new Jackson3JsonpMapper(jsonMapper));
     }
 
     @Bean

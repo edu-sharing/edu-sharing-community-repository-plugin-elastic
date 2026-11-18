@@ -1,13 +1,5 @@
 package org.edu_sharing.elasticsearch.alfresco.client;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.deser.DeserializationProblemHandler;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.fasterxml.jackson.jakarta.rs.json.JacksonJsonProvider;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.*;
 import lombok.RequiredArgsConstructor;
@@ -18,13 +10,19 @@ import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.repository.client.tools.CCConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ValueDeserializer;
+import tools.jackson.databind.deser.DeserializationProblemHandler;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.jakarta.rs.json.JacksonJsonProvider;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.glassfish.jersey.logging.LoggingFeature;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -89,20 +87,20 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
     }
 
     /**
-     * Builds a lenient {@link ObjectMapper} for the Alfresco responses: unknown JSON fields must not
+     * Builds a lenient {@link JsonMapper} for the Alfresco responses: unknown JSON fields must not
      * break deserialization of a whole batch (the Alfresco SOLR API occasionally adds fields such as
      * {@code "status"} that the model classes do not declare). Unknown fields are skipped and logged
      * once per (class, field) so that genuine API drift stays visible.
+     * Jackson 2 defaults keep the behaviour as before the switch to jackson 3 (e.g. null for primitives).
      */
-    ObjectMapper buildObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        mapper.addHandler(new DeserializationProblemHandler() {
+    JsonMapper buildObjectMapper() {
+        return JsonMapper.builderWithJackson2Defaults()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .addHandler(new DeserializationProblemHandler() {
             @Override
             public boolean handleUnknownProperty(DeserializationContext ctxt, JsonParser p,
-                                                 JsonDeserializer<?> deserializer, Object beanOrClass,
-                                                 String propertyName) throws IOException {
+                                                 ValueDeserializer<?> deserializer, Object beanOrClass,
+                                                 String propertyName) {
                 String key = beanOrClass.getClass().getName() + "#" + propertyName;
                 if (loggedUnknownProps.add(key)) {
                     log.warn("Ignoring unknown JSON field '{}' for {} (Alfresco API drift?)",
@@ -111,8 +109,7 @@ public class AlfrescoWebscriptClient implements AlfrescoApi {
                 p.skipChildren();
                 return true;
             }
-        });
-        return mapper;
+        }).build();
     }
 
     public List<Node> getNodes(GetNodeParam p) {

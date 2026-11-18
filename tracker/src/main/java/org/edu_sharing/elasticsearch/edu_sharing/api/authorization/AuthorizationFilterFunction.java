@@ -2,13 +2,13 @@ package org.edu_sharing.elasticsearch.edu_sharing.api.authorization;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.logging.log4j.util.Strings;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
 import reactor.core.publisher.Mono;
+import org.jspecify.annotations.NonNull;
 
 @RequiredArgsConstructor
 public class AuthorizationFilterFunction implements ExchangeFilterFunction {
@@ -20,9 +20,9 @@ public class AuthorizationFilterFunction implements ExchangeFilterFunction {
     private String token;
 
 
-    @NotNull
+    @NonNull
     @Override
-    public Mono<ClientResponse> filter(@NotNull ClientRequest request, @NotNull ExchangeFunction next) {
+    public Mono<ClientResponse> filter(@NonNull ClientRequest request, @NonNull ExchangeFunction next) {
         if (Strings.isEmpty(token)) {
             return this.throughGetToken(request, next);
         }

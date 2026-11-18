@@ -1,6 +1,5 @@
 package org.edu_sharing.elasticsearch.edu_sharing.api.preview;
 
-import org.jetbrains.annotations.NotNull;
 import org.reactivestreams.Publisher;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.codec.Decoder;
@@ -13,6 +12,7 @@ import reactor.core.publisher.Mono;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.NonNull;
 
 public class PreviewDataDecoder implements Decoder<PreviewData> {
 
@@ -21,17 +21,17 @@ public class PreviewDataDecoder implements Decoder<PreviewData> {
         return elementType.toClass() == PreviewData.class;
     }
 
-    @NotNull
+    @NonNull
     @Override
-    public Flux<PreviewData> decode(@NotNull Publisher<DataBuffer> inputStream, @NotNull ResolvableType elementType,
+    public Flux<PreviewData> decode(@NonNull Publisher<DataBuffer> inputStream, @NonNull ResolvableType elementType,
                                     MimeType mimeType, Map<String, Object> hints) {
         // Optional: falls Stream-Parsing benötigt wird
         throw new UnsupportedOperationException("Stream decoding not supported");
     }
 
-    @NotNull
+    @NonNull
     @Override
-    public Mono<PreviewData> decodeToMono(@NotNull Publisher<DataBuffer> inputStream, @NotNull ResolvableType elementType,
+    public Mono<PreviewData> decodeToMono(@NonNull Publisher<DataBuffer> inputStream, @NonNull ResolvableType elementType,
                                           MimeType mimeType, Map<String, Object> hints) {
         return DataBufferUtils.join(inputStream)
                 .map(dataBuffer -> {
@@ -46,7 +46,7 @@ public class PreviewDataDecoder implements Decoder<PreviewData> {
     }
 
 
-    @NotNull
+    @NonNull
     @Override
     public List<MimeType> getDecodableMimeTypes() {
         return Collections.emptyList();

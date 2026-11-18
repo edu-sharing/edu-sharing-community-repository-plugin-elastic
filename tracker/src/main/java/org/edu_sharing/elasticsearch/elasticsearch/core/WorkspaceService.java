@@ -36,8 +36,6 @@ import org.edu_sharing.elasticsearch.tracker.cascade.CascadeTracker;
 import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.*;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.BasicJsonParser;
 import org.springframework.boot.json.JsonParseException;
@@ -59,6 +57,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 @Slf4j
 @Component
@@ -129,7 +128,7 @@ public class WorkspaceService implements SearchHitsRunner {
                 .conflicts(Conflicts.Proceed)
                 .refresh(false)
                 .script(scr -> scr
-                        .source("ctx._source.permissions=params")
+                        .source(ss -> ss.scriptString("ctx._source.permissions=params"))
                         .params(permissions.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, x -> JsonData.of(x.getValue())))))
         );
 
@@ -169,7 +168,7 @@ public class WorkspaceService implements SearchHitsRunner {
                 .conflicts(Conflicts.Proceed)
                 .refresh(false)
                 .script(scr -> scr
-                        .source(SCRIPT_UPDATE_COLLECTION_PERMISSIONS)
+                        .source(ss -> ss.scriptString(SCRIPT_UPDATE_COLLECTION_PERMISSIONS))
                         .params("aclId", JsonData.of(aclId))
                         .params("permissions", JsonData.of(permissions)))
         );
@@ -217,7 +216,7 @@ public class WorkspaceService implements SearchHitsRunner {
                 .query(q -> q.term(t -> t.field("scope_ids").value(scopeId)))
                 .conflicts(Conflicts.Proceed)
                 .refresh(false)
-                .script(src -> src.source(script).params("scopeId", JsonData.of(scopeId))));
+                .script(src -> src.source(ss -> ss.scriptString(script)).params("scopeId", JsonData.of(scopeId))));
         for (BulkIndexByScrollFailure failure : response.failures()) {
             log.error("scopes: removing scope {} failed: {}", scopeId, failure.cause());
         }
@@ -302,7 +301,7 @@ public class WorkspaceService implements SearchHitsRunner {
                     .index(index)
                     .id(nodeId)
                     .retryOnConflict(updateRetryOnConflict)
-                    .script(s -> s.source(script).params("value", value)));
+                    .script(s -> s.source(ss -> ss.scriptString(script)).params("value", value)));
             primary = client.update(request, Void.class).result();
         } catch (ElasticsearchException e) {
             boolean missing = e.status() == 404
@@ -322,7 +321,7 @@ public class WorkspaceService implements SearchHitsRunner {
                         .must(m -> m.term(t -> t.field("properties." + CCConstants.getValidLocalName(CCConstants.CCM_PROP_IO_PUBLISHED_ORIGINAL)).value(nodeId)))))
                 .conflicts(Conflicts.Proceed)
                 .refresh(false)
-                .script(src -> src.source(script).params("value", value)));
+                .script(src -> src.source(ss -> ss.scriptString(script)).params("value", value)));
 
         for (BulkIndexByScrollFailure failure : response.failures()) {
             log.error("{}: update of published copy of {} failed: {}", field, nodeId, failure.cause());
@@ -501,7 +500,7 @@ public class WorkspaceService implements SearchHitsRunner {
                         .id(Tools.getUUID(node.getNodeRef()))
                         .action(a -> a
                                 .script(s -> s
-                                        .source(scriptSource.toString().trim())
+                                        .source(ss -> ss.scriptString(scriptSource.toString().trim()))
                                         .params(scriptParams)
                                 )
                                 .upsert(JsonData.of(dataRaw)) // Wenn neu, dann das komplette Dokument
@@ -1180,7 +1179,7 @@ public class WorkspaceService implements SearchHitsRunner {
     }
 
 
-    public FieldUpdateOutcome updateNodesWithSuggestions(String nodeId, @NotNull Collection<Map<String, Object>> suggestions) throws IOException {
+    public FieldUpdateOutcome updateNodesWithSuggestions(String nodeId, @org.jspecify.annotations.NonNull Collection<Map<String, Object>> suggestions) throws IOException {
         return updateNodeAndPublishedCopies(nodeId, "suggestions", JsonData.of(suggestions));
     }
 
@@ -1774,7 +1773,7 @@ public class WorkspaceService implements SearchHitsRunner {
                                 .id(nodeUuid)
                                 .script(scr -> scr
                                         .lang("painless")
-                                        .source("for(String prop : params.propsToRemove){ctx._source.remove(prop)}")
+                                        .source(ss -> ss.scriptString("for(String prop : params.propsToRemove){ctx._source.remove(prop)}"))
                                         .params("propsToRemove", JsonData.of(propsToRemove))),
                         Map.class);
             }

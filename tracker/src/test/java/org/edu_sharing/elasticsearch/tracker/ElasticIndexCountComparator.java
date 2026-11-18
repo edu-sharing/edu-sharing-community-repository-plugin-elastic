@@ -6,7 +6,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.core.search.ResponseBody;
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+import co.elastic.clients.json.jackson.Jackson3JsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
 import org.apache.http.HttpHost;
@@ -33,7 +33,7 @@ public class ElasticIndexCountComparator {
         ).build();
 
         ElasticsearchTransport transport =
-                new RestClientTransport(restClient, new JacksonJsonpMapper());
+                new RestClientTransport(restClient, new Jackson3JsonpMapper());
 
         ElasticsearchClient client = new ElasticsearchClient(transport);
 

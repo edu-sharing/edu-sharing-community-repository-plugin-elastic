@@ -92,10 +92,10 @@ public class Migrations {
                 .version("11.0")
                 .workspaceMigrationScript(Script.of(s -> s
                         .lang("painless")
-                        .source(workspaceScript)))
+                        .source(ss -> ss.scriptString(workspaceScript))))
                 .authoritiesMigrationScript(Script.of(s -> s
                         .lang("painless")
-                        .source(authorityScript)))
+                        .source(ss -> ss.scriptString(authorityScript))))
                 .build();
     }
 

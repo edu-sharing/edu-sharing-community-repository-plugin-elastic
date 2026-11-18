@@ -1,7 +1,6 @@
 package org.edu_sharing.elasticsearch.tracker.suggestions;
 
 import co.elastic.clients.elasticsearch.core.GetResponse;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.edu_sharing.api.EduSharingService;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
@@ -14,6 +13,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -46,7 +47,7 @@ class SuggestionTrackerTest {
         AlfTransactionTrackerProperties props = new AlfTransactionTrackerProperties();
         props.setThreads(1);
 
-        tracker = new SuggestionTracker(props, new ObjectMapper());
+        tracker = new SuggestionTracker(props, new JsonMapper());
         tracker.setEduSharingService(eduSharingService);
         tracker.setWorkspaceService(workspaceService);
     }

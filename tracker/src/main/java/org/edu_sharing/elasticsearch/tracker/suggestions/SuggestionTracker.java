@@ -1,8 +1,6 @@
 package org.edu_sharing.elasticsearch.tracker.suggestions;
 
 import co.elastic.clients.elasticsearch.core.GetResponse;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.edu_sharing.elasticsearch.alfresco.client.Node;
 import org.edu_sharing.elasticsearch.elasticsearch.core.WorkspaceService;
@@ -11,21 +9,23 @@ import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractAlfTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.core.config.AlfTransactionTrackerProperties;
 import org.edu_sharing.generated.repository.backend.services.rest.client.model.PropertySuggestion;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.Nullable;
 
 @Slf4j
 @Component
 public class SuggestionTracker extends AbstractAlfTransactionTracker<AlfTransactionTrackerProperties> {
 
-    private final ObjectMapper mapper;
+    private final JsonMapper mapper;
 
-    public SuggestionTracker(AlfTransactionTrackerProperties suggestionTrackerProperties, ObjectMapper mapper) {
+    public SuggestionTracker(AlfTransactionTrackerProperties suggestionTrackerProperties, JsonMapper mapper) {
         super(suggestionTrackerProperties);
         this.mapper = mapper;
     }

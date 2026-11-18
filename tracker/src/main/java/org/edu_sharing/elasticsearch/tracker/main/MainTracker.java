@@ -13,7 +13,6 @@ import org.edu_sharing.elasticsearch.tracker.core.AbstractAlfTransactionTracker;
 import org.edu_sharing.elasticsearch.tracker.core.config.AlfTransactionTrackerProperties;
 import org.edu_sharing.elasticsearch.tracker.utils.Partition;
 import org.edu_sharing.repository.client.tools.CCConstants;
-import org.jetbrains.annotations.NotNull;
 import org.edu_sharing.elasticsearch.tracker.scope.ScopeFieldsWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -22,6 +21,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.NonNull;
 
 @Slf4j
 @Component
@@ -142,7 +142,7 @@ public class MainTracker extends AbstractAlfTransactionTracker<AlfTransactionTra
         return nodeData;
     }
 
-    @NotNull
+    @NonNull
     private List<NodeMetadata> addNodesWithSubobjectChangesAndFilterDisallowedTypes(List<NodeMetadata> nodeData) throws IOException {
         List<NodeMetadata> toIndexMd = new ArrayList<>();
         Set<String> parentIds = new HashSet<>();

@@ -18,7 +18,6 @@ import org.edu_sharing.elasticsearch.tracker.core.TrackerConfig;
 import org.edu_sharing.elasticsearch.tracker.core.TrackerExecutorFactory;
 import org.edu_sharing.elasticsearch.tracker.core.TrackerRegistry;
 import org.edu_sharing.elasticsearch.tracker.strategy.CommitTimeStatus;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +26,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.jspecify.annotations.NonNull;
 
 @Slf4j
 @Component
@@ -245,7 +245,7 @@ public class MigrationService {
         }
     }
 
-    @NotNull
+    @NonNull
     private Script mergeScripts(Script lhs, Script rhs) {
         if (lhs.params().keySet().stream().anyMatch(key -> rhs.params().containsKey(key))) {
             throw new IllegalArgumentException("Script params must not overlap");
@@ -267,11 +267,17 @@ public class MigrationService {
             throw new IllegalArgumentException("Script source must be set");
         }
 
+        if (!lhs.source().isScriptString() || !rhs.source().isScriptString()) {
+            throw new IllegalArgumentException("Script source must be a script string");
+        }
+
         Script.Builder builder = new Script.Builder();
         builder.lang(lhs.lang());
-        String lhsSource = lhs.source().trim().endsWith(";") ? lhs.source() : lhs.source() + ";";
-        String rhsSource = rhs.source().trim().endsWith(";") ? lhs.source() : lhs.source() + ";";
-        builder.source(String.join("\n", lhsSource, rhsSource));
+        String lhsScript = lhs.source().scriptString();
+        String rhsScript = rhs.source().scriptString();
+        String lhsSource = lhsScript.trim().endsWith(";") ? lhsScript : lhsScript + ";";
+        String rhsSource = rhsScript.trim().endsWith(";") ? lhsScript : lhsScript + ";";
+        builder.source(ss -> ss.scriptString(String.join("\n", lhsSource, rhsSource)));
 
         Map<String, JsonData> params = new HashMap<>(lhs.params());
         params.putAll(rhs.params());

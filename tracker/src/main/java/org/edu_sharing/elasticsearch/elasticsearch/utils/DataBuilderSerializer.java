@@ -1,11 +1,13 @@
 package org.edu_sharing.elasticsearch.elasticsearch.utils;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.NonNull;
-import org.jetbrains.annotations.NotNull;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 public class DataBuilderSerializer {
+
+    // jackson 2 defaults keep the serialized form as before the switch to jackson 3 (e.g. dates as timestamps)
+    private static final JsonMapper MAPPER = JsonMapper.builderWithJackson2Defaults().build();
 
     /**
      * Serializes the given data object into a format compatible with
@@ -15,9 +17,8 @@ public class DataBuilderSerializer {
      *                    must not be {@code null}.
      * @param data        the object to serialize; must not be {@code null}.
      */
-    public static void serialize(@NotNull @NonNull DataBuilder dataBuilder, @NotNull @NonNull Object data) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        JsonNode jsonNode = objectMapper.valueToTree(data);
+    public static void serialize(@NonNull DataBuilder dataBuilder, @NonNull Object data) {
+        JsonNode jsonNode = MAPPER.valueToTree(data);
         writeNode(dataBuilder, jsonNode);
     }
 
@@ -73,9 +74,9 @@ public class DataBuilderSerializer {
             }
         } else {
             if (fieldName != null) {
-                dataBuilder.field(fieldName, value.asText());
+                dataBuilder.field(fieldName, value.asString());
             } else {
-                dataBuilder.value(value.asText());
+                dataBuilder.value(value.asString());
             }
         }
     }

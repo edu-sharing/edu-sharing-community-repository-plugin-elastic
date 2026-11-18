@@ -56,7 +56,7 @@ public class PreviewTracker extends AbstractAlfTransactionTracker<AlfTransaction
                             .id(Tools.getUUID(node.getNodeRef()))
                             .action(a -> a.script(
                                     s -> s
-                                    .source("ctx._source.preview = params.new_preview")
+                                    .source(ss -> ss.scriptString("ctx._source.preview = params.new_preview"))
                                     .params("new_preview", JsonData.of(builder.build()))
                             ))
                             )

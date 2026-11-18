@@ -21,7 +21,8 @@ deploy/docker/
 ```
 
 Shared base images & versions are centralized in `deploy/docker/pom.xml` — notably
-`elastic.stack.version` (8.18.1, must match the client version in `tracker/`) and
+`elastic.stack.version` (9.5.6, must match the client version in `tracker/`; the base image tag is
+`elastic.stack.image.tag`) and
 `docker.from.openjdk.21.liberica.debian` (the tracker base image).
 
 ## docker/build/tracker (focus)

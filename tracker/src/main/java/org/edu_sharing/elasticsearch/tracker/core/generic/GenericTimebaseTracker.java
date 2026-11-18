@@ -7,7 +7,6 @@ import org.edu_sharing.elasticsearch.tools.Tools;
 import org.edu_sharing.elasticsearch.tracker.core.AbstractTracker;
 import org.edu_sharing.elasticsearch.tracker.core.TrackingContext;
 import org.edu_sharing.elasticsearch.tracker.strategy.CommitTimeStatus;
-import org.jetbrains.annotations.NotNull;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -24,7 +23,7 @@ public class GenericTimebaseTracker<PROPS extends GenericTimebaseTrackerProperti
 
     protected final GenericTrackingSupport<DATA> trackingSupport;
 
-    public GenericTimebaseTracker(PROPS props, @NotNull @NonNull GenericTrackingSupport<DATA> trackingSupport) {
+    public GenericTimebaseTracker(PROPS props, @NonNull GenericTrackingSupport<DATA> trackingSupport) {
         super(props);
         this.trackingSupport = trackingSupport;
     }
