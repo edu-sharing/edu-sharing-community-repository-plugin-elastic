@@ -270,7 +270,7 @@ public class MigrationService {
         Script.Builder builder = new Script.Builder();
         builder.lang(lhs.lang());
         String lhsSource = lhs.source().trim().endsWith(";") ? lhs.source() : lhs.source() + ";";
-        String rhsSource = rhs.source().trim().endsWith(";") ? lhs.source() : lhs.source() + ";";
+        String rhsSource = rhs.source().trim().endsWith(";") ? rhs.source() : rhs.source() + ";";
         builder.source(String.join("\n", lhsSource, rhsSource));
 
         Map<String, JsonData> params = new HashMap<>(lhs.params());
