@@ -22,9 +22,10 @@
     <spring.boot.version>3.5.16</spring.boot.version>
     <!-- security overrides of versions managed by spring-boot-dependencies; the BOM is imported,
          so its own properties can't be overridden and the versions are pinned explicitly below -->
-    <tomcat-embed.version>10.1.60</tomcat-embed.version>
+    <tomcat-embed.version>10.1.62</tomcat-embed.version>
     <netty.version>4.1.139.Final</netty.version>
     <jackson2.version>2.21.7</jackson2.version>
+    <jackson3.version>3.1.7</jackson3.version>
     <log4j2.version>2.25.5</log4j2.version>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
@@ -144,6 +145,15 @@
         <groupId>com.fasterxml.jackson</groupId>
         <artifactId>jackson-bom</artifactId>
         <version>${jackson2.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- elasticsearch-java brings jackson 3 (tools.jackson) 3.0.x at runtime -->
+      <dependency>
+        <groupId>tools.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>${jackson3.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
