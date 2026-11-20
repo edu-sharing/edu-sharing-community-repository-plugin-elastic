@@ -22,6 +22,7 @@
     <spring.boot.version>3.5.15</spring.boot.version>
     <tomcat.version>10.1.61</tomcat.version>
     <jackson-bom.version>2.21.7</jackson-bom.version>
+    <jackson3-bom.version>3.1.7</jackson3-bom.version>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
     <java.version>17</java.version>
@@ -109,6 +110,16 @@
         <groupId>com.fasterxml.jackson</groupId>
         <artifactId>jackson-bom</artifactId>
         <version>${jackson-bom.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- security update: elasticsearch-java brings jackson 3 (tools.jackson) 3.0.0 at runtime,
+           can be removed again once elasticsearch-java ships a fixed jackson 3 version -->
+      <dependency>
+        <groupId>tools.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>${jackson3-bom.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
