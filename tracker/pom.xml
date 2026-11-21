@@ -20,6 +20,7 @@
 
   <properties>
     <spring.boot.version>2.7.18</spring.boot.version>
+    <tomcat.version>9.0.124</tomcat.version>
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
     <java.version>11</java.version>
@@ -80,6 +81,24 @@
         <type>pom</type>
       </dependency>
 
+      <!-- security update: override the tomcat version of spring-boot-dependencies (9.0.83),
+           must be declared before the import, first declaration wins.
+           can be removed again once spring boot ships a fixed tomcat version -->
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-core</artifactId>
+        <version>${tomcat.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-el</artifactId>
+        <version>${tomcat.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-websocket</artifactId>
+        <version>${tomcat.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>org.springframework.boot</groupId>
