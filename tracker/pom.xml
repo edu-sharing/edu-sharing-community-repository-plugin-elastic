@@ -20,7 +20,7 @@
 
   <properties>
     <spring.boot.version>3.5.15</spring.boot.version>
-    <tomcat.version>10.1.61</tomcat.version>
+    <tomcat.version>10.1.62</tomcat.version>
     <jackson-bom.version>2.21.7</jackson-bom.version>
     <jackson3-bom.version>3.1.7</jackson3-bom.version>
     <maven.compiler.source>17</maven.compiler.source>
